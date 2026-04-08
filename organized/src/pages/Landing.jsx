@@ -368,7 +368,7 @@ export default function Landing() {
             <div className="hero-label-line"/>
           </div>
           <h1 className="hero-h1">
-            Stop losing clients<br/>because your<br/>bookings <br/>are a <em>mess.</em>
+      you're losing clients<br/>because your<br/>bookings <br/>are a <em>mess.</em>
           </h1>
           <div className="hero-divider"/>
           <p className="hero-sub">
