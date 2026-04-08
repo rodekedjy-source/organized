@@ -372,7 +372,7 @@ export default function Landing() {
           </h1>
           <div className="hero-divider"/>
           <p className="hero-sub">
-            You didn't spend years mastering your craft to spend your days <strong>managing DMs, chasing clients, and losing bookings</strong> to a chaotic inbox. There's a better way.
+            Organized gives you a simple system to <strong>manage bookings,clients,payments </strong> all in <strong>One</strong>.
           </p>
           <div className="hero-actions">
             <button className="btn-gold-lg" onClick={()=>navigate('/auth')}>Start free — no card needed</button>
