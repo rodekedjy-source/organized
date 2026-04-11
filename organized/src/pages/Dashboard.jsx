@@ -19,7 +19,7 @@ export default function Dashboard({ session }) {
 
   function showToast(msg) { setToast(msg); setTimeout(() => setToast(''), 3000) }
 
-  async function handleSignOut() { await supabase.auth.signOut() }
+ async function handleSignOut() { await supabase.auth.signOut(); window.location.href = '/' }
 
   const navItems = [
     { key: 'overview', label: 'Overview' },
@@ -885,6 +885,11 @@ const css = `
 .db-btn-xs{padding:.25rem .65rem;font-size:.72rem;}
 .db-stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem;}
 .db-stat-card{background:#fff;border:1px solid var(--border);border-radius:10px;padding:1.25rem 1.4rem;}
+.db-stat-card-btn{width:100%;text-align:left;cursor:pointer;font-family:inherit;position:relative;transition:transform .18s cubic-bezier(.34,1.56,.64,1),box-shadow .18s ease,border-color .18s ease;}
+.db-stat-card-btn:hover{transform:translateY(-2px) scale(1.02);box-shadow:0 8px 24px rgba(0,0,0,.09);border-color:var(--gold);}
+.db-stat-card-btn:active{transform:scale(0.97);box-shadow:none;}
+.db-stat-arrow{position:absolute;bottom:1rem;right:1.2rem;font-size:.85rem;color:var(--gold);opacity:0;transform:translateX(-4px);transition:opacity .18s ease,transform .18s ease;}
+.db-stat-card-btn:hover .db-stat-arrow{opacity:1;transform:translateX(0);}
 .db-stat-label{font-size:.72rem;font-weight:500;color:var(--ink-3);letter-spacing:.05em;text-transform:uppercase;margin-bottom:.5rem;}
 .db-stat-value{font-family:'Playfair Display',serif;font-size:1.85rem;font-weight:500;color:var(--ink);line-height:1;}
 .db-stat-delta{font-size:.73rem;color:var(--ink-3);margin-top:.4rem;}
