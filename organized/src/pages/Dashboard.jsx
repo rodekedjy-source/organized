@@ -79,7 +79,7 @@ export default function Dashboard({ session }) {
           </aside>
 
           <main className="db-main">
-            {page === 'overview' && <Overview workspace={workspace} toast={showToast}/>}
+            {page === 'overview' && <Overview workspace={workspace} toast={showToast} setPage={setPage}/>}
             {page === 'services' && <Services workspace={workspace} toast={showToast}/>}
             {page === 'appointments' && <Appointments workspace={workspace} toast={showToast}/>}
             {page === 'products' && <Products workspace={workspace} toast={showToast}/>}
@@ -95,7 +95,7 @@ export default function Dashboard({ session }) {
   )
 }
 
-function Overview({ workspace, toast }) {
+function Overview({ workspace, toast, setPage }) {
   const [appts, setAppts] = useState([])
   const [stats, setStats] = useState({ revenue:0, appointments:0, products:0, students:0, pending:0 })
 
@@ -151,17 +151,18 @@ function Overview({ workspace, toast }) {
 
       <div className="db-stats-row">
         {[
-          {label:'Revenue', value:fmt(stats.revenue), delta:'Completed appointments'},
-          {label:'Appointments', value:stats.appointments, delta:`${stats.pending} pending`},
-          {label:'Products', value:stats.products, delta:'Listed'},
-          {label:'Students', value:stats.students, delta:'Total enrollments'},
-        ].map((s,i)=>(
-          <div key={i} className="db-stat-card">
-            <div className="db-stat-label">{s.label}</div>
-            <div className="db-stat-value">{s.value}</div>
-            <div className="db-stat-delta">{s.delta}</div>
-          </div>
-        ))}
+         {label:'Total Revenue',   value:fmt(stats.revenue),      delta:'All time',          page:'appointments'},
+{label:'Appointments',    value:stats.appointments,       delta:'Total bookings',    page:'appointments'},
+{label:'Products',        value:stats.products,           delta:'Listed',            page:'products'},
+{label:'Students',        value:stats.students,           delta:'Total enrollments', page:'formations'},
+       ].map((s,i)=>(
+  <button key={i} className="db-stat-card db-stat-card-btn" onClick={()=>setPage(s.page)}>
+    <div className="db-stat-label">{s.label}</div>
+    <div className="db-stat-value">{s.value}</div>
+    <div className="db-stat-delta">{s.delta}</div>
+    <div className="db-stat-arrow">→</div>
+  </button>
+))}
       </div>
 
       <div className="db-card">
