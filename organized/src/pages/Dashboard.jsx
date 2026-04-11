@@ -473,7 +473,7 @@ function Overview({ workspace, session, toast, setPage, refetchWorkspace }) {
   )
 }
 
-// ── APPOINTMENTS ──────────────────────────────────────────────────────────────
+// ── APPOINTMENTS ──────────────────────────────────────────
 function Appointments({ workspace, toast }) {
   const [data,setData]=useState([])
   const [loading,setLoading]=useState(true)
@@ -488,7 +488,6 @@ function Appointments({ workspace, toast }) {
   },[workspace])
 
   async function fetchData(){
-    // FIX: join services(name)
     const{data}=await supabase.from('appointments')
       .select('*, services(name)')
       .eq('workspace_id',workspace.id)
@@ -520,51 +519,62 @@ function Appointments({ workspace, toast }) {
         ))}
       </div>
 
+      {/* Pending — cartes avec boutons toujours visibles */}
       {pending.length>0&&(
         <div className="card" style={{marginBottom:'1.25rem'}}>
-          <div className="card-head"><div className="card-title">Pending confirmation</div><span className="badge badge-pending">{pending.length} waiting</span></div>
-          <table className="tbl">
-            <thead><tr><th>Client</th><th>Service</th><th>Date</th><th>Time</th><th>Amount</th><th>Actions</th></tr></thead>
-            <tbody>{pending.map(a=>(
-              <tr key={a.id}>
-                <td className="tbl-name">{a.client_name}</td>
-                <td>{svcName(a)}</td>{/* FIX */}
-                <td>{new Date(a.scheduled_at).toLocaleDateString()}</td>
-                <td>{new Date(a.scheduled_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</td>
-                <td className="tbl-amount">{fmtRev(a.amount)}</td>
-                <td><div style={{display:'flex',gap:'.4rem'}}>
-                  <button className="btn btn-primary btn-xs" onClick={()=>confirm(a.id)}>&#10003; Confirm</button>
-                  <button className="btn btn-xs" style={{color:'#c0392b',border:'1px solid #fecaca',background:'var(--surface)'}} onClick={()=>decline(a.id)}>&#10005; Decline</button>
-                </div></td>
-              </tr>
-            ))}</tbody>
-          </table>
+          <div className="card-head">
+            <div className="card-title">Pending confirmation</div>
+            <span className="badge badge-pending">{pending.length} waiting</span>
+          </div>
+          <div style={{padding:'.75rem'}}>
+            {pending.map(a=>(
+              <div key={a.id} className="appt-card">
+                <div className="appt-card-top">
+                  <div>
+                    <div className="appt-card-name">{a.client_name}</div>
+                    <div className="appt-card-meta">{a.services?.name||'—'} &middot; {new Date(a.scheduled_at).toLocaleDateString()} &middot; {new Date(a.scheduled_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</div>
+                  </div>
+                  <div className="appt-card-amount">{fmtRev(a.amount)}</div>
+                </div>
+                <div className="appt-card-actions">
+                  <button className="btn btn-xs" style={{flex:1,justifyContent:'center',color:'#c0392b',border:'1px solid #fecaca',background:'#fff'}} onClick={()=>decline(a.id)}>&#10005; Decline</button>
+                  <button className="btn btn-primary btn-xs" style={{flex:1,justifyContent:'center'}} onClick={()=>confirm(a.id)}>&#10003; Confirm</button>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
+      {/* All appointments — cartes */}
       <div className="card">
         <div className="card-head"><div className="card-title">All appointments</div></div>
-        {loading?<div style={{padding:'2rem',color:'var(--ink-3)'}}>Loading...</div>
+        {loading
+          ?<div style={{padding:'2rem',color:'var(--ink-3)'}}>Loading...</div>
           :rest.length===0&&pending.length===0
             ?<div className="empty-state"><div className="empty-icon">{I.cal}</div><div className="empty-title">No appointments yet</div><div className="empty-sub">When clients book, they'll appear here.</div></div>
-            :<table className="tbl">
-              <thead><tr><th>Client</th><th>Service</th><th>Date</th><th>Time</th><th>Amount</th><th>Status</th></tr></thead>
-              <tbody>{rest.map(a=>(
-                <tr key={a.id}>
-                  <td className="tbl-name">{a.client_name}</td>
-                  <td>{svcName(a)}</td>{/* FIX */}
-                  <td>{new Date(a.scheduled_at).toLocaleDateString()}</td>
-                  <td>{new Date(a.scheduled_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</td>
-                  <td className="tbl-amount">{fmtRev(a.amount)}</td>
-                  <td><span className={`badge badge-${a.status}`}>{a.status}</span></td>
-                </tr>
-              ))}</tbody>
-            </table>
+            :<div style={{padding:'.75rem'}}>
+              {rest.map(a=>(
+                <div key={a.id} className="appt-card appt-card-done">
+                  <div className="appt-card-top">
+                    <div>
+                      <div className="appt-card-name">{a.client_name}</div>
+                      <div className="appt-card-meta">{a.services?.name||'—'} &middot; {new Date(a.scheduled_at).toLocaleDateString()} &middot; {new Date(a.scheduled_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</div>
+                    </div>
+                    <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:'.35rem'}}>
+                      <div className="appt-card-amount">{fmtRev(a.amount)}</div>
+                      <span className={`badge badge-${a.status}`}>{a.status}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
         }
       </div>
     </div>
   )
 }
+
 
 // ── SERVICES ──────────────────────────────────────────────────────────────────
 function Services({ workspace, toast }) {
@@ -1323,4 +1333,12 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--ink);font-s
   .shop-grid{grid-template-columns:repeat(2,1fr);}
   .head-actions{flex-wrap:wrap;}
 }
+.appt-card{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:1rem;margin-bottom:.6rem;}
+.appt-card:last-child{margin-bottom:0;}
+.appt-card-done{background:var(--surface);}
+.appt-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;margin-bottom:.85rem;}
+.appt-card-name{font-weight:600;font-size:.88rem;color:var(--ink);margin-bottom:.2rem;}
+.appt-card-meta{font-size:.75rem;color:var(--ink-3);line-height:1.5;}
+.appt-card-amount{font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:500;color:var(--ink);flex-shrink:0;}
+.appt-card-actions{display:flex;gap:.6rem;}
 `
