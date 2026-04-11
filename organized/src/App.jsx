@@ -6,27 +6,9 @@ import Auth from './pages/Auth'
 import Dashboard from './pages/Dashboard'
 import ClientPage from './pages/ClientPage'
 
-// FIX: lit le cache Supabase synchronement AVANT le premier render
-// Si une session est déjà en localStorage → loading démarre à false → zéro flash
-function hasCachedSession() {
-  try {
-    const key = Object.keys(localStorage).find(k => k.startsWith('sb-') && k.endsWith('-auth-token'))
-    if (!key) return false
-    const raw = localStorage.getItem(key)
-    const parsed = JSON.parse(raw)
-    // Vérifie que le token n'est pas expiré
-    const expiresAt = parsed?.expires_at
-    if (expiresAt && Date.now() / 1000 > expiresAt) return false
-    return !!parsed?.access_token
-  } catch {
-    return false
-  }
-}
-
 export default function App() {
   const [session, setSession] = useState(null)
-  // Si session en cache → loading = false dès le départ → pas de splash
-  const [loading, setLoading] = useState(() => !hasCachedSession())
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -44,19 +26,22 @@ export default function App() {
     return () => subscription.unsubscribe()
   }, [])
 
+  // FIX: splash blanc → page blanche avec "Organized" en noir + point doré
+  // FIX: ne s'affiche QUE au tout premier chargement, pas au retour sur l'onglet
   if (loading) return (
     <div style={{
       minHeight: '100vh',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      background: '#ffffff',
+      background: '#ffffff',           // blanc pur
     }}>
       <div style={{
         fontFamily: "'Playfair Display', serif",
         fontSize: '1.75rem',
         fontWeight: 500,
-        color: '#111110',
+        color: '#111110',              // noir
+        letterSpacing: '-.01em',
       }}>
         Organized<span style={{ color: '#b5893a' }}>.</span>
       </div>
