@@ -8,51 +8,65 @@ import ClientPage from './pages/ClientPage'
 
 export default function App() {
   const [session, setSession] = useState(null)
+  const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
 
+  async function fetchProfile(userId) {
+    const { data } = await supabase
+      .from('users')
+      .select('onboarding_complete')
+      .eq('id', userId)
+      .single()
+    setProfile(data)
+  }
+
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session)
+      if (session?.user) await fetchProfile(session.user.id)
       setLoading(false)
     })
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setSession(session)
-      if (event === 'SIGNED_IN' && session) {
-        window.location.href = '/dashboard'
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        setSession(session)
+        if (session?.user) {
+          await fetchProfile(session.user.id)
+        } else {
+          setProfile(null)
+        }
       }
-    })
+    )
 
     return () => subscription.unsubscribe()
   }, [])
 
-  // FIX: splash blanc → page blanche avec "Organized" en noir + point doré
-  // FIX: ne s'affiche QUE au tout premier chargement, pas au retour sur l'onglet
   if (loading) return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      background: '#ffffff',           // blanc pur
-    }}>
-      <div style={{
-        fontFamily: "'Playfair Display', serif",
-        fontSize: '1.75rem',
-        fontWeight: 500,
-        color: '#111110',              // noir
-        letterSpacing: '-.01em',
-      }}>
-        Organized<span style={{ color: '#b5893a' }}>.</span>
-      </div>
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f7f5f0' }}>
+      <div style={{ fontFamily: 'Playfair Display,serif', fontSize: '1.5rem', color: '#b5893a' }}>Organized.</div>
     </div>
   )
 
   return (
     <Routes>
       <Route path="/" element={<Landing />} />
-      <Route path="/auth" element={session ? <Navigate to="/dashboard" /> : <Auth onAuth={setSession} />} />
-      <Route path="/dashboard/*" element={session ? <Dashboard session={session} /> : <Navigate to="/" />} />
+
+      <Route path="/auth" element={
+        session && profile?.onboarding_complete
+          ? <Navigate to="/dashboard" />
+          : <Auth onAuth={setSession} />
+      } />
+
+      <Route path="/dashboard/*" element={
+        !session
+          ? <Navigate to="/auth" />
+          : profile === null
+            ? <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><div style={{ fontFamily: 'Playfair Display,serif', fontSize: '1.5rem', color: '#b5893a' }}>Organized.</div></div>
+            : !profile.onboarding_complete
+              ? <Navigate to="/auth" />
+              : <Dashboard session={session} />
+      } />
+
       <Route path="/:slug" element={<ClientPage />} />
     </Routes>
   )
