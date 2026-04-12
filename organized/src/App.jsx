@@ -42,9 +42,9 @@ export default function App() {
   }, [])
 
   if (loading) return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f7f5f0' }}>
-      <div style={{ fontFamily: 'Playfair Display,serif', fontSize: '1.5rem', color: '#b5893a' }}>Organized.</div>
-    </div>
+   div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', background:'#ffffff' }}>
+  <div style={{ fontFamily:'Playfair Display,serif', fontSize:'1.5rem', color:'#0d0c0a' }}>Organized<span style={{ color:'#b5893a' }}>.</span></div>
+</div>
   )
 
   return (
