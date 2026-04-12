@@ -285,19 +285,24 @@ export default function Auth({ onAuth }) {
   }
 
   // ── LOGIN ───────────────────────────────────────────────────
-  async function submitLogin(e) {
-    e.preventDefault()
-    setError('')
-    if (!form.email || !form.password) return setError('Please fill in all fields.')
-    setLoading(true)
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: form.email, password: form.password,
-    })
-    if (error) { setError(error.message); setLoading(false); return }
-    onAuth(data.session)
-    navigate('/dashboard')
-    setLoading(false)
-  }
+ async function submitLogin(e) {
+  e.preventDefault()
+  setError('')
+  if (!form.email || !form.password) return setError('Please fill in all fields.')
+  setLoading(true)
+
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: form.email,
+    password: form.password,
+  })
+
+  if (error) { setError(error.message); setLoading(false); return }
+
+  onAuth(data.session)
+  // Laisse onAuthStateChange + fetchProfile terminer avant de naviguer
+  setTimeout(() => navigate('/dashboard'), 500)
+  setLoading(false)
+}
 
   // ── FORGOT PASSWORD ─────────────────────────────────────────
   const [forgotMode, setForgotMode] = useState(false)
