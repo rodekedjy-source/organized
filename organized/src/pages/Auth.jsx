@@ -274,6 +274,7 @@ export default function Auth({ onAuth }) {
         tagline: form.tagline, email: form.business_email,
         location: `${form.city}${form.province ? ', ' + form.province : ''}, ${form.country}`,
         slug,
+        is_published: true,
       })
 
      navigate('/dashboard')
