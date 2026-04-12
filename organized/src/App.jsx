@@ -6,6 +6,14 @@ import Auth from './pages/Auth'
 import Dashboard from './pages/Dashboard'
 import ClientPage from './pages/ClientPage'
 
+const Splash = () => (
+  <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', background:'#ffffff' }}>
+    <div style={{ fontFamily:'Playfair Display,serif', fontSize:'1.5rem', color:'#0d0c0a' }}>
+      Organized<span style={{ color:'#b5893a' }}>.</span>
+    </div>
+  </div>
+)
+
 export default function App() {
   const [session, setSession] = useState(null)
   const [profile, setProfile] = useState(null)
@@ -20,73 +28,48 @@ export default function App() {
     setProfile(data)
   }
 
- useEffect(() => {
-  // Timeout de sécurité — si ça hang plus de 3 secondes, on force
-  const timeout = setTimeout(() => setLoading(false), 3000)
+  useEffect(() => {
+    const timeout = setTimeout(() => setLoading(false), 3000)
 
-  supabase.auth.getSession().then(async ({ data: { session } }) => {
-    setSession(session)
-    if (session?.user) {
-      try {
-        await fetchProfile(session.user.id)
-      } catch {
-        // fetchProfile failed, on continue quand même
-      }
-    }
-    clearTimeout(timeout)
-    setLoading(false)
-  }).catch(() => {
-    clearTimeout(timeout)
-    setLoading(false)
-  })
-
-  const { data: { subscription } } = supabase.auth.onAuthStateChange(
-    async (event, session) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session)
       if (session?.user) {
-        try {
-          await fetchProfile(session.user.id)
-        } catch {
+        try { await fetchProfile(session.user.id) } catch {}
+      }
+      clearTimeout(timeout)
+      setLoading(false)
+    }).catch(() => { clearTimeout(timeout); setLoading(false) })
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        setSession(session)
+        if (session?.user) {
+          try { await fetchProfile(session.user.id) } catch { setProfile(null) }
+        } else {
           setProfile(null)
         }
-      } else {
-        setProfile(null)
       }
-    }
-  )
+    )
 
-  return () => {
-    subscription.unsubscribe()
-    clearTimeout(timeout)
-  }
-}, [])
+    return () => { subscription.unsubscribe(); clearTimeout(timeout) }
+  }, [])
 
-  if (loading) return (
-  < div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', background:'#ffffff' }}>
-  <div style={{ fontFamily:'Playfair Display,serif', fontSize:'1.5rem', color:'#0d0c0a' }}>Organized<span style={{ color:'#b5893a' }}>.</span></div>
-</div>
-  )
+  if (loading) return <Splash />
 
   return (
     <Routes>
       <Route path="/" element={<Landing />} />
-
       <Route path="/auth" element={
         session && profile?.onboarding_complete
           ? <Navigate to="/dashboard" />
           : <Auth onAuth={setSession} />
       } />
-
       <Route path="/dashboard/*" element={
-        !session
-          ? <Navigate to="/auth" />
-          : profile === null
-            ? <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><div style={{ fontFamily: 'Playfair Display,serif', fontSize: '1.5rem', color: '#b5893a' }}>Organized.</div></div>
-            : !profile.onboarding_complete
-              ? <Navigate to="/auth" />
-              : <Dashboard session={session} />
+        !session ? <Navigate to="/auth" /> :
+        profile === null ? <Splash /> :
+        !profile.onboarding_complete ? <Navigate to="/auth" /> :
+        <Dashboard session={session} />
       } />
-
       <Route path="/:slug" element={<ClientPage />} />
     </Routes>
   )
