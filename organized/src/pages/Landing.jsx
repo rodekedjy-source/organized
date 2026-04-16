@@ -310,10 +310,10 @@ footer{padding:2rem 1.5rem;flex-direction:column;align-items:flex-start;}
 `
 
 const plans = [
-{ tier:'Starter', amt:19, desc:‘For solo professionals getting organized.’, hot:false,
+{ tier:'Starter', amt:19, desc:'For solo professionals getting organized.', hot:false,
 feats:[{y:true,t:‘Public profile & booking page’},{y:true,t:‘Up to 5 services’},{y:true,t:‘Client management’},{y:true,t:‘Appointment dashboard’},{y:false,t:‘Product shop’},{y:false,t:‘Formations & courses’},{y:false,t:‘Revenue analytics’}]},
-{ tier:'Pro', amt:39, desc:‘For professionals building their brand.’, hot:true,
-feats:[{y:true,t:‘Everything in Starter’},{y:true,t:‘Unlimited services’},{y:true,t:‘Product shop’},{y:true,t:‘Formations & courses’},{y:true,t:‘Revenue analytics’},{y:true,t:‘Automated reminders’},{y:true,t:‘Priority support’}]},
+{ tier:'Pro', amt:39, desc:'For professionals building their brand.', hot:true,
+feats:[{y:true,t:‘Everything in Starter’},{y:true,t:‘Unlimited services’},{y:true,t:'Product shop'},{y:true,t:‘Formations & courses’},{y:true,t:‘Revenue analytics’},{y:true,t:‘Automated reminders’},{y:true,t:‘Priority support’}]},
 { tier:'Studio', amt:69, desc:‘For teams and multi-staff businesses.’, hot:false,
 feats:[{y:true,t:‘Everything in Pro’},{y:true,t:‘Up to 5 staff members’},{y:true,t:‘Custom domain’},{y:true,t:‘White-label branding’},{y:true,t:‘Priority support’},{y:true,t:‘Monthly strategy call’}]},
 ]
