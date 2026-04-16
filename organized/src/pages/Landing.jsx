@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom"
 import { useEffect, useRef, useState } from "react"
 function useReveal() {
 useEffect(() => {
-const els = document.querySelectorAll(’[data-rv]’)
+const els = document.querySelectorAll([data-rv])
 const obs = new IntersectionObserver(entries => {
 entries.forEach(e => {
 if (!e.isIntersecting) return
