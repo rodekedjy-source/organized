@@ -207,7 +207,7 @@ button:active { transform: scale(.97) !important; }
 .pricing-beta-banner { display:inline-flex; align-items:center; gap:.6rem; background:rgba(181,137,58,.08); border:1px solid rgba(181,137,58,.2); border-radius:100px; padding:.5rem 1.25rem; margin-bottom:2rem; }
 .pricing-beta-dot { width:6px; height:6px; border-radius:50%; background:var(--gold); animation:pulse 2s infinite; }
 .pricing-beta-text { font-size:.75rem; color:var(--gold); font-weight:500; letter-spacing:.02em; }
-.plans { display:grid; grid-template-columns:repeat(3,1fr); gap:1.25rem; align-items:start; }
+.plans { display:grid; grid-template-columns:repeat(2,1fr); gap:1.75rem; max-width:780px; margin:0 auto; align-items:start; }
 .plan { background:var(--cream); border:1px solid var(--border); border-radius:18px; padding:2.5rem; position:relative; transition:all .3s; }
 .plan:hover { transform:translateY(-4px); box-shadow:0 16px 48px rgba(0,0,0,.07); }
 .plan.hot { background:var(--ink); border-color:transparent; transform:translateY(-8px); box-shadow:0 24px 60px rgba(0,0,0,.18); }
@@ -381,12 +381,27 @@ footer { background:#090907; padding:3rem; border-top:1px solid rgba(255,255,255
 `
 
 const plans = [
-  { tier:'Starter', amt:19, desc:'For solo professionals getting organized.', hot:false,
-    feats:[{y:true,t:'Public profile & booking page'},{y:true,t:'Up to 5 services'},{y:true,t:'Client management'},{y:true,t:'Appointment dashboard'},{y:false,t:'Product shop'},{y:false,t:'Formations & courses'},{y:false,t:'Revenue analytics'}]},
-  { tier:'Pro', amt:39, desc:'For professionals building their brand.', hot:true,
-    feats:[{y:true,t:'Everything in Starter'},{y:true,t:'Unlimited services'},{y:true,t:'Product shop'},{y:true,t:'Formations & courses'},{y:true,t:'Revenue analytics'},{y:true,t:'Automated reminders'},{y:true,t:'Priority support'}]},
-  { tier:'Studio', amt:69, desc:'For teams and multi-staff businesses.', hot:false,
-    feats:[{y:true,t:'Everything in Pro'},{y:true,t:'Up to 5 staff members'},{y:true,t:'Custom domain'},{y:true,t:'White-label branding'},{y:true,t:'Priority support'},{y:true,t:'Monthly strategy call'}]},
+  { tier:'Essential', amt:39, desc:'Everything you need to run your business without the chaos.', hot:false,
+    feats:[
+      {y:true,  t:'Public profile & booking page'},
+      {y:true,  t:'Unlimited services'},
+      {y:true,  t:'Product shop'},
+      {y:true,  t:'Formations & courses'},
+      {y:true,  t:'Client management'},
+      {y:true,  t:'Revenue analytics'},
+      {y:true,  t:'Automated reminders — no more no-shows'},
+      {y:false, t:'AI Product Photo Enhancement'},
+      {y:false, t:'Priority support'},
+    ]},
+  { tier:'Pro', amt:79, desc:'For professionals who want to stand out and sell more.', hot:true,
+    feats:[
+      {y:true, t:'Everything in Essential'},
+      {y:true, t:'AI Product Photo Enhancement ✦'},
+      {y:true, t:'Studio & glamour photo styles'},
+      {y:true, t:'Priority support'},
+      {y:true, t:'Early access to new features'},
+      {y:true, t:'Lock-in pricing — forever'},
+    ]},
 ]
 
 const faqs = [
@@ -918,7 +933,7 @@ export default function Landing() {
                   ))}
                 </div>
               )},
-              {step:'04',title:'Confirmed instantly',desc:'She gets a confirmation. You get notified.',dark:false,screen:(
+              {step:'04',title:'You confirm. She\'s notified instantly.',desc:'Review the request and approve it — she gets her confirmation the second you do. A reminder goes out automatically before the appointment.',dark:false,screen:(
                 <div style={{textAlign:'center',padding:'1rem .5rem'}}>
                   <div style={{width:36,height:36,borderRadius:'50%',background:'rgba(46,125,82,.12)',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto .75rem',fontSize:'1rem',border:'1px solid rgba(46,125,82,.2)'}}>✓</div>
                   <div style={{fontFamily:'Playfair Display,serif',fontSize:'.85rem',color:'var(--ink)',marginBottom:'.35rem'}}>Booking confirmed</div>
@@ -1023,8 +1038,8 @@ export default function Landing() {
             <div className="sec-tag" style={{justifyContent:'center',marginBottom:'1rem'}}>
               <div className="sec-tag-line"/><span className="sec-tag-text">Pricing</span><div className="sec-tag-line"/>
             </div>
-            <h2 className="pricing-h2">Simple pricing. <em>No surprises.</em></h2>
-            <p className="pricing-sub">Launching after beta. Beta members lock in early pricing — permanently.</p>
+            <h2 className="pricing-h2">Two plans. <em>One decision.</em></h2>
+            <p className="pricing-sub">Start with Essential. Upgrade to Pro when you're ready to sell more with AI.</p>
             <div style={{marginTop:'1.25rem',display:'flex',justifyContent:'center'}}>
               <div className="pricing-beta-banner">
                 <div className="pricing-beta-dot"/>
