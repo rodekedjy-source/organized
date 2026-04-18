@@ -323,15 +323,19 @@ footer { background:#090907; padding:3rem; border-top:1px solid rgba(255,255,255
   0%,80%,100% { transform:scale(.6); opacity:.4; }
   40%          { transform:scale(1);  opacity:1;  }
 }
-.sf-section { background:linear-gradient(170deg,#f8f6f2 0%,#f3ede4 55%,#efe7da 100%); padding:8rem 3rem; overflow:hidden; }
+.sf-section { background:linear-gradient(175deg, #0f0e0c 0%, #1c1810 4%, #2a2218 8%, #F5EDD8 16%, #FAF6EC 50%, #F5EDD8 84%, #FAF6EC 100%); padding:8rem 3rem; overflow:hidden; position:relative; }
+.sf-section::before { content:''; position:absolute; inset:0; background:radial-gradient(ellipse 80% 50% at 50% 30%, rgba(181,137,58,.07) 0%, transparent 70%); pointer-events:none; }
 .sf-inner { max-width:900px; margin:0 auto; display:flex; flex-direction:column; align-items:center; gap:4.5rem; position:relative; }
-.sf-blob-1 { position:absolute; top:-100px; right:-100px; width:360px; height:360px; border-radius:50%; background:radial-gradient(circle,rgba(181,137,58,.1) 0%,transparent 70%); pointer-events:none; }
-.sf-blob-2 { position:absolute; bottom:-80px; left:-80px; width:300px; height:300px; border-radius:50%; background:radial-gradient(circle,rgba(181,137,58,.07) 0%,transparent 70%); pointer-events:none; }
+.sf-blob-1 { position:absolute; top:-100px; right:-100px; width:500px; height:500px; border-radius:50%; background:radial-gradient(circle,rgba(181,137,58,.13) 0%,transparent 65%); pointer-events:none; }
+.sf-blob-2 { position:absolute; bottom:-80px; left:-80px; width:400px; height:400px; border-radius:50%; background:radial-gradient(circle,rgba(181,137,58,.09) 0%,transparent 65%); pointer-events:none; }
+.sf-gold-line { display:flex; align-items:center; gap:.75rem; justify-content:center; margin-bottom:1.5rem; }
+.sf-gold-line::before,.sf-gold-line::after { content:''; flex:1; max-width:60px; height:1px; background:linear-gradient(90deg,transparent,var(--gold),transparent); }
 .sf-heading { text-align:center; z-index:1; }
 .sf-h2 { font-family:'Playfair Display',serif; font-size:clamp(2.2rem,4vw,3.5rem); font-weight:700; color:var(--ink); line-height:1.1; margin-bottom:.85rem; }
 .sf-h2 em { font-style:italic; font-weight:400; color:var(--gold); }
 .sf-sub { font-size:.95rem; color:var(--ink-3); font-weight:300; line-height:1.8; max-width:440px; margin:0 auto; }
-.sf-phone-wrap { animation:sfPhoneFloat 5s ease-in-out infinite; width:252px; height:518px; border-radius:52px; background:linear-gradient(145deg,#3d3d3f 0%,#1c1c1e 40%,#2c2c2e 100%); padding:10px; box-shadow:inset 0 0 0 1px rgba(255,255,255,.09),0 2px 0 0 #4a4a4c,18px 24px 48px rgba(0,0,0,.32),36px 48px 90px rgba(0,0,0,.2),60px 80px 130px rgba(0,0,0,.1); position:relative; z-index:1; }
+.sf-phone-wrap { width:252px; height:518px; border-radius:52px; background:linear-gradient(145deg,#3d3d3f 0%,#1c1c1e 40%,#2c2c2e 100%); padding:10px; box-shadow:inset 0 0 0 1px rgba(255,255,255,.09),0 2px 0 0 #4a4a4c,18px 24px 48px rgba(0,0,0,.32),36px 48px 90px rgba(0,0,0,.2),60px 80px 130px rgba(0,0,0,.1); position:relative; z-index:1; transition:transform .3s ease; }
+.sf-phone-wrap.floating { animation:sfPhoneFloat 5s ease-in-out infinite; }
 .sf-btn-r  { position:absolute; right:-3px; top:130px; width:3px; height:64px; background:#3a3a3c; border-radius:0 2px 2px 0; }
 .sf-btn-l1 { position:absolute; left:-3px;  top:108px; width:3px; height:36px; background:#3a3a3c; border-radius:2px 0 0 2px; }
 .sf-btn-l2 { position:absolute; left:-3px;  top:158px; width:3px; height:60px; background:#3a3a3c; border-radius:2px 0 0 2px; }
@@ -444,7 +448,9 @@ export default function Landing() {
   }, [sfStarted])
 
   useEffect(() => {
-    sfEndRef.current?.scrollIntoView({ behavior:'smooth' })
+    if (sfEndRef.current?.parentElement) {
+      sfEndRef.current.parentElement.scrollTop = sfEndRef.current.parentElement.scrollHeight
+    }
   }, [sfVisible, sfTyping])
 
   return (
@@ -504,17 +510,15 @@ export default function Landing() {
           <div className="sf-blob-2"/>
 
           <div className="sf-heading" data-rv>
-            <div className="sec-tag center" style={{justifyContent:'center',marginBottom:'1.25rem'}}>
-              <div className="sec-tag-line"/>
+            <div className="sf-gold-line">
               <span className="sec-tag-text">Sound familiar?</span>
-              <div className="sec-tag-line"/>
             </div>
             <h2 className="sf-h2">This is how every booking <em>starts.</em></h2>
             <p className="sf-sub">Back-and-forth. Every single time. Meanwhile the client loses patience — and you lose money.</p>
           </div>
 
           {/* 3D Phone */}
-          <div className="sf-phone-wrap">
+          <div className={`sf-phone-wrap${sfStarted?' floating':''}`}>
             <div className="sf-btn-r"/>
             <div className="sf-btn-l1"/>
             <div className="sf-btn-l2"/>
