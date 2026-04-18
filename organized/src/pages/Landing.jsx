@@ -373,9 +373,10 @@ footer { background:#090907; padding:3rem; border-top:1px solid rgba(255,255,255
   50%      { transform:perspective(1000px) rotateY(-8deg) rotateX(4deg) translateY(-12px); }
 }
 @keyframes dashScroll {
-  0%,8%    { transform:translateY(0); }
-  33%,43%  { transform:translateY(-155px); }
-  68%,78%  { transform:translateY(-310px); }
+  0%,7%    { transform:translateY(0); }
+  25%,33%  { transform:translateY(-155px); }
+  50%,58%  { transform:translateY(-310px); }
+  75%,83%  { transform:translateY(-465px); }
   95%,100% { transform:translateY(0); }
 }
 @keyframes chipFloat1 { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-9px)} }
@@ -985,6 +986,55 @@ export default function Landing() {
                           </div>
                         </div>
                       ))}
+                    </div>
+                    {/* Calendar */}
+                    <div style={{margin:'0 .8rem 1rem',background:'#fff',borderRadius:'10px',padding:'.6rem .7rem',border:'1px solid var(--border)'}}>
+                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'.5rem'}}>
+                        <div style={{fontSize:'.55rem',fontWeight:600,color:'var(--ink)'}}>Calendar</div>
+                        <div style={{fontSize:'.44rem',color:'var(--ink-3)'}}>April 2026</div>
+                      </div>
+                      {/* Day headers */}
+                      <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:'1px',marginBottom:'.2rem'}}>
+                        {['S','M','T','W','T','F','S'].map((d,i)=>(
+                          <div key={i} style={{textAlign:'center',fontSize:'.38rem',color:'var(--ink-3)',padding:'.15rem 0',fontWeight:500}}>{d}</div>
+                        ))}
+                      </div>
+                      {/* Calendar days */}
+                      <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:'1px'}}>
+                        {[null,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30].map((d,i)=>{
+                          const hasAppt = [5,8,9,13,14,16,20].includes(d)
+                          const isBlocked = [12].includes(d)
+                          const isToday = d===20
+                          return (
+                            <div key={i} style={{textAlign:'center',padding:'.22rem 0',position:'relative'}}>
+                              <div style={{
+                                fontSize:'.46rem',
+                                fontWeight:isToday?700:d?400:300,
+                                color:isToday?'#fff':d?'var(--ink)':'transparent',
+                                background:isToday?'var(--ink)':'transparent',
+                                borderRadius:'50%',
+                                width:'16px',height:'16px',
+                                display:'flex',alignItems:'center',justifyContent:'center',
+                                margin:'0 auto',
+                              }}>{d||''}</div>
+                              {(hasAppt||isBlocked)&&d&&(
+                                <div style={{width:4,height:4,borderRadius:'50%',background:isBlocked?'#ef4444':'var(--gold)',margin:'.05rem auto 0'}}/>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                      {/* Legend */}
+                      <div style={{display:'flex',gap:'.75rem',marginTop:'.4rem',paddingTop:'.35rem',borderTop:'1px solid var(--border)'}}>
+                        <div style={{display:'flex',alignItems:'center',gap:'.25rem'}}>
+                          <div style={{width:5,height:5,borderRadius:'50%',background:'var(--gold)'}}/>
+                          <span style={{fontSize:'.42rem',color:'var(--ink-3)'}}>Appointment</span>
+                        </div>
+                        <div style={{display:'flex',alignItems:'center',gap:'.25rem'}}>
+                          <div style={{width:5,height:5,borderRadius:'50%',background:'#ef4444'}}/>
+                          <span style={{fontSize:'.42rem',color:'var(--ink-3)'}}>Blocked</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
