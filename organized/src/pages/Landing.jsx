@@ -730,10 +730,10 @@ export default function Landing() {
                   <div style={{fontSize:'.58rem',fontWeight:600,color:'#8c8882',marginBottom:'.4rem',letterSpacing:'.06em',textTransform:'uppercase'}}>Monday morning</div>
                 </div>
                 {[
-                  {icon:'✓',bg:'rgba(34,197,94,.1)',title:'Kezia B. booked Box Braids',sub:'Sat 10:00am · $180 · Auto-confirmed',time:'7:12'},
-                  {icon:'✓',bg:'rgba(34,197,94,.1)',title:'Amara D. booked Silk Press',sub:'Sat 1:00pm · $95 · Auto-confirmed',time:'7:48'},
+                  {icon:'✓',bg:'rgba(34,197,94,.1)',title:'Kezia B. booked Box Braids',sub:'Sat 10:00am · $180 · Confirmed by you',time:'7:12'},
+                  {icon:'✓',bg:'rgba(34,197,94,.1)',title:'Amara D. booked Silk Press',sub:'Sat 1:00pm · $95 · Confirmed by you',time:'7:48'},
                   {icon:'🛍',bg:'rgba(181,137,58,.1)',title:'Nadia ordered Moisture Serum',sub:'× 2 units · $56 received',time:'8:15'},
-                  {icon:'✓',bg:'rgba(34,197,94,.1)',title:'Zoe M. booked Loc Retwist',sub:'Sun 11:00am · $120 · Auto-confirmed',time:'9:02'},
+                  {icon:'✓',bg:'rgba(34,197,94,.1)',title:'Zoe M. booked Loc Retwist',sub:'Sun 11:00am · $120 · Confirmed by you',time:'9:02'},
                 ].map((n,i)=>(
                   <div key={i} style={{display:'flex',alignItems:'center',gap:'.6rem',padding:'.55rem .75rem',borderTop:'1px solid #f5f3ee',background:'#fff'}}>
                     <div style={{width:32,height:32,borderRadius:'8px',background:n.bg,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'.75rem',flexShrink:0}}>{n.icon}</div>
