@@ -52,7 +52,7 @@ button:active { transform: scale(.97) !important; }
 /* NAV */
 .nav { position:fixed; top:0; left:0; right:0; z-index:200; display:flex; align-items:center; justify-content:space-between; padding:0 3rem; height:66px; transition:all .3s; }
 .nav.scrolled { background:rgba(248,246,242,.95); backdrop-filter:blur(20px); border-bottom:1px solid var(--border); }
-.nav-logo { font-family:'Playfair Display',serif; font-size:1.35rem; font-weight:500; color:#fff; cursor:pointer; letter-spacing:.01em; transition:color .3s; }
+.nav-logo { font-family:'Playfair Display',serif; font-size:1.35rem; font-weight:500; color:#fff; cursor:pointer; letter-spacing:.01em; transition:color .3s; flex-shrink:0; }
 .nav.scrolled .nav-logo { color:var(--ink); }
 .nav-logo span { color:var(--gold); }
 .nav-links { display:flex; gap:2.5rem; }
@@ -60,12 +60,12 @@ button:active { transform: scale(.97) !important; }
 .nav.scrolled .nav-link { color:var(--ink-3); }
 .nav-link:hover { color:#fff; }
 .nav.scrolled .nav-link:hover { color:var(--ink); }
-.nav-right { display:flex; align-items:center; gap:1.25rem; }
-.nav-signin { font-size:.78rem; color:rgba(255,255,255,.5); cursor:pointer; transition:color .18s; }
+.nav-right { display:flex; align-items:center; gap:.8rem; }
+.nav-signin { font-size:.76rem; color:rgba(255,255,255,.5); cursor:pointer; transition:color .18s; white-space:nowrap; }
 .nav.scrolled .nav-signin { color:var(--ink-3); }
 .nav-signin:hover { color:#fff; }
 .nav.scrolled .nav-signin:hover { color:var(--ink); }
-.nav-cta { background:var(--gold); color:#fff; border:none; border-radius:7px; padding:.52rem 1.35rem; font-size:.78rem; font-weight:500; cursor:pointer; font-family:inherit; }
+.nav-cta { background:var(--gold); color:#fff; border:none; border-radius:7px; padding:.4rem .9rem; font-size:.72rem; font-weight:500; cursor:pointer; font-family:inherit; text-align:center; line-height:1.3; max-width:108px; }
 .nav-cta:hover { background:#9e7630; transform:translateY(-1px) !important; box-shadow:0 6px 20px rgba(181,137,58,.3); }
 .lang-float { position:fixed; bottom:1.75rem; right:1.5rem; z-index:999; display:flex; align-items:center; background:rgba(12,11,9,.82); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); border:1px solid rgba(255,255,255,.1); border-radius:100px; overflow:hidden; box-shadow:0 4px 24px rgba(0,0,0,.22); transition:opacity .3s, transform .3s; }
 .lang-float:hover { opacity:1 !important; }
@@ -533,7 +533,7 @@ const COPY = {
   fr: {
     nav_how:'Comment ça marche', nav_pricing:'Tarifs', nav_faq:'FAQ', nav_signin:'Connexion', nav_cta:'Commencer gratuitement',
     hero_label:'Conçu pour les professionnelles du service',
-    hero_sub_start:"Laissez vos clientes vous réserver directement —",
+    hero_sub_start:"Laissez vos clients vous réserver directement —",
     hero_sub_strong:"fini les allers-retours,",
     hero_sub_end:"la confusion et les occasions manquées.",
     hero_cta:'Réserver ma place — Gratuit', hero_see:'Voir comment ça marche',
@@ -547,16 +547,16 @@ const COPY = {
     before_label:'Avant\u00A0Organized', after_label:'Après\u00A0Organized',
     before_q:"\"23 DMs non lus. 3 réservations manquées. Et c'est seulement lundi.\"",
     after_q:"\"Lundi matin. 4 réservations confirmées. Téléphone silencieux.\"",
-    before_b:["Perdu 3 réservations — les clientes sont allées ailleurs","4h/jour à gérer des messages","Manqué un rendez-vous à 220$ — jamais vu le DM"],
-    after_b:["Zéro message sans réponse — les clientes réservent elles-mêmes","4h/jour libérées — consacrées à ce qu'elle aime","Plus jamais de réservation manquée"],
+    before_b:["Perdu 3 réservations — les clients sont allés ailleurs","4h/jour à gérer des messages","Manqué un rendez-vous à 220$ — jamais vu le DM"],
+    after_b:["Zéro message sans réponse — les clients réservent eux-mêmes","4h/jour libérées — consacrées à ce qu'elle aime","Plus jamais de réservation manquée"],
     lilas_q:"\"C'est la semaine que vivent des milliers de professionnelles en ce moment. On a bâti\u00A0Organized pour y mettre fin.\"",
     lilas_attr:"— L'équipe Organized.",
     phone_tag:'Votre profil public', phone_h2_s:'Un seul lien.', phone_h2_em:'Tout ce dont elles ont besoin.',
     phone_tab_book:'Réserver', phone_tab_shop:'Boutique', phone_tab_form:'Formations', phone_stitle:'Services', phone_book_btn:'Réserver',
-    phone_desc:"Mettez-le dans votre bio. Vos clientes réservent, magasinent vos produits et s'inscrivent à vos formations — sans jamais vous écrire. Vous vous concentrez sur votre art. Organized gère tout le reste.",
+    phone_desc:"Mettez-le dans votre bio. Vos clients réservent, magasinent vos produits et s'inscrivent à vos formations — sans jamais vous écrire. Vous vous concentrez sur votre art. Organized gère tout le reste.",
     phone_pts:[
       {icon:'📅',title:'Rendez-vous 24h/24',desc:'Disponibilités en temps réel. Confirmations automatiques. Zéro aller-retour.'},
-      {icon:'🛍️',title:'Produits vendus directement',desc:'Votre boutique est sur votre profil. Les clientes découvrent et commandent instantanément.'},
+      {icon:'🛍️',title:'Produits vendus directement',desc:'Votre boutique est sur votre profil. Les clients découvrent et commandent instantanément.'},
       {icon:'🎓',title:'Formations & cours',desc:"Monétisez votre expertise. Vendez vos connaissances en plus de vos services."},
       {icon:'👥',title:'Clientes suivies automatiquement',desc:'Chaque visite, chaque dollar, chaque relation — organisés pour vous.'},
     ],
@@ -575,7 +575,7 @@ const COPY = {
     how_steps:[
       {n:'01',title:'Créez votre compte',desc:"Inscrivez-vous en quelques minutes. Sans carte de crédit. L'accès est immédiat."},
       {n:'02',title:'Construisez votre profil',desc:"Ajoutez vos services, produits et formations. Votre page de réservation est en ligne dès que vous avez terminé."},
-      {n:'03',title:'Partagez votre lien',desc:"Un lien dans votre bio. Les clientes cliquent, réservent et paient. Vous vous présentez et faites ce que vous aimez."},
+      {n:'03',title:'Partagez votre lien',desc:"Un lien dans votre bio. Les clients cliquent, réservent et paient. Vous vous présentez et faites ce que vous aimez."},
     ],
     beta_tag:'Programme bêta', beta_h2_1:"On ne va pas faire semblant.", beta_h2_em:'Soyez la preuve.',
     beta_sub:"Pas de témoignages avec des photos de stock. Pas de chiffres inventés. On construit ça à l'ouvert — avec de vraies professionnelles, de vrais retours, de vrais résultats. On a 15 places bêta. C'est tout.",
@@ -607,7 +607,7 @@ const plans_fr = [
       {y:true,  t:'Services illimités'},
       {y:true,  t:'Boutique de produits'},
       {y:true,  t:'Formations & cours'},
-      {y:true,  t:'Gestion des clientes'},
+      {y:true,  t:'Gestion des clients'},
       {y:true,  t:'Analyse des revenus'},
       {y:true,  t:'Rappels automatiques — fini les no-shows'},
       {y:false, t:'Amélioration IA des photos produits'},
@@ -639,7 +639,7 @@ const faqs_fr = [
     a:"Pas de questions, pas d'emails de rétention, pas de pratiques obscures. Annulez à tout moment depuis votre tableau de bord en un clic. Vos données peuvent être exportées avant de partir." },
 ]
 
-const SF_MSGS = [
+const SF_MSGS_EN = [
   { id:1,  from:'client', text:'Hey! Are you free Saturday? 🙏',        delay:500  },
   { id:2,  from:'pro',    text:'Which Saturday — this one or next?',     delay:1400 },
   { id:3,  from:'client', text:'This one, like around 2pm?',             delay:2300 },
@@ -652,6 +652,20 @@ const SF_MSGS = [
   { id:10, from:'client', text:'How do I send you the deposit?',         delay:8300 },
   { id:11, from:'pro',    text:'CashApp $myhandle or e-transfer',        delay:9200 },
   { id:12, from:'client', text:"Sent! Also, what's your address again?", delay:10100 },
+]
+const SF_MSGS_FR = [
+  { id:1,  from:'client', text:'Bonjour! Vous êtes dispo samedi? 🙏',    delay:500  },
+  { id:2,  from:'pro',    text:'Quel samedi — celui-ci ou le prochain?', delay:1400 },
+  { id:3,  from:'client', text:'Celui-ci, genre vers 14h?',              delay:2300 },
+  { id:4,  from:'pro',    text:'14h est pris… peut-être 16h?',           delay:3100 },
+  { id:5,  from:'client', text:'On peut faire 15h30 à la place?',        delay:4000 },
+  { id:6,  from:'pro',    text:'Laissez-moi vérifier 🤔',               delay:4700 },
+  { id:7,  from:'pro',    text:'15h30 c\'est bon! Quel service?',        delay:5600 },
+  { id:8,  from:'client', text:'Wash, blowdry & style 🫶',              delay:6500 },
+  { id:9,  from:'pro',    text:'C\'est 85$, j\'ai besoin de 20$ dépôt', delay:7400 },
+  { id:10, from:'client', text:'Comment je vous envoie le dépôt?',       delay:8300 },
+  { id:11, from:'pro',    text:'CashApp $monhandle ou virement',         delay:9200 },
+  { id:12, from:'client', text:'Envoyé! C\'est quelle adresse déjà?',   delay:10100 },
 ]
 const SF_TYPING = [2, 4, 6, 7, 9, 11]
 
@@ -670,12 +684,20 @@ export default function Landing() {
   const t = COPY[lang]
   const activePlans = lang === 'en' ? plans : plans_fr
   const activeFaqs  = lang === 'en' ? faqs  : faqs_fr
+  const SF_MSGS = lang === 'en' ? SF_MSGS_EN : SF_MSGS_FR
 
   useEffect(() => {
     const handler = () => setScrolled(window.scrollY > 60)
     window.addEventListener('scroll', handler)
     return () => window.removeEventListener('scroll', handler)
   }, [])
+
+  // Reset messages when language changes
+  useEffect(() => {
+    setSfVisible([])
+    setSfTyping(null)
+    setSfStarted(false)
+  }, [lang])
 
   useEffect(() => {
     const obs = new IntersectionObserver(([e]) => {
