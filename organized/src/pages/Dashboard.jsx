@@ -2036,30 +2036,50 @@ function AddProductView({ workspace, toast, onBack }) {
 
 
 // ─── 4. PRODUCT DETAIL VIEW ───────────────────────────────────────────────────
+// ─── REPLACE only `function ProductDetailView` in your Dashboard.jsx ─────────
+// Find it with Ctrl+F → search: function ProductDetailView
+// Delete the whole function and paste this one in its place.
+// Keep everything else (ImageEditModal, EnhanceModal, AddProductView, Products) untouched.
+// ─────────────────────────────────────────────────────────────────────────────
+
 function ProductDetailView({ product, workspace, toast, onSave, onDelete, onBack }) {
-  const [form, setForm]               = useState({ name:product?.name||'', price:product?.price??'', stock:product?.stock??0, description:product?.description||'' })
-  const [imageFile, setImageFile]     = useState(null)
-  const [imagePreview, setImagePreview] = useState(product?.image_url||null)
-  const [isEnhanced, setIsEnhanced]   = useState(false)
-  const [showEnhance, setShowEnhance] = useState(false)
-  const [showEdit, setShowEdit]       = useState(false)
-  const [saving, setSaving]           = useState(false)
+  // ── ALL hooks must come first — no early returns before this block ──
+  const [form, setForm] = useState({
+    name:        product?.name        || '',
+    price:       product?.price       ?? '',
+    stock:       product?.stock       ?? 0,
+    description: product?.description || '',
+  })
+  const [imageFile, setImageFile]         = useState(null)
+  const [imagePreview, setImagePreview]   = useState(product?.image_url || null)
+  const [isEnhanced, setIsEnhanced]       = useState(false)
+  const [showEnhance, setShowEnhance]     = useState(false)
+  const [showEdit, setShowEdit]           = useState(false)
+  const [saving, setSaving]               = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const fileRef = useRef()
 
+  // ── Safe early return AFTER all hooks ──
   if (!product) return null
 
   function handleFile(e) {
     const file = e.target.files[0]
     if (!file) return
     if (file.size > 5 * 1024 * 1024) { toast('Max 5MB'); return }
-    setImageFile(file); setImagePreview(URL.createObjectURL(file)); setIsEnhanced(false)
+    setImageFile(file)
+    setImagePreview(URL.createObjectURL(file))
+    setIsEnhanced(false)
   }
 
   async function save() {
     setSaving(true)
-    try { await onSave(product.id, { name:form.name, price:parseFloat(form.price)||0, stock:parseInt(form.stock)||0, description:form.description }, imageFile) }
-    catch (e) { toast('Error: ' + e.message) }
+    try {
+      await onSave(
+        product.id,
+        { name: form.name, price: parseFloat(form.price) || 0, stock: parseInt(form.stock) || 0, description: form.description },
+        imageFile,
+      )
+    } catch (e) { toast('Error: ' + e.message) }
     setSaving(false)
   }
 
@@ -2076,11 +2096,24 @@ function ProductDetailView({ product, workspace, toast, onSave, onDelete, onBack
   return (
     <>
       {showEdit && imagePreview && (
-        <ImageEditModal src={imagePreview} onConfirm={(file, url) => { setImageFile(file); setImagePreview(url); setIsEnhanced(false) }} onClose={() => setShowEdit(false)}/>
+        <ImageEditModal
+          src={imagePreview}
+          onConfirm={(file, url) => { setImageFile(file); setImagePreview(url); setIsEnhanced(false) }}
+          onClose={() => setShowEdit(false)}
+        />
       )}
+
       {showEnhance && (imageFile || product.image_url) && workspace && (
-        <EnhanceModal imageFile={imageFile||{name:'product.jpg'}} imagePreview={imagePreview} workspace={workspace} onSelect={(file, url) => { setImageFile(file); setImagePreview(url); setIsEnhanced(true) }} onClose={() => setShowEnhance(false)} toast={toast}/>
+        <EnhanceModal
+          imageFile={imageFile || { name: 'product.jpg' }}
+          imagePreview={imagePreview}
+          workspace={workspace}
+          onSelect={(file, url) => { setImageFile(file); setImagePreview(url); setIsEnhanced(true) }}
+          onClose={() => setShowEnhance(false)}
+          toast={toast}
+        />
       )}
+
       {confirmDelete && (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:1200, display:'flex', alignItems:'center', justifyContent:'center', padding:'1.5rem' }}>
           <div style={{ background:'#fff', borderRadius:'16px', padding:'1.75rem', width:'100%', maxWidth:'340px', textAlign:'center' }}>
@@ -2094,14 +2127,21 @@ function ProductDetailView({ product, workspace, toast, onSave, onDelete, onBack
           </div>
         </div>
       )}
+
       <div>
         <div className="db-page-head">
           <div style={{ display:'flex', alignItems:'center', gap:'.75rem' }}>
             <button onClick={onBack} style={{ background:'var(--bg)', border:'1px solid var(--border)', borderRadius:'8px', padding:'.4rem .8rem', cursor:'pointer', fontSize:'.82rem', color:'var(--ink-3)' }}>← Back</button>
-            <div><div className="db-page-title">{form.name||'Product'}</div><div className="db-page-sub">Edit product</div></div>
+            <div>
+              <div className="db-page-title">{form.name || 'Product'}</div>
+              <div className="db-page-sub">Edit product</div>
+            </div>
           </div>
-          <button onClick={() => setConfirmDelete(true)} style={{ background:'none', border:'1px solid #fecaca', color:'#c0392b', borderRadius:'8px', padding:'.4rem .9rem', fontSize:'.8rem', cursor:'pointer' }}>Delete</button>
+          <button onClick={() => setConfirmDelete(true)} style={{ background:'none', border:'1px solid #fecaca', color:'#c0392b', borderRadius:'8px', padding:'.4rem .9rem', fontSize:'.8rem', cursor:'pointer' }}>
+            Delete
+          </button>
         </div>
+
         <div className="db-card" style={{ marginBottom:'1.25rem', overflow:'hidden' }}>
           <div style={{ position:'relative' }}>
             {imagePreview
@@ -2109,36 +2149,46 @@ function ProductDetailView({ product, workspace, toast, onSave, onDelete, onBack
               : <div style={{ height:'200px', background:'var(--bg)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'3rem' }}>📦</div>
             }
             <div style={{ position:'absolute', bottom:0, left:0, right:0, padding:'.75rem', display:'flex', gap:'.5rem', background:'linear-gradient(transparent,rgba(0,0,0,.55))' }}>
-              {imagePreview && <button type="button" onClick={() => setShowEdit(true)} style={{ flex:1, background:'rgba(255,255,255,.18)', backdropFilter:'blur(6px)', border:'1px solid rgba(255,255,255,.25)', color:'#fff', borderRadius:'8px', padding:'.45rem', fontSize:'.75rem', fontWeight:600, cursor:'pointer' }}>✏️ Edit</button>}
-              <button type="button" onClick={() => setShowEnhance(true)} style={{ flex:2, background:isEnhanced?'linear-gradient(135deg,#c5a66a,#a8863d)':'rgba(255,255,255,.18)', backdropFilter:'blur(6px)', border:'1px solid rgba(255,255,255,.25)', color:'#fff', borderRadius:'8px', padding:'.45rem', fontSize:'.75rem', fontWeight:600, cursor:'pointer' }}>✨ {isEnhanced?'Enhanced ✓':'Enhance with AI'}</button>
+              {imagePreview && (
+                <button type="button" onClick={() => setShowEdit(true)} style={{ flex:1, background:'rgba(255,255,255,.18)', backdropFilter:'blur(6px)', border:'1px solid rgba(255,255,255,.25)', color:'#fff', borderRadius:'8px', padding:'.45rem', fontSize:'.75rem', fontWeight:600, cursor:'pointer' }}>✏️ Edit</button>
+              )}
+              <button type="button" onClick={() => setShowEnhance(true)} style={{ flex:2, background: isEnhanced ? 'linear-gradient(135deg,#c5a66a,#a8863d)' : 'rgba(255,255,255,.18)', backdropFilter:'blur(6px)', border:'1px solid rgba(255,255,255,.25)', color:'#fff', borderRadius:'8px', padding:'.45rem', fontSize:'.75rem', fontWeight:600, cursor:'pointer' }}>
+                ✨ {isEnhanced ? 'Enhanced ✓' : 'Enhance with AI'}
+              </button>
               <button type="button" onClick={() => fileRef.current?.click()} style={{ background:'rgba(255,255,255,.18)', backdropFilter:'blur(6px)', border:'1px solid rgba(255,255,255,.25)', color:'#fff', borderRadius:'8px', padding:'.45rem .7rem', fontSize:'.75rem', cursor:'pointer' }}>🔄</button>
             </div>
           </div>
           <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} style={{ display:'none' }}/>
         </div>
+
         <div style={{ marginBottom:'1rem' }}>
           <span className={`db-badge ${stockStatus}`}>{stockLabel} · {stockNum} units</span>
         </div>
+
         <div className="db-card">
           <div className="db-card-head"><div className="db-card-title">Product details</div></div>
           <div style={{ padding:'1.4rem', display:'flex', flexDirection:'column', gap:'1rem' }}>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'1rem' }}>
               <div className="db-field" style={{ gridColumn:'1/-1' }}>
                 <label>Product name</label>
-                <input value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}/>
+                <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}/>
               </div>
               <div className="db-field">
                 <label>Price (CAD)</label>
-                <input type="number" min="0" step="0.01" value={form.price} onChange={e=>setForm(f=>({...f,price:e.target.value}))}/>
+                <input type="number" min="0" step="0.01" value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))}/>
               </div>
               <div className="db-field">
                 <label>Stock</label>
-                <input type="number" min="0" value={form.stock} onChange={e=>setForm(f=>({...f,stock:e.target.value}))}/>
+                <input type="number" min="0" value={form.stock} onChange={e => setForm(f => ({ ...f, stock: e.target.value }))}/>
               </div>
               <div className="db-field" style={{ gridColumn:'1/-1' }}>
                 <label>Description</label>
-                <textarea value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))} rows={3}
-                  style={{ padding:'.7rem 1rem', border:'1px solid var(--border)', borderRadius:'8px', fontSize:'.88rem', fontFamily:'inherit', color:'var(--ink)', resize:'vertical', outline:'none' }}/>
+                <textarea
+                  value={form.description}
+                  onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+                  rows={3}
+                  style={{ padding:'.7rem 1rem', border:'1px solid var(--border)', borderRadius:'8px', fontSize:'.88rem', fontFamily:'inherit', color:'var(--ink)', resize:'vertical', outline:'none' }}
+                />
               </div>
             </div>
             <button onClick={save} disabled={saving} className="db-btn db-btn-primary" style={{ width:'100%', justifyContent:'center', padding:'.85rem' }}>
@@ -2150,7 +2200,6 @@ function ProductDetailView({ product, workspace, toast, onSave, onDelete, onBack
     </>
   )
 }
-
 
 // ─── 5. PRODUCTS (main) ───────────────────────────────────────────────────────
 function Products({ workspace, toast }) {
