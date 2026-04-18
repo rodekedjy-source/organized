@@ -1704,6 +1704,7 @@ async function compressImage(file, maxWidth=1400, quality=0.82) {
 
 // Shared upload helper — compresses images, uploads, returns {preview, url, error}
 async function uploadProductImages(files, workspaceId) {
+  if(!workspaceId) return files.map(file=>({preview:URL.createObjectURL(file),url:null,error:'Workspace not loaded — refresh and try again.'}))
   return Promise.all(files.map(async (file, i) => {
     const preview = URL.createObjectURL(file)
     const compressed = await compressImage(file) // instant for PDFs, fast for images
@@ -2624,7 +2625,17 @@ function Availability({ workspace, toast, lang='en' }) {
       supabase.from('availability').select('*').eq('workspace_id',workspace.id).order('day_of_week'),
       supabase.from('blocked_dates').select('*').eq('workspace_id',workspace.id).order('blocked_date'),
     ])
-    setSchedule(a.data||[])
+    let avail = a.data||[]
+    // Auto-create 7 default rows if none exist (first-time setup)
+    if(avail.length===0){
+      const defaults=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'].map((_,i)=>({
+        workspace_id:workspace.id,day_of_week:i,
+        is_open:i>=1&&i<=5,open_time:'09:00:00',close_time:'18:00:00'
+      }))
+      const{data:created}=await supabase.from('availability').insert(defaults).select()
+      avail=created||[]
+    }
+    setSchedule(avail)
     setBlockedDates(b.data||[])
     setLoading(false)
   }
@@ -3082,7 +3093,12 @@ export default function Dashboard({ session }) {
     if(usr) setOwnerData(usr)
   }
   function showToast(msg){setToast(msg);setTimeout(()=>setToast(''),3000)}
-  async function handleSignOut(){await supabase.auth.signOut();window.location.href='/'}
+  async function handleSignOut(){
+    setShowMenu(false)
+    setSidebarOpen(false)
+    await supabase.auth.signOut()
+    window.location.href='/'
+  }
 
   function navigateTo(key){
     if(key!==page) setPrevPage(page)
@@ -3177,15 +3193,23 @@ export default function Dashboard({ session }) {
             </div>
           </aside>
           <main className="main">
-            {/* FIX: pass refetchWorkspace to Overview so MonthlyGoal can update workspace */}
-            {page==='overview'     &&<Overview     workspace={workspace} session={session} ownerData={ownerData} toast={showToast} setPage={navigateTo} refetchWorkspace={fetchWorkspace} lang={lang}/>}
-            {page==='appointments' &&<Appointments workspace={workspace} toast={showToast} lang={lang}/>}
-            {page==='services'     &&<Services     workspace={workspace} toast={showToast} lang={lang}/>}
-            {page==='products'     &&<Products     workspace={workspace} toast={showToast} lang={lang}/>}
-            {page==='formations'   &&<Formations   workspace={workspace} toast={showToast} lang={lang}/>}
-            {page==='clients'      &&<Clients      workspace={workspace} lang={lang}/>}
-            {page==='availability' &&<Availability workspace={workspace} toast={showToast} lang={lang}/>}
-            {page==='settings'     &&<Settings     workspace={workspace} toast={showToast} refetch={fetchWorkspace} theme={theme} setTheme={setTheme} session={session} ownerData={ownerData} lang={lang}/>}
+            {/* Guard: show loader while workspace is fetching to prevent null workspace bugs */}
+            {!workspace ? (
+              <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'60vh'}}>
+                <div style={{fontFamily:"'Playfair Display',serif",fontSize:'1.1rem',color:'var(--gold)',opacity:.7}}>Loading…</div>
+              </div>
+            ) : (
+              <>
+                {page==='overview'     &&<Overview     workspace={workspace} session={session} ownerData={ownerData} toast={showToast} setPage={navigateTo} refetchWorkspace={fetchWorkspace} lang={lang}/>}
+                {page==='appointments' &&<Appointments workspace={workspace} toast={showToast} lang={lang}/>}
+                {page==='services'     &&<Services     workspace={workspace} toast={showToast} lang={lang}/>}
+                {page==='products'     &&<Products     workspace={workspace} toast={showToast} lang={lang}/>}
+                {page==='formations'   &&<Formations   workspace={workspace} toast={showToast} lang={lang}/>}
+                {page==='clients'      &&<Clients      workspace={workspace} lang={lang}/>}
+                {page==='availability' &&<Availability workspace={workspace} toast={showToast} lang={lang}/>}
+                {page==='settings'     &&<Settings     workspace={workspace} toast={showToast} refetch={fetchWorkspace} theme={theme} setTheme={setTheme} session={session} ownerData={ownerData} lang={lang}/>}
+              </>
+            )}
           </main>
         </div>
       ):(
