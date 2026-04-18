@@ -1719,288 +1719,130 @@ function ProductEditModal({ product, workspaceId, onClose, onSaved, onDeleted, t
 }
 
 // ── PRODUCTS ──────────────────────────────────────────────────────────────────
-// ─── AI ENHANCE MODAL ────────────────────────────────────────────────────────
-// Drop this ABOVE your existing Products function in Dashboard.jsx
+// ─────────────────────────────────────────────────────────────────────────────
+// PASTE EVERYTHING BELOW right before your existing `function Formations`
+// Also change line 1: add useRef  →  import { useState, useEffect, useRef } from 'react'
+// ─────────────────────────────────────────────────────────────────────────────
 
-function EnhanceModal({ imageFile, imagePreview, workspace, onSelect, onClose, toast }) {
-  const [style, setStyle]       = useState('studio')
-  const [phase, setPhase]       = useState('pick') // 'pick' | 'loading' | 'results'
-  const [results, setResults]   = useState([])
-  const [loadingMsg, setLoadingMsg] = useState('')
 
-  const EDGE_URL = 'https://bwfpioxvfqwnwzkvtebg.supabase.co/functions/v1/enhance-product-image'
+// ─── IMAGE EDIT MODAL ────────────────────────────────────────────────────────
+function ImageEditModal({ src, onConfirm, onClose }) {
+  const frameRef  = useRef()
+  const imgRef    = useRef()
+  const [pos, setPos]           = useState({ x: 0, y: 0 })
+  const [scale, setScale]       = useState(1)
+  const [rotation, setRotation] = useState(0)
+  const [dragging, setDragging] = useState(false)
+  const dragRef = useRef({ startX: 0, startY: 0, posX: 0, posY: 0 })
 
-  async function getToken() {
-    const { data } = await supabase.auth.getSession()
-    return data?.session?.access_token
+  function startDrag(clientX, clientY) {
+    setDragging(true)
+    dragRef.current = { startX: clientX, startY: clientY, posX: pos.x, posY: pos.y }
   }
-
-  async function callEdge(body, token) {
-    const res = await fetch(EDGE_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify(body),
-    })
-    return res.json()
+  function moveDrag(clientX, clientY) {
+    if (!dragging) return
+    const { startX, startY, posX, posY } = dragRef.current
+    setPos({ x: posX + (clientX - startX), y: posY + (clientY - startY) })
   }
+  function endDrag() { setDragging(false) }
 
-  async function waitForResult(reqId, token) {
-    while (true) {
-      await new Promise(r => setTimeout(r, 3500))
-      const status = await callEdge({ action: 'status', request_id: reqId }, token)
-      if (status.status === 'COMPLETED') {
-        const result = await callEdge({ action: 'result', request_id: reqId }, token)
-        return result.images?.[0]?.url
-      }
-      if (status.status === 'FAILED') throw new Error('Generation failed')
-    }
-  }
+  function rotate(deg) { setRotation(r => (r + deg + 360) % 360) }
 
-  async function runEnhance() {
-    setPhase('loading')
-    setLoadingMsg('Uploading your photo...')
+  async function confirm() {
+    const SIZE = 800
+    const canvas = document.createElement('canvas')
+    canvas.width = SIZE; canvas.height = SIZE
+    const ctx = canvas.getContext('2d')
+    const img = imgRef.current
+    const frame = frameRef.current.getBoundingClientRect()
+    const frameSize = frame.width
+    const ratio = SIZE / frameSize
 
-    try {
-      // 1. Upload original to a temp path to get a public URL for fal.ai
-      const ext  = imageFile.name.split('.').pop() || 'jpg'
-      const temp = `${workspace.id}/enhance-temp-${Date.now()}.${ext}`
-      const { error: upErr } = await supabase.storage
-        .from('product-images')
-        .upload(temp, imageFile, { upsert: true })
-      if (upErr) throw new Error(upErr.message)
+    // Natural image display size within frame (cover behavior)
+    const nat = img.naturalWidth / img.naturalHeight
+    let dw, dh
+    if (nat > 1) { dw = frameSize; dh = frameSize / nat }
+    else         { dh = frameSize; dw = frameSize * nat }
 
-      const { data: urlData } = supabase.storage.from('product-images').getPublicUrl(temp)
-      const imageUrl = urlData.publicUrl
+    ctx.save()
+    ctx.translate(SIZE / 2, SIZE / 2)
+    ctx.rotate(rotation * Math.PI / 180)
+    ctx.scale(scale, scale)
+    ctx.translate(pos.x * ratio, pos.y * ratio)
+    ctx.drawImage(img, -dw * ratio / 2, -dh * ratio / 2, dw * ratio, dh * ratio)
+    ctx.restore()
 
-      // 2. Submit 2 generation jobs
-      setLoadingMsg('AI is crafting your images...')
-      const token = await getToken()
-      const { request_ids, error } = await callEdge({
-        action: 'submit',
-        image_url: imageUrl,
-        style,
-        product_description: 'professional hair and beauty care product',
-      }, token)
-      if (error) throw new Error(error)
-
-      // 3. Poll both jobs in parallel
-      setLoadingMsg('Finalising your enhanced photos...')
-      const imageUrls = await Promise.all(request_ids.map(id => waitForResult(id, token)))
-
-      // 4. Clean up temp upload
-      await supabase.storage.from('product-images').remove([temp])
-
-      setResults(imageUrls)
-      setPhase('results')
-    } catch (e) {
-      toast('Enhancement failed — ' + e.message)
-      setPhase('pick')
-    }
-  }
-
-  async function selectImage(url) {
-    try {
-      // Download the enhanced image and convert to a File so existing upload logic works
-      const res  = await fetch(url)
-      const blob = await res.blob()
-      const file = new File([blob], `enhanced-${Date.now()}.jpg`, { type: 'image/jpeg' })
-      onSelect(file, url)
+    canvas.toBlob(blob => {
+      const file = new File([blob], 'edited.jpg', { type: 'image/jpeg' })
+      onConfirm(file, URL.createObjectURL(blob))
       onClose()
-    } catch {
-      toast('Could not load selected image')
-    }
-  }
-
-  const labels = {
-    studio:  ['Front view', 'Angled view'],
-    glamour: ['Cosmetic scene', 'Wellness scene'],
+    }, 'image/jpeg', 0.93)
   }
 
   return (
     <div style={{
-      position:'fixed', inset:0, background:'rgba(0,0,0,0.55)', zIndex:1000,
-      display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem',
+      position:'fixed', inset:0, background:'rgba(0,0,0,0.92)', zIndex:1100,
+      display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
     }}>
-      <style>{`@keyframes spin-modal { to { transform: rotate(360deg); } }`}</style>
+      {/* Header */}
+      <div style={{ width:'100%', maxWidth:'420px', display:'flex', alignItems:'center', justifyContent:'space-between', padding:'.85rem 1.1rem' }}>
+        <button onClick={onClose} style={{ background:'none', border:'none', color:'rgba(255,255,255,.6)', fontSize:'.85rem', cursor:'pointer' }}>Cancel</button>
+        <span style={{ color:'#fff', fontSize:'.9rem', fontWeight:600 }}>Edit photo</span>
+        <button onClick={confirm} style={{ background:'linear-gradient(135deg,#c5a66a,#a8863d)', border:'none', color:'#fff', fontSize:'.85rem', fontWeight:600, cursor:'pointer', padding:'.4rem 1rem', borderRadius:'8px' }}>Done</button>
+      </div>
 
-      <div style={{
-        background:'var(--surface)', borderRadius:'20px', width:'100%',
-        maxWidth:'500px', overflow:'hidden',
-        boxShadow:'0 32px 80px rgba(0,0,0,0.3)',
-        animation: 'none',
-      }}>
-
-        {/* ── Header ── */}
+      {/* Crop frame */}
+      <div
+        ref={frameRef}
+        style={{
+          width:'min(88vw,360px)', height:'min(88vw,360px)', overflow:'hidden',
+          background:'#111', position:'relative',
+          cursor: dragging ? 'grabbing' : 'grab', userSelect:'none', borderRadius:'2px',
+        }}
+        onMouseDown={e => startDrag(e.clientX, e.clientY)}
+        onMouseMove={e => moveDrag(e.clientX, e.clientY)}
+        onMouseUp={endDrag} onMouseLeave={endDrag}
+        onTouchStart={e => { e.preventDefault(); startDrag(e.touches[0].clientX, e.touches[0].clientY) }}
+        onTouchMove={e => { e.preventDefault(); moveDrag(e.touches[0].clientX, e.touches[0].clientY) }}
+        onTouchEnd={endDrag}
+      >
+        <img
+          ref={imgRef} src={src} draggable={false}
+          style={{
+            position:'absolute', top:'50%', left:'50%', pointerEvents:'none',
+            width:'100%', height:'100%', objectFit:'cover',
+            transform:`translate(calc(-50% + ${pos.x}px), calc(-50% + ${pos.y}px)) scale(${scale}) rotate(${rotation}deg)`,
+            transformOrigin:'center',
+          }}
+          alt="Edit"
+        />
+        {/* Grid overlay */}
         <div style={{
-          padding:'1.3rem 1.6rem', borderBottom:'1px solid var(--border)',
-          display:'flex', alignItems:'center', justifyContent:'space-between',
-        }}>
-          <div>
-            <div style={{
-              fontSize:'1rem', fontWeight:600, color:'var(--ink)',
-              fontFamily:"'Playfair Display', serif", letterSpacing:'.02em',
-            }}>
-              ✨ AI Photo Enhancement
-            </div>
-            <div style={{fontSize:'.75rem', color:'var(--ink-3)', marginTop:'.2rem'}}>
-              Turn your photo into a professional product visual
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            style={{
-              background:'var(--bg)', border:'1px solid var(--border)',
-              borderRadius:'8px', width:'30px', height:'30px',
-              cursor:'pointer', color:'var(--ink-3)', fontSize:'1rem',
-              display:'flex', alignItems:'center', justifyContent:'center',
-            }}
-          >×</button>
+          position:'absolute', inset:0, pointerEvents:'none',
+          backgroundImage:'linear-gradient(rgba(255,255,255,.12) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.12) 1px,transparent 1px)',
+          backgroundSize:'33.33% 33.33%',
+          border:'1px solid rgba(255,255,255,.25)',
+        }}/>
+      </div>
+
+      {/* Controls */}
+      <div style={{ width:'100%', maxWidth:'420px', padding:'1.1rem 1rem' }}>
+        <div style={{ display:'flex', alignItems:'center', gap:'.85rem', marginBottom:'.9rem' }}>
+          <span style={{ fontSize:'.72rem', color:'rgba(255,255,255,.5)', minWidth:'32px' }}>Zoom</span>
+          <input type="range" min="1" max="3" step="0.01" value={scale}
+            onChange={e => setScale(Number(e.target.value))}
+            style={{ flex:1, accentColor:'#c5a66a', height:'4px' }}
+          />
+          <span style={{ fontSize:'.72rem', color:'rgba(255,255,255,.5)', minWidth:'32px', textAlign:'right' }}>{Math.round(scale*100)}%</span>
         </div>
-
-        {/* ── Body ── */}
-        <div style={{padding:'1.6rem'}}>
-
-          {/* ── PHASE: pick ── */}
-          {phase === 'pick' && (
-            <>
-              <img
-                src={imagePreview}
-                style={{
-                  width:'100%', height:'160px', objectFit:'cover',
-                  borderRadius:'12px', marginBottom:'1.4rem',
-                }}
-                alt="Your product"
-              />
-
-              <div style={{
-                fontSize:'.7rem', fontWeight:700, color:'var(--ink-3)',
-                marginBottom:'.75rem', textTransform:'uppercase', letterSpacing:'.08em',
-              }}>
-                Choose a style
-              </div>
-
-              <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'.75rem', marginBottom:'1.4rem'}}>
-                {[
-                  {
-                    value: 'studio',
-                    label: 'Studio',
-                    desc:  'Clean background, sharp professional lighting',
-                    emoji: '🏛',
-                  },
-                  {
-                    value: 'glamour',
-                    label: 'Glamour',
-                    desc:  'Marble, bokeh, luxury spa atmosphere',
-                    emoji: '✨',
-                  },
-                ].map(opt => (
-                  <div
-                    key={opt.value}
-                    onClick={() => setStyle(opt.value)}
-                    style={{
-                      border: `2px solid ${style === opt.value ? 'var(--gold)' : 'var(--border)'}`,
-                      borderRadius:'14px', padding:'1rem .9rem', cursor:'pointer',
-                      background: style === opt.value ? 'rgba(197,166,106,0.07)' : 'var(--bg)',
-                      transition:'all .15s',
-                    }}
-                  >
-                    <div style={{fontSize:'1.5rem', marginBottom:'.4rem'}}>{opt.emoji}</div>
-                    <div style={{fontWeight:600, color:'var(--ink)', fontSize:'.88rem'}}>{opt.label}</div>
-                    <div style={{fontSize:'.73rem', color:'var(--ink-3)', marginTop:'.25rem', lineHeight:1.4}}>{opt.desc}</div>
-                  </div>
-                ))}
-              </div>
-
-              <button
-                onClick={runEnhance}
-                style={{
-                  width:'100%', padding:'.9rem',
-                  background:'linear-gradient(135deg, #c5a66a 0%, #a8863d 100%)',
-                  color:'#fff', border:'none', borderRadius:'12px',
-                  fontWeight:600, fontSize:'.9rem', cursor:'pointer',
-                  letterSpacing:'.03em', transition:'opacity .15s',
-                }}
-                onMouseEnter={e => e.currentTarget.style.opacity='.88'}
-                onMouseLeave={e => e.currentTarget.style.opacity='1'}
-              >
-                Generate Enhanced Photos
-              </button>
-            </>
-          )}
-
-          {/* ── PHASE: loading ── */}
-          {phase === 'loading' && (
-            <div style={{textAlign:'center', padding:'2.5rem 0'}}>
-              <div style={{
-                width:'48px', height:'48px', borderRadius:'50%',
-                border:'3px solid var(--border)', borderTopColor:'var(--gold)',
-                animation:'spin-modal 1s linear infinite',
-                margin:'0 auto 1.4rem',
-              }}/>
-              <div style={{fontWeight:600, color:'var(--ink)', fontSize:'.95rem', marginBottom:'.5rem'}}>
-                {loadingMsg}
-              </div>
-              <div style={{fontSize:'.78rem', color:'var(--ink-3)'}}>
-                This takes 20 – 40 seconds
-              </div>
-            </div>
-          )}
-
-          {/* ── PHASE: results ── */}
-          {phase === 'results' && (
-            <>
-              <div style={{
-                fontSize:'.7rem', fontWeight:700, color:'var(--ink-3)',
-                marginBottom:'.75rem', textTransform:'uppercase', letterSpacing:'.08em',
-              }}>
-                Select your photo
-              </div>
-
-              <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'.75rem', marginBottom:'1rem'}}>
-                {results.map((url, i) => (
-                  <div
-                    key={i}
-                    onClick={() => selectImage(url)}
-                    style={{
-                      borderRadius:'12px', overflow:'hidden', cursor:'pointer',
-                      border:'2px solid var(--border)', transition:'border-color .15s',
-                      position:'relative',
-                    }}
-                    onMouseEnter={e => e.currentTarget.style.borderColor='var(--gold)'}
-                    onMouseLeave={e => e.currentTarget.style.borderColor='var(--border)'}
-                  >
-                    <img
-                      src={url}
-                      style={{width:'100%', aspectRatio:'2/3', objectFit:'cover', display:'block'}}
-                      alt={`Option ${i+1}`}
-                    />
-                    <div style={{
-                      position:'absolute', bottom:0, left:0, right:0,
-                      background:'linear-gradient(transparent, rgba(0,0,0,0.55))',
-                      padding:'.5rem .6rem', fontSize:'.72rem',
-                      color:'#fff', fontWeight:500,
-                    }}>
-                      {labels[style][i]}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <button
-                onClick={() => { setPhase('pick'); setResults([]) }}
-                style={{
-                  width:'100%', padding:'.7rem', background:'none',
-                  border:'1px solid var(--border)', borderRadius:'10px',
-                  color:'var(--ink-3)', cursor:'pointer', fontSize:'.82rem',
-                  transition:'border-color .15s',
-                }}
-                onMouseEnter={e => e.currentTarget.style.borderColor='var(--gold)'}
-                onMouseLeave={e => e.currentTarget.style.borderColor='var(--border)'}
-              >
-                ← Try a different style
-              </button>
-            </>
-          )}
+        <div style={{ display:'flex', gap:'.65rem', justifyContent:'center' }}>
+          {[['↺ Left', -90], ['↻ Right', 90]].map(([label, deg]) => (
+            <button key={label} onClick={() => rotate(deg)} style={{
+              flex:1, background:'rgba(255,255,255,.1)', border:'1px solid rgba(255,255,255,.15)',
+              color:'#fff', borderRadius:'9px', padding:'.55rem', cursor:'pointer', fontSize:'.82rem',
+              transition:'background .15s',
+            }}>{label}</button>
+          ))}
         </div>
       </div>
     </div>
@@ -2008,46 +1850,170 @@ function EnhanceModal({ imageFile, imagePreview, workspace, onSelect, onClose, t
 }
 
 
-// ─── PRODUCTS ─────────────────────────────────────────────────────────────────
-// Replace your existing Products function with this one
+// ─── AI ENHANCE MODAL ────────────────────────────────────────────────────────
+function EnhanceModal({ imageFile, imagePreview, workspace, onSelect, onClose, toast }) {
+  const [style, setStyle]           = useState('studio')
+  const [phase, setPhase]           = useState('pick')
+  const [results, setResults]       = useState([])
+  const [loadingMsg, setLoadingMsg] = useState('')
 
-function Products({ workspace, toast }) {
-  const [data, setData]               = useState([])
-  const [showForm, setShowForm]       = useState(false)
-  const [form, setForm]               = useState({ name:'', price:'', stock:'', description:'' })
-  const [imageFile, setImageFile]     = useState(null)
-  const [imagePreview, setImagePreview] = useState(null)
-  const [uploading, setUploading]     = useState(false)
-  const [showEnhance, setShowEnhance] = useState(false)
-  const [isEnhanced, setIsEnhanced]   = useState(false)
-  const fileRef = useRef()
+  const EDGE = 'https://bwfpioxvfqwnwzkvtebg.supabase.co/functions/v1/enhance-product-image'
 
-  useEffect(() => { fetchData() }, [workspace])
-
-  async function fetchData() {
-    const { data } = await supabase
-      .from('products').select('*')
-      .eq('workspace_id', workspace.id)
-      .order('created_at', { ascending: false })
-    setData(data || [])
+  async function getToken() {
+    const { data } = await supabase.auth.getSession()
+    return data?.session?.access_token
   }
+
+  async function call(body, token) {
+    const res = await fetch(EDGE, {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json', Authorization:`Bearer ${token}` },
+      body: JSON.stringify(body),
+    })
+    return res.json()
+  }
+
+  async function waitFor(reqId, token) {
+    while (true) {
+      await new Promise(r => setTimeout(r, 3500))
+      const s = await call({ action:'status', request_id:reqId }, token)
+      if (s.status === 'COMPLETED') {
+        const r = await call({ action:'result', request_id:reqId }, token)
+        return r.images?.[0]?.url
+      }
+      if (s.status === 'FAILED') throw new Error('Generation failed')
+    }
+  }
+
+  async function run() {
+    setPhase('loading'); setLoadingMsg('Uploading photo...')
+    try {
+      const ext  = imageFile.name.split('.').pop() || 'jpg'
+      const temp = `${workspace.id}/enhance-temp-${Date.now()}.${ext}`
+      const { error: upErr } = await supabase.storage.from('product-images').upload(temp, imageFile, { upsert:true })
+      if (upErr) throw new Error(upErr.message)
+      const { data: ud } = supabase.storage.from('product-images').getPublicUrl(temp)
+
+      setLoadingMsg('AI is crafting your images...')
+      const token = await getToken()
+      const { request_ids, error } = await call({
+        action:'submit', image_url:ud.publicUrl, style,
+        product_description:'professional hair and beauty care product',
+      }, token)
+      if (error) throw new Error(error)
+
+      setLoadingMsg('Finalising enhanced photos...')
+      const urls = await Promise.all(request_ids.map(id => waitFor(id, token)))
+      await supabase.storage.from('product-images').remove([temp])
+      setResults(urls); setPhase('results')
+    } catch (e) { toast('Enhancement failed — ' + e.message); setPhase('pick') }
+  }
+
+  async function pick(url) {
+    try {
+      const res  = await fetch(url)
+      const blob = await res.blob()
+      const file = new File([blob], `enhanced-${Date.now()}.jpg`, { type:'image/jpeg' })
+      onSelect(file, url); onClose()
+    } catch { toast('Could not load selected image') }
+  }
+
+  const labels = { studio:['Front view','Angled view'], glamour:['Cosmetic scene','Wellness scene'] }
+
+  return (
+    <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.6)', zIndex:1050, display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem' }}>
+      <style>{`@keyframes spin-en { to { transform:rotate(360deg); } }`}</style>
+      <div style={{ background:'var(--surface,#fff)', borderRadius:'20px', width:'100%', maxWidth:'480px', overflow:'hidden', boxShadow:'0 32px 80px rgba(0,0,0,.3)' }}>
+
+        {/* Header */}
+        <div style={{ padding:'1.3rem 1.5rem', borderBottom:'1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+          <div>
+            <div style={{ fontSize:'1rem', fontWeight:600, fontFamily:"'Playfair Display',serif" }}>✨ AI Photo Enhancement</div>
+            <div style={{ fontSize:'.75rem', color:'var(--ink-3)', marginTop:'.2rem' }}>Turn your photo into a professional visual</div>
+          </div>
+          <button onClick={onClose} style={{ background:'var(--bg)', border:'1px solid var(--border)', borderRadius:'8px', width:'30px', height:'30px', cursor:'pointer', color:'var(--ink-3)', fontSize:'1.1rem', display:'flex', alignItems:'center', justifyContent:'center' }}>×</button>
+        </div>
+
+        <div style={{ padding:'1.5rem' }}>
+          {phase === 'pick' && (<>
+            <img src={imagePreview} style={{ width:'100%', height:'150px', objectFit:'cover', borderRadius:'10px', marginBottom:'1.4rem' }} alt="product"/>
+            <div style={{ fontSize:'.7rem', fontWeight:700, color:'var(--ink-3)', marginBottom:'.75rem', textTransform:'uppercase', letterSpacing:'.08em' }}>Choose a style</div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'.75rem', marginBottom:'1.4rem' }}>
+              {[{ v:'studio', label:'Studio', desc:'Clean background, sharp lighting', ico:'🏛' },
+                { v:'glamour', label:'Glamour', desc:'Marble, bokeh, luxury spa', ico:'✨' }].map(o => (
+                <div key={o.v} onClick={() => setStyle(o.v)} style={{
+                  border:`2px solid ${style===o.v?'var(--gold)':'var(--border)'}`,
+                  borderRadius:'14px', padding:'1rem .9rem', cursor:'pointer',
+                  background: style===o.v ? 'rgba(197,166,106,.07)' : 'var(--bg)',
+                  transition:'all .15s',
+                }}>
+                  <div style={{ fontSize:'1.4rem', marginBottom:'.4rem' }}>{o.ico}</div>
+                  <div style={{ fontWeight:600, fontSize:'.88rem' }}>{o.label}</div>
+                  <div style={{ fontSize:'.73rem', color:'var(--ink-3)', marginTop:'.2rem', lineHeight:1.4 }}>{o.desc}</div>
+                </div>
+              ))}
+            </div>
+            <button onClick={run} style={{ width:'100%', padding:'.9rem', background:'linear-gradient(135deg,#c5a66a,#a8863d)', color:'#fff', border:'none', borderRadius:'12px', fontWeight:600, fontSize:'.9rem', cursor:'pointer' }}>
+              Generate Enhanced Photos
+            </button>
+          </>)}
+
+          {phase === 'loading' && (
+            <div style={{ textAlign:'center', padding:'2.5rem 0' }}>
+              <div style={{ width:'44px', height:'44px', borderRadius:'50%', border:'3px solid var(--border)', borderTopColor:'var(--gold)', animation:'spin-en 1s linear infinite', margin:'0 auto 1.25rem' }}/>
+              <div style={{ fontWeight:600, marginBottom:'.4rem' }}>{loadingMsg}</div>
+              <div style={{ fontSize:'.78rem', color:'var(--ink-3)' }}>This takes 20 – 40 seconds</div>
+            </div>
+          )}
+
+          {phase === 'results' && (<>
+            <div style={{ fontSize:'.7rem', fontWeight:700, color:'var(--ink-3)', marginBottom:'.75rem', textTransform:'uppercase', letterSpacing:'.08em' }}>Select your photo</div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'.75rem', marginBottom:'1rem' }}>
+              {results.map((url, i) => (
+                <div key={i} onClick={() => pick(url)} style={{
+                  borderRadius:'12px', overflow:'hidden', cursor:'pointer',
+                  border:'2px solid var(--border)', transition:'border-color .15s', position:'relative',
+                }}
+                  onMouseEnter={e=>e.currentTarget.style.borderColor='var(--gold)'}
+                  onMouseLeave={e=>e.currentTarget.style.borderColor='var(--border)'}
+                >
+                  <img src={url} style={{ width:'100%', aspectRatio:'2/3', objectFit:'cover', display:'block' }} alt={`Option ${i+1}`}/>
+                  <div style={{ position:'absolute', bottom:0, left:0, right:0, background:'linear-gradient(transparent,rgba(0,0,0,.5))', padding:'.45rem .6rem', fontSize:'.72rem', color:'#fff', fontWeight:500 }}>
+                    {labels[style][i]}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <button onClick={() => { setPhase('pick'); setResults([]) }} style={{ width:'100%', padding:'.7rem', background:'none', border:'1px solid var(--border)', borderRadius:'10px', color:'var(--ink-3)', cursor:'pointer', fontSize:'.82rem' }}>
+              ← Try a different style
+            </button>
+          </>)}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+
+// ─── ADD PRODUCT VIEW ────────────────────────────────────────────────────────
+function AddProductView({ workspace, toast, onBack }) {
+  const [form, setForm]             = useState({ name:'', price:'', stock:'', description:'' })
+  const [imageFile, setImageFile]   = useState(null)
+  const [imagePreview, setImagePreview] = useState(null)
+  const [uploading, setUploading]   = useState(false)
+  const [isEnhanced, setIsEnhanced] = useState(false)
+  const [showEnhance, setShowEnhance] = useState(false)
+  const [showEdit, setShowEdit]     = useState(false)
+  const fileRef = useRef()
 
   function handleFile(e) {
     const file = e.target.files[0]
     if (!file) return
-    if (file.size > 5 * 1024 * 1024) { toast('Image too large — max 5MB'); return }
-    setImageFile(file)
-    setImagePreview(URL.createObjectURL(file))
-    setIsEnhanced(false)
+    if (file.size > 5 * 1024 * 1024) { toast('Max 5MB'); return }
+    setImageFile(file); setImagePreview(URL.createObjectURL(file)); setIsEnhanced(false)
   }
 
-  function handleEnhanceSelect(file, url) {
-    setImageFile(file)
-    setImagePreview(url)
-    setIsEnhanced(true)
-  }
-
-  async function add(e) {
+  async function submit(e) {
     e.preventDefault()
     if (!form.name) { toast('Product name is required'); return }
     setUploading(true)
@@ -2056,232 +2022,339 @@ function Products({ workspace, toast }) {
     if (imageFile) {
       const ext  = imageFile.name.split('.').pop() || 'jpg'
       const path = `${workspace.id}/${Date.now()}.${ext}`
-      const { error: uploadError } = await supabase.storage
-        .from('product-images')
-        .upload(path, imageFile, { upsert: true })
-      if (uploadError) { toast(`Upload failed: ${uploadError.message}`); setUploading(false); return }
-      const { data: urlData } = supabase.storage.from('product-images').getPublicUrl(path)
-      image_url = urlData.publicUrl
+      const { error } = await supabase.storage.from('product-images').upload(path, imageFile, { upsert:true })
+      if (error) { toast('Upload failed: ' + error.message); setUploading(false); return }
+      const { data: ud } = supabase.storage.from('product-images').getPublicUrl(path)
+      image_url = ud.publicUrl
     }
 
     const { error } = await supabase.from('products').insert({
       workspace_id: workspace.id,
-      name:         form.name,
-      price:        parseFloat(form.price) || 0,
-      stock:        parseInt(form.stock)   || 0,
-      description:  form.description,
-      image_url,
+      name: form.name, price: parseFloat(form.price)||0,
+      stock: parseInt(form.stock)||0, description: form.description, image_url,
     })
-
-    if (error) { toast(`Error: ${error.message}`) }
-    else { toast(`${form.name} added successfully.`) }
-
-    setForm({ name:'', price:'', stock:'', description:'' })
-    setImageFile(null); setImagePreview(null)
-    setIsEnhanced(false); setShowForm(false); setUploading(false)
-    fetchData()
+    if (error) toast('Error: ' + error.message)
+    else { toast(form.name + ' added.'); onBack() }
+    setUploading(false)
   }
 
   return (
-    <div>
-      {/* ── Enhance Modal ── */}
+    <>
+      {showEdit && imagePreview && (
+        <ImageEditModal
+          src={imagePreview}
+          onConfirm={(file, url) => { setImageFile(file); setImagePreview(url); setIsEnhanced(false) }}
+          onClose={() => setShowEdit(false)}
+        />
+      )}
       {showEnhance && imageFile && (
         <EnhanceModal
-          imageFile={imageFile}
+          imageFile={imageFile} imagePreview={imagePreview} workspace={workspace}
+          onSelect={(file, url) => { setImageFile(file); setImagePreview(url); setIsEnhanced(true) }}
+          onClose={() => setShowEnhance(false)} toast={toast}
+        />
+      )}
+
+      <div>
+        {/* Header */}
+        <div className="db-page-head">
+          <div style={{ display:'flex', alignItems:'center', gap:'.75rem' }}>
+            <button onClick={onBack} style={{ background:'var(--bg)', border:'1px solid var(--border)', borderRadius:'8px', padding:'.4rem .8rem', cursor:'pointer', fontSize:'.82rem', color:'var(--ink-3)', display:'flex', alignItems:'center', gap:'.3rem' }}>← Back</button>
+            <div>
+              <div className="db-page-title">New product</div>
+              <div className="db-page-sub">Add to your shop</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="db-card">
+          <form onSubmit={submit} style={{ padding:'1.5rem', display:'flex', flexDirection:'column', gap:'1.1rem' }}>
+
+            {/* Photo section */}
+            <div>
+              <div style={{ fontSize:'.75rem', fontWeight:600, color:'var(--ink-3)', marginBottom:'.6rem', textTransform:'uppercase', letterSpacing:'.06em' }}>Photo</div>
+
+              {!imagePreview ? (
+                <div
+                  onClick={() => fileRef.current.click()}
+                  style={{ border:'2px dashed var(--border)', borderRadius:'14px', padding:'2.5rem 1rem', textAlign:'center', cursor:'pointer', background:'var(--bg)', transition:'border-color .15s' }}
+                  onMouseEnter={e=>e.currentTarget.style.borderColor='var(--gold)'}
+                  onMouseLeave={e=>e.currentTarget.style.borderColor='var(--border)'}
+                >
+                  <div style={{ fontSize:'1.8rem', marginBottom:'.5rem' }}>📷</div>
+                  <div style={{ fontSize:'.85rem', fontWeight:500, color:'var(--ink)', marginBottom:'.25rem' }}>Click to add photo</div>
+                  <div style={{ fontSize:'.73rem', color:'var(--ink-3)' }}>JPG · PNG · WEBP · max 5MB</div>
+                </div>
+              ) : (
+                <div style={{ position:'relative', borderRadius:'14px', overflow:'hidden', border:'1px solid var(--border)' }}>
+                  <img src={imagePreview} style={{ width:'100%', height:'240px', objectFit:'cover', display:'block' }} alt="preview"/>
+
+                  {/* Action bar over image */}
+                  <div style={{ position:'absolute', bottom:0, left:0, right:0, padding:'.75rem', display:'flex', gap:'.5rem', background:'linear-gradient(transparent,rgba(0,0,0,0.5))' }}>
+                    {/* Edit photo */}
+                    <button type="button" onClick={() => setShowEdit(true)} style={{ flex:1, background:'rgba(255,255,255,.18)', backdropFilter:'blur(6px)', border:'1px solid rgba(255,255,255,.25)', color:'#fff', borderRadius:'8px', padding:'.45rem', fontSize:'.75rem', fontWeight:600, cursor:'pointer' }}>
+                      ✏️ Edit
+                    </button>
+                    {/* Enhance with AI */}
+                    <button type="button" onClick={() => setShowEnhance(true)} style={{ flex:2, background: isEnhanced ? 'linear-gradient(135deg,#c5a66a,#a8863d)' : 'rgba(255,255,255,.18)', backdropFilter:'blur(6px)', border:'1px solid rgba(255,255,255,.25)', color:'#fff', borderRadius:'8px', padding:'.45rem', fontSize:'.75rem', fontWeight:600, cursor:'pointer' }}>
+                      ✨ {isEnhanced ? 'Enhanced ✓' : 'Enhance with AI'}
+                    </button>
+                    {/* Change photo */}
+                    <button type="button" onClick={() => fileRef.current.click()} style={{ background:'rgba(255,255,255,.18)', backdropFilter:'blur(6px)', border:'1px solid rgba(255,255,255,.25)', color:'#fff', borderRadius:'8px', padding:'.45rem .7rem', fontSize:'.75rem', cursor:'pointer' }}>
+                      🔄
+                    </button>
+                  </div>
+                </div>
+              )}
+              <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} style={{ display:'none' }}/>
+            </div>
+
+            {/* Fields */}
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'1rem' }}>
+              <div className="db-field" style={{ gridColumn:'1/-1' }}>
+                <label>Product name</label>
+                <input value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} placeholder="e.g. Elixir Hair Oil" required/>
+              </div>
+              <div className="db-field">
+                <label>Price (CAD)</label>
+                <input type="number" min="0" step="0.01" value={form.price} onChange={e=>setForm(f=>({...f,price:e.target.value}))} placeholder="0.00"/>
+              </div>
+              <div className="db-field">
+                <label>Stock</label>
+                <input type="number" min="0" value={form.stock} onChange={e=>setForm(f=>({...f,stock:e.target.value}))} placeholder="0"/>
+              </div>
+              <div className="db-field" style={{ gridColumn:'1/-1' }}>
+                <label>Description <span style={{ fontWeight:400, color:'var(--ink-3)' }}>(optional)</span></label>
+                <textarea value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))} placeholder="What makes this product special..." rows={3} style={{ padding:'.7rem 1rem', border:'1px solid var(--border)', borderRadius:'8px', fontSize:'.88rem', fontFamily:'inherit', color:'var(--ink)', resize:'vertical', outline:'none' }}/>
+              </div>
+            </div>
+
+            <button type="submit" disabled={uploading} className="db-btn db-btn-primary" style={{ width:'100%', justifyContent:'center', padding:'.85rem', fontSize:'.9rem' }}>
+              {uploading ? 'Saving...' : 'Save product'}
+            </button>
+          </form>
+        </div>
+      </div>
+    </>
+  )
+}
+
+
+// ─── PRODUCT DETAIL VIEW ─────────────────────────────────────────────────────
+function ProductDetailView({ product, workspace, toast, onSave, onDelete, onBack }) {
+  const [form, setForm]             = useState({ name: product.name, price: product.price, stock: product.stock, description: product.description || '' })
+  const [imageFile, setImageFile]   = useState(null)
+  const [imagePreview, setImagePreview] = useState(product.image_url || null)
+  const [isEnhanced, setIsEnhanced] = useState(false)
+  const [showEnhance, setShowEnhance] = useState(false)
+  const [showEdit, setShowEdit]     = useState(false)
+  const [saving, setSaving]         = useState(false)
+  const fileRef = useRef()
+
+  function handleFile(e) {
+    const file = e.target.files[0]
+    if (!file) return
+    if (file.size > 5 * 1024 * 1024) { toast('Max 5MB'); return }
+    setImageFile(file); setImagePreview(URL.createObjectURL(file)); setIsEnhanced(false)
+  }
+
+  async function save() {
+    setSaving(true)
+    await onSave(product.id, { name:form.name, price:parseFloat(form.price)||0, stock:parseInt(form.stock)||0, description:form.description }, imageFile)
+    setSaving(false)
+  }
+
+  const stockStatus = form.stock === 0 ? 'db-badge-cancelled' : form.stock < 10 ? 'db-badge-pending' : 'db-badge-confirmed'
+  const stockLabel  = form.stock === 0 ? 'Out of stock' : form.stock < 10 ? 'Low stock' : 'In stock'
+
+  return (
+    <>
+      {showEdit && imagePreview && (
+        <ImageEditModal
+          src={imagePreview}
+          onConfirm={(file, url) => { setImageFile(file); setImagePreview(url); setIsEnhanced(false) }}
+          onClose={() => setShowEdit(false)}
+        />
+      )}
+      {showEnhance && (imageFile || product.image_url) && (
+        <EnhanceModal
+          imageFile={imageFile || { name:'product.jpg' }}
           imagePreview={imagePreview}
           workspace={workspace}
-          onSelect={handleEnhanceSelect}
+          onSelect={(file, url) => { setImageFile(file); setImagePreview(url); setIsEnhanced(true) }}
           onClose={() => setShowEnhance(false)}
           toast={toast}
         />
       )}
 
-      {/* ── Page header ── */}
+      <div>
+        {/* Header */}
+        <div className="db-page-head">
+          <div style={{ display:'flex', alignItems:'center', gap:'.75rem' }}>
+            <button onClick={onBack} style={{ background:'var(--bg)', border:'1px solid var(--border)', borderRadius:'8px', padding:'.4rem .8rem', cursor:'pointer', fontSize:'.82rem', color:'var(--ink-3)' }}>← Back</button>
+            <div>
+              <div className="db-page-title">{product.name}</div>
+              <div className="db-page-sub">Edit product</div>
+            </div>
+          </div>
+          <button onClick={() => onDelete(product.id, product.name)} style={{ background:'none', border:'1px solid #fecaca', color:'#c0392b', borderRadius:'8px', padding:'.4rem .9rem', fontSize:'.8rem', cursor:'pointer' }}>
+            Delete
+          </button>
+        </div>
+
+        {/* Product image */}
+        <div className="db-card" style={{ marginBottom:'1.25rem', overflow:'hidden' }}>
+          <div style={{ position:'relative' }}>
+            {imagePreview ? (
+              <img src={imagePreview} style={{ width:'100%', height:'280px', objectFit:'cover', display:'block' }} alt={product.name}/>
+            ) : (
+              <div style={{ height:'200px', background:'var(--bg)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'3rem' }}>📦</div>
+            )}
+
+            {/* Action bar */}
+            <div style={{ position:'absolute', bottom:0, left:0, right:0, padding:'.75rem', display:'flex', gap:'.5rem', background:'linear-gradient(transparent,rgba(0,0,0,.5))' }}>
+              {imagePreview && (
+                <button type="button" onClick={() => setShowEdit(true)} style={{ flex:1, background:'rgba(255,255,255,.18)', backdropFilter:'blur(6px)', border:'1px solid rgba(255,255,255,.25)', color:'#fff', borderRadius:'8px', padding:'.45rem', fontSize:'.75rem', fontWeight:600, cursor:'pointer' }}>
+                  ✏️ Edit
+                </button>
+              )}
+              <button type="button" onClick={() => setShowEnhance(true)} style={{ flex:2, background: isEnhanced ? 'linear-gradient(135deg,#c5a66a,#a8863d)' : 'rgba(255,255,255,.18)', backdropFilter:'blur(6px)', border:'1px solid rgba(255,255,255,.25)', color:'#fff', borderRadius:'8px', padding:'.45rem', fontSize:'.75rem', fontWeight:600, cursor:'pointer' }}>
+                ✨ {isEnhanced ? 'Enhanced ✓' : 'Enhance with AI'}
+              </button>
+              <button type="button" onClick={() => fileRef.current.click()} style={{ background:'rgba(255,255,255,.18)', backdropFilter:'blur(6px)', border:'1px solid rgba(255,255,255,.25)', color:'#fff', borderRadius:'8px', padding:'.45rem .7rem', fontSize:'.75rem', cursor:'pointer' }}>
+                🔄
+              </button>
+            </div>
+          </div>
+          <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} style={{ display:'none' }}/>
+        </div>
+
+        {/* Stock badge */}
+        <div style={{ marginBottom:'1rem' }}>
+          <span className={`db-badge ${stockStatus}`}>{stockLabel} · {form.stock} units</span>
+        </div>
+
+        {/* Edit form */}
+        <div className="db-card">
+          <div className="db-card-head"><div className="db-card-title">Product details</div></div>
+          <div style={{ padding:'1.4rem', display:'flex', flexDirection:'column', gap:'1rem' }}>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'1rem' }}>
+              <div className="db-field" style={{ gridColumn:'1/-1' }}>
+                <label>Product name</label>
+                <input value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}/>
+              </div>
+              <div className="db-field">
+                <label>Price (CAD)</label>
+                <input type="number" min="0" step="0.01" value={form.price} onChange={e=>setForm(f=>({...f,price:e.target.value}))}/>
+              </div>
+              <div className="db-field">
+                <label>Stock</label>
+                <input type="number" min="0" value={form.stock} onChange={e=>setForm(f=>({...f,stock:e.target.value}))}/>
+              </div>
+              <div className="db-field" style={{ gridColumn:'1/-1' }}>
+                <label>Description</label>
+                <textarea value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))} rows={3} style={{ padding:'.7rem 1rem', border:'1px solid var(--border)', borderRadius:'8px', fontSize:'.88rem', fontFamily:'inherit', color:'var(--ink)', resize:'vertical', outline:'none' }}/>
+              </div>
+            </div>
+            <button onClick={save} disabled={saving} className="db-btn db-btn-primary" style={{ width:'100%', justifyContent:'center', padding:'.85rem' }}>
+              {saving ? 'Saving...' : 'Save changes'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
+  )
+}
+
+
+// ─── PRODUCTS (main) ─────────────────────────────────────────────────────────
+function Products({ workspace, toast }) {
+  const [view, setView]                 = useState('list')
+  const [data, setData]                 = useState([])
+  const [selectedProduct, setSelectedProduct] = useState(null)
+
+  useEffect(() => { if (workspace) fetchData() }, [workspace])
+
+  async function fetchData() {
+    const { data } = await supabase.from('products').select('*').eq('workspace_id', workspace.id).order('created_at', { ascending:false })
+    setData(data || [])
+  }
+
+  async function saveProduct(id, updates, newImageFile) {
+    let image_url = selectedProduct.image_url
+    if (newImageFile) {
+      const ext  = newImageFile.name.split('.').pop() || 'jpg'
+      const path = `${workspace.id}/${Date.now()}.${ext}`
+      await supabase.storage.from('product-images').upload(path, newImageFile, { upsert:true })
+      const { data: ud } = supabase.storage.from('product-images').getPublicUrl(path)
+      image_url = ud.publicUrl
+    }
+    const { error } = await supabase.from('products').update({ ...updates, image_url }).eq('id', id)
+    if (error) toast('Error: ' + error.message)
+    else { toast('Product updated.'); setView('list'); fetchData() }
+  }
+
+  async function deleteProduct(id, name) {
+    if (!window.confirm(`Delete "${name}"? This cannot be undone.`)) return
+    await supabase.from('products').delete().eq('id', id)
+    toast(name + ' deleted.')
+    setView('list'); fetchData()
+  }
+
+  if (view === 'add') return (
+    <AddProductView
+      workspace={workspace} toast={toast}
+      onBack={() => { setView('list'); fetchData() }}
+    />
+  )
+
+  if (view === 'detail' && selectedProduct) return (
+    <ProductDetailView
+      product={selectedProduct} workspace={workspace} toast={toast}
+      onSave={saveProduct} onDelete={deleteProduct}
+      onBack={() => setView('list')}
+    />
+  )
+
+  // ── List view
+  return (
+    <div>
       <div className="db-page-head">
         <div>
           <div className="db-page-title">Products</div>
           <div className="db-page-sub">Sell from your profile page</div>
         </div>
-        <button
-          className="db-btn db-btn-primary"
-          onClick={() => setShowForm(s => !s)}
-        >
-          {showForm ? 'Cancel' : 'Add product'}
-        </button>
+        <button className="db-btn db-btn-primary" onClick={() => setView('add')}>Add product</button>
       </div>
 
-      {/* ── Add product form ── */}
-      {showForm && (
-        <div className="db-card" style={{ marginBottom: '1.25rem' }}>
-          <div className="db-card-head">
-            <div className="db-card-title">New product</div>
-          </div>
-          <form onSubmit={add} style={{ padding:'1.4rem', display:'flex', flexDirection:'column', gap:'1rem' }}>
-
-            {/* Image upload zone */}
-            <div className="db-field">
-              <label>Product image <span style={{ color:'var(--ink-3)', fontWeight:400 }}>(optional)</span></label>
-
-              <div style={{ position:'relative', display:'inline-block', width:'100%' }}>
-                <div
-                  onClick={() => fileRef.current.click()}
-                  style={{
-                    border:'2px dashed var(--border)', borderRadius:'12px',
-                    padding: imagePreview ? '0' : '1.8rem',
-                    textAlign:'center', cursor:'pointer',
-                    background:'var(--bg)', transition:'border-color .15s',
-                    overflow:'hidden',
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.borderColor='var(--gold)'}
-                  onMouseLeave={e => e.currentTarget.style.borderColor='var(--border)'}
-                >
-                  {imagePreview ? (
-                    <img
-                      src={imagePreview}
-                      alt="preview"
-                      style={{ width:'100%', height:'200px', objectFit:'cover', display:'block' }}
-                    />
-                  ) : (
-                    <div style={{ color:'var(--ink-3)', fontSize:'.82rem' }}>
-                      Click to upload image
-                      <br/>
-                      <span style={{ fontSize:'.72rem' }}>JPG, PNG — max 5MB</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* ✨ Enhance button — appears only after photo is uploaded */}
-                {imagePreview && imageFile && (
-                  <button
-                    type="button"
-                    onClick={() => setShowEnhance(true)}
-                    style={{
-                      position:'absolute', bottom:'10px', right:'10px',
-                      background: isEnhanced
-                        ? 'linear-gradient(135deg, #c5a66a, #a8863d)'
-                        : 'rgba(0,0,0,0.62)',
-                      backdropFilter:'blur(6px)',
-                      color:'#fff', border:'none', borderRadius:'20px',
-                      padding:'.4rem .85rem', fontSize:'.75rem', fontWeight:600,
-                      cursor:'pointer', display:'flex', alignItems:'center',
-                      gap:'.35rem', letterSpacing:'.02em',
-                      transition:'all .2s',
-                    }}
-                  >
-                    ✨ {isEnhanced ? 'Enhanced' : 'Enhance with AI'}
-                  </button>
-                )}
-              </div>
-
-              <input
-                ref={fileRef} type="file" accept="image/*"
-                onChange={handleFile} style={{ display:'none' }}
-              />
-            </div>
-
-            {/* Product name */}
-            <div className="db-field">
-              <label>Product name</label>
-              <input
-                value={form.name}
-                onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                placeholder="e.g. Elixir Hair Oil"
-                required
-              />
-            </div>
-
-            {/* Price + Stock row */}
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'1rem' }}>
-              <div className="db-field">
-                <label>Price ($)</label>
-                <input
-                  type="number" min="0" step="0.01"
-                  value={form.price}
-                  onChange={e => setForm(f => ({ ...f, price: e.target.value }))}
-                  placeholder="0.00"
-                />
-              </div>
-              <div className="db-field">
-                <label>Stock</label>
-                <input
-                  type="number" min="0"
-                  value={form.stock}
-                  onChange={e => setForm(f => ({ ...f, stock: e.target.value }))}
-                  placeholder="0"
-                />
-              </div>
-            </div>
-
-            {/* Description */}
-            <div className="db-field">
-              <label>Description <span style={{ color:'var(--ink-3)', fontWeight:400 }}>(optional)</span></label>
-              <textarea
-                value={form.description}
-                onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-                placeholder="Describe your product..."
-                rows={3}
-                style={{ resize:'vertical' }}
-              />
-            </div>
-
-            <button
-              type="submit"
-              className="db-btn db-btn-primary"
-              disabled={uploading}
-              style={{ alignSelf:'flex-end', minWidth:'140px' }}
-            >
-              {uploading ? 'Saving...' : 'Add product'}
-            </button>
-          </form>
-        </div>
-      )}
-
-      {/* ── Products grid ── */}
-      {data.length === 0 && !showForm ? (
-        <div className="db-card" style={{ padding:'2.5rem', textAlign:'center' }}>
-          <div style={{ fontSize:'1.5rem', marginBottom:'.75rem' }}>📦</div>
-          <div style={{ fontWeight:600, color:'var(--ink)', marginBottom:'.35rem' }}>No products yet</div>
-          <div style={{ fontSize:'.82rem', color:'var(--ink-3)' }}>
-            Add your first product and enhance it with AI
-          </div>
+      {data.length === 0 ? (
+        <div className="db-card" style={{ padding:'3rem 2rem', textAlign:'center' }}>
+          <div style={{ fontSize:'2.5rem', marginBottom:'.75rem' }}>📦</div>
+          <div style={{ fontWeight:600, color:'var(--ink)', marginBottom:'.4rem' }}>No products yet</div>
+          <div style={{ fontSize:'.82rem', color:'var(--ink-3)', marginBottom:'1.4rem' }}>Add your first product and enhance photos with AI</div>
+          <button className="db-btn db-btn-primary" onClick={() => setView('add')}>Add your first product</button>
         </div>
       ) : (
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(200px, 1fr))', gap:'1rem' }}>
+        <div className="db-grid-3">
           {data.map(p => (
-            <div key={p.id} className="db-card" style={{ overflow:'hidden', padding:0 }}>
-              {p.image_url ? (
-                <img
-                  src={p.image_url} alt={p.name}
-                  style={{ width:'100%', height:'160px', objectFit:'cover', display:'block' }}
-                />
-              ) : (
-                <div style={{
-                  height:'160px', background:'var(--bg)',
-                  display:'flex', alignItems:'center', justifyContent:'center',
-                  fontSize:'2rem', color:'var(--ink-3)',
-                }}>
-                  📦
-                </div>
-              )}
-              <div style={{ padding:'.9rem' }}>
-                <div style={{ fontWeight:600, color:'var(--ink)', fontSize:'.9rem', marginBottom:'.2rem' }}>{p.name}</div>
-                {p.description && (
-                  <div style={{
-                    fontSize:'.75rem', color:'var(--ink-3)', marginBottom:'.5rem',
-                    display:'-webkit-box', WebkitLineClamp:2,
-                    WebkitBoxOrient:'vertical', overflow:'hidden',
-                  }}>
-                    {p.description}
-                  </div>
-                )}
-                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                  <span style={{ fontWeight:700, color:'var(--gold)', fontSize:'.95rem' }}>
-                    ${Number(p.price).toFixed(2)}
-                  </span>
-                  <span style={{ fontSize:'.72rem', color:'var(--ink-3)' }}>
-                    {p.stock} in stock
-                  </span>
-                </div>
+            <div
+              key={p.id}
+              className="db-prod-card"
+              style={{ cursor:'pointer', transition:'transform .15s, box-shadow .15s' }}
+              onClick={() => { setSelectedProduct(p); setView('detail') }}
+              onMouseEnter={e => { e.currentTarget.style.transform='translateY(-2px)'; e.currentTarget.style.boxShadow='0 8px 24px rgba(0,0,0,.1)' }}
+              onMouseLeave={e => { e.currentTarget.style.transform='none'; e.currentTarget.style.boxShadow='none' }}
+            >
+              {p.image_url
+                ? <img src={p.image_url} alt={p.name} style={{ width:'100%', height:'160px', objectFit:'cover', display:'block' }}/>
+                : <div className="db-prod-img">📦</div>
+              }
+              <div className="db-prod-body">
+                <div className="db-prod-name">{p.name}</div>
+                <div className="db-prod-price">{fmt(p.price)}</div>
+                <span className={`db-badge ${p.stock===0?'db-badge-cancelled':p.stock<10?'db-badge-pending':'db-badge-confirmed'}`}>
+                  {p.stock===0 ? 'Out of stock' : `${p.stock} in stock`}
+                </span>
               </div>
             </div>
           ))}
@@ -2289,8 +2362,7 @@ function Products({ workspace, toast }) {
       )}
     </div>
   )
-}
-// ── END PART 4A ───────────────────────────────────────────────────────────────// ── PART 4B ───────────────────────────────────────────────────────────────────
+}// ── END PART 4A ───────────────────────────────────────────────────────────────// ── PART 4B ───────────────────────────────────────────────────────────────────
 
 const FILE_ICONS={pdf:'📄',image:'🖼️',video:'🎬',other:'📎'}
 function fileType(f){if(f.type?.startsWith('video')) return 'video';if(f.type?.startsWith('image')) return 'image';if(f.type==='application/pdf'||f.name?.endsWith('.pdf')) return 'pdf';return 'other'}
