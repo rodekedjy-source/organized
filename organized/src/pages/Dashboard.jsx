@@ -495,26 +495,26 @@ function NextUpBanner({ appts, workspace, onReloaded, toast, lang='en' }) {
   return (
     <>
       <div className="next-up-banner">
-        <div className="next-up-left">
+        {/* Top row: icon + info + amount */}
+        <div style={{display:'flex',alignItems:'flex-start',gap:'.85rem',marginBottom:'.9rem'}}>
           <div className="next-up-icon">{I.clock}</div>
-          <div>
+          <div style={{flex:1,minWidth:0}}>
             <div className="next-up-label">{t(lang,'next_appt')} — {dateLabel}</div>
             <div className="next-up-name">{next.client_name} · {svcName(next)}</div>
           </div>
-        </div>
-        <div style={{display:'flex',alignItems:'center',gap:'.55rem',flexShrink:0}}>
-          <div className="next-up-right">
-            <div className="next-up-time">{new Date(next.scheduled_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</div>
-            <div className="next-up-amount">{fmtRev(next.amount)}</div>
+          <div style={{textAlign:'right',flexShrink:0}}>
+            <div className="next-up-amount" style={{fontSize:'.95rem',fontWeight:600,color:'var(--gold)'}}>{fmtRev(next.amount)}</div>
           </div>
-          {/* FIX 1: Rappeler dominant (gold), Reprogrammer secondary */}
-          <button onClick={()=>setShowMessage(true)}
-            style={{background:'var(--gold)',border:'none',color:'var(--ink)',borderRadius:8,padding:'.45rem .9rem',fontSize:'.75rem',fontWeight:700,cursor:'pointer',fontFamily:'inherit',whiteSpace:'nowrap'}}>
-            {t(lang,'message')}
-          </button>
+        </div>
+        {/* Bottom row: buttons right-aligned */}
+        <div style={{display:'flex',justifyContent:'flex-end',gap:'.5rem'}}>
           <button onClick={()=>setShowReschedule(true)}
-            style={{background:'rgba(255,255,255,.1)',border:'1px solid rgba(255,255,255,.15)',color:'rgba(255,255,255,.8)',borderRadius:8,padding:'.45rem .8rem',fontSize:'.75rem',fontWeight:500,cursor:'pointer',fontFamily:'inherit',whiteSpace:'nowrap'}}>
+            style={{background:'rgba(255,255,255,.08)',border:'1px solid rgba(255,255,255,.15)',color:'rgba(255,255,255,.75)',borderRadius:8,padding:'.5rem 1rem',fontSize:'.78rem',fontWeight:500,cursor:'pointer',fontFamily:'inherit'}}>
             {t(lang,'reschedule')}
+          </button>
+          <button onClick={()=>setShowMessage(true)}
+            style={{background:'var(--gold)',border:'none',color:'#1a1814',borderRadius:8,padding:'.5rem 1.1rem',fontSize:'.78rem',fontWeight:700,cursor:'pointer',fontFamily:'inherit'}}>
+            {t(lang,'message')}
           </button>
         </div>
       </div>
@@ -2361,13 +2361,20 @@ export default function Dashboard() {
   )
 
   if(clientView) return (
-    <div>
+    <div className="app-wrap">
       <style>{css}</style>
-      <div style={{position:'fixed',top:0,left:0,right:0,zIndex:99,background:'var(--ink)',color:'#fff',padding:'.5rem 1rem',display:'flex',alignItems:'center',justifyContent:'space-between',fontSize:'.75rem'}}>
-        <span style={{color:'rgba(255,255,255,.5)'}}>Vue client</span>
-        <button onClick={()=>setClientView(false)} style={{background:'var(--gold)',border:'none',color:'var(--ink)',borderRadius:6,padding:'.25rem .75rem',cursor:'pointer',fontFamily:'inherit',fontWeight:600,fontSize:'.72rem'}}>← Retour</button>
+      {/* Same topbar — toggle switches back to Dash */}
+      <div className="topbar">
+        <div style={{display:'flex',alignItems:'center',gap:'.6rem'}}>
+          <div className="brand">Organized<span className="brand-dot">.</span></div>
+        </div>
+        <div className="view-toggle">
+          <button className="vt-btn" onClick={()=>setClientView(false)}>Dash</button>
+          <button className="vt-btn active">Client</button>
+        </div>
+        <div className="av-btn" onClick={()=>setClientView(false)}>{initials}</div>
       </div>
-      <div style={{paddingTop:40}}><ClientPage workspace={workspace}/></div>
+      <ClientPage workspace={workspace}/>
     </div>
   )
 
@@ -2539,7 +2546,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .card-body{padding:1.25rem 1.4rem}
 
 /* NEXT UP BANNER */
-.next-up-banner{background:var(--ink);border-radius:14px;padding:1rem 1.1rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-bottom:1.25rem;flex-wrap:wrap}
+.next-up-banner{background:var(--ink);border-radius:16px;padding:1.1rem 1.25rem;display:flex;flex-direction:column;margin-bottom:1.25rem;box-shadow:0 4px 24px rgba(0,0,0,.18)}
 .next-up-left{display:flex;align-items:center;gap:.85rem;flex:1;min-width:0}
 .next-up-icon{width:38px;height:38px;border-radius:50%;background:rgba(197,169,106,.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--gold)}
 .next-up-icon svg{width:17px;height:17px}
