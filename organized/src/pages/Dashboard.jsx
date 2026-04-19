@@ -1120,12 +1120,11 @@ function Overview({ workspace, session, ownerData, toast, setPage, refetchWorksp
         {/* FIX 2: only copy link button */}
         <div className="head-actions">
           <button className="btn btn-secondary btn-sm" onClick={()=>{
-            const url=`https://beorganized.io/${workspace?.slug||''}`
-            navigator.clipboard?.writeText(url)
-            toast(t(lang,'link_copied'))
+            const url=workspace?.slug?`https://beorganized.io/${workspace.slug}`:''
+            if(url){navigator.clipboard?.writeText(url);toast('Lien copié !')}
           }}>
             <span style={{width:14,height:14,display:'flex'}}>{I.link}</span>
-            {workspace?.slug?`beorganized.io/${workspace.slug}`:t(lang,'copy_link')}
+            {workspace?.slug?workspace.slug:t(lang,'copy_link')}
           </button>
         </div>
       </div>
@@ -2292,6 +2291,7 @@ export default function Dashboard() {
   const [toastMsg,setToastMsg]=useState(null)
   const [clientView,setClientView]=useState(false)
   const [theme,setThemeState]=useState(()=>localStorage.getItem('org-theme')||'light')
+  const [subscription,setSubscription]=useState(null)
   const [lang,setLang]=useState('en')
 
   useEffect(()=>{
@@ -2303,12 +2303,17 @@ export default function Dashboard() {
   async function fetchWorkspace(s=session){
     if(!s) return
     const[{data:ws},{data:user}]=await Promise.all([
-      supabase.from('workspaces').select('*').eq('owner_id',s.user.id).maybeSingle(),
+      supabase.from('workspaces').select('*').eq('user_id',s.user.id).maybeSingle(),
       supabase.from('users').select('*').eq('id',s.user.id).maybeSingle(),
     ])
     setWorkspace(ws)
     setOwnerData(user)
     if(user?.language) setLang(user.language)
+    // fetch subscription
+    if(ws?.id){
+      const{data:sub}=await supabase.from('subscriptions').select('*').eq('workspace_id',ws.id).maybeSingle()
+      setSubscription(sub)
+    }
     setLoading(false)
   }
 
@@ -2429,17 +2434,21 @@ export default function Dashboard() {
         </nav>
         <div className="sb-footer">
           {workspace?.slug&&(
-            <div style={{marginBottom:'.65rem',padding:'.65rem .85rem',background:'var(--gold-lt)',border:'1px solid var(--gold-dim)',borderRadius:10,cursor:'pointer'}}
-              onClick={()=>{navigator.clipboard?.writeText(`https://beorganized.io/${workspace.slug}`);toast('Lien copié !');setMenuOpen(false)}}>
-              <div style={{fontSize:'.6rem',fontWeight:700,color:'var(--gold)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:3}}>Ton lien de réservation</div>
-              <div style={{fontSize:'.76rem',color:'var(--ink-2)',fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>beorganized.io/{workspace.slug}</div>
-              <div style={{fontSize:'.65rem',color:'var(--ink-3)',marginTop:3}}>Appuie pour copier · Partage ce lien</div>
+            <div style={{marginBottom:'.65rem',padding:'.75rem .9rem',background:'var(--gold-lt)',border:'1px solid var(--gold-dim)',borderRadius:12,cursor:'pointer'}}
+              onClick={()=>window.open(`https://beorganized.io/${workspace.slug}`,'_blank')}>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:4}}>
+                <div style={{fontSize:'.6rem',fontWeight:700,color:'var(--gold)',textTransform:'uppercase',letterSpacing:'.08em'}}>
+                  {subscription?.plan==='pro'?'Pro Plan':subscription?.plan==='studio'?'Studio Plan':subscription?.plan==='starter'?'Starter Plan':'Beta'}
+                </div>
+                <svg viewBox="0 0 12 12" fill="none" stroke="var(--gold)" strokeWidth="1.5" width="10" height="10"><path d="M2 10L10 2M10 2H5M10 2v5"/></svg>
+              </div>
+              <div style={{fontSize:'.8rem',color:'var(--ink)',fontWeight:600,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>beorganized.io/{workspace.slug}</div>
+              <div style={{marginTop:6,height:3,background:'rgba(0,0,0,.08)',borderRadius:10,overflow:'hidden'}}>
+                <div style={{height:'100%',width:subscription?.plan?'100%':'35%',background:'linear-gradient(90deg,#a8863d,var(--gold))',borderRadius:10,transition:'width .6s ease'}}/>
+              </div>
+              <div style={{fontSize:'.62rem',color:'var(--ink-3)',marginTop:4}}>Ouvre ta page · Clique pour visiter</div>
             </div>
           )}
-          <button style={{width:'100%',marginBottom:'.5rem',padding:'.55rem',background:'var(--ink)',border:'none',borderRadius:8,cursor:'pointer',fontFamily:'inherit',fontSize:'.8rem',color:'#fff',fontWeight:600}}
-            onClick={()=>{setClientView(true);setMenuOpen(false)}}>
-            Voir ma page client →
-          </button>
           <button className="sb-signout" onClick={handleSignOut}>{t(lang,'nav_signout')}</button>
         </div>
       </div>
