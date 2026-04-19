@@ -1969,8 +1969,24 @@ function Availability({ workspace, toast, lang='en' }) {
     }
     setSchedule(avail);setBlockedDates(b.data||[]);setLoading(false)
   }
-  async function toggleDay(id,cur){await supabase.from('availability').update({is_open:!cur}).eq('id',id);fetchData()}
-  async function updateTime(id,field,val){await supabase.from('availability').update({[field]:val}).eq('id',id);fetchData()}
+  async function toggleDay(id,cur){
+    // Optimistic update — instant UI response before DB confirms
+    setSchedule(prev=>prev.map(d=>d.id===id?{...d,is_open:!cur}:d))
+    const{error}=await supabase.from('availability').update({is_open:!cur}).eq('id',id)
+    if(error){
+      // Revert if failed
+      setSchedule(prev=>prev.map(d=>d.id===id?{...d,is_open:cur}:d))
+      toast('Error updating schedule.')
+    } else {
+      const dayName=dayNames[schedule.find(d=>d.id===id)?.day_of_week||0]
+      toast(`${dayName} marked as ${!cur?'Open':'Closed'}.`)
+    }
+  }
+  async function updateTime(id,field,val){
+    // Optimistic update for time inputs too
+    setSchedule(prev=>prev.map(d=>d.id===id?{...d,[field]:val}:d))
+    await supabase.from('availability').update({[field]:val}).eq('id',id)
+  }
   async function addBlock(e){
     e.preventDefault();if(!blockInput.date) return
     await supabase.from('blocked_dates').insert({workspace_id:workspace.id,blocked_date:blockInput.date,reason:blockInput.reason})
