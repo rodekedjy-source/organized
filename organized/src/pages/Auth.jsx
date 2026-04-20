@@ -1,8 +1,7 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useNavigate } from 'react-router-dom'
 
-// ── BUSINESS TYPES ─────────────────────────────────────────────
 const businessTypes = [
   { slug: 'hair_studio',    label: 'Hair Studio' },
   { slug: 'nail_studio',   label: 'Nail Studio' },
@@ -13,17 +12,14 @@ const businessTypes = [
   { slug: 'other',         label: 'Other' },
 ]
 
-// ── STEPS (email flow) ─────────────────────────────────────────
 const EMAIL_STEPS = [
   { n: 1, label: 'Account' },
   { n: 2, label: 'Verify email' },
   { n: 3, label: 'Your business' },
 ]
 
-// ── CSS ────────────────────────────────────────────────────────
 const css = `
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400&family=DM+Sans:wght@300;400;500&display=swap');
-
 .auth-shell{min-height:100vh;display:grid;grid-template-columns:1fr 1fr;}
 .auth-left{background:#0d0c0a;display:flex;flex-direction:column;justify-content:space-between;padding:3rem;position:relative;overflow:hidden;}
 .auth-glow{position:absolute;top:-20%;left:-20%;width:600px;height:600px;border-radius:50%;background:radial-gradient(circle,rgba(181,137,58,.15),transparent 70%);pointer-events:none;}
@@ -49,7 +45,6 @@ const css = `
 .auth-field label{display:block;font-size:.75rem;font-weight:500;color:#7a7672;margin-bottom:.4rem;letter-spacing:.03em;}
 .auth-input{width:100%;padding:.72rem 1rem;border:1px solid #e4e0d8;border-radius:8px;font-size:.88rem;font-family:inherit;color:#0d0c0a;background:#fff;outline:none;transition:border .15s,box-shadow .15s;box-sizing:border-box;}
 .auth-input:focus{border-color:#b5893a;box-shadow:0 0 0 3px rgba(181,137,58,.1);}
-.auth-input.err{border-color:#c0392b;}
 .auth-error{padding:.7rem 1rem;border-radius:8px;font-size:.82rem;margin-bottom:1rem;background:#fef2f2;color:#c0392b;border:1px solid #fecaca;}
 .auth-success-msg{padding:.7rem 1rem;border-radius:8px;font-size:.82rem;margin-bottom:1rem;background:#ecfdf5;color:#2e7d52;border:1px solid #a7f3d0;}
 .btn-primary{width:100%;padding:.82rem;border-radius:8px;border:none;font-size:.88rem;font-weight:500;cursor:pointer;font-family:inherit;background:#0d0c0a;color:#fff;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:.5rem;}
@@ -77,9 +72,7 @@ const css = `
 .spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;}
 .spinner-dark{width:16px;height:16px;border:2px solid rgba(0,0,0,.15);border-top-color:#0d0c0a;border-radius:50%;animation:spin .6s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg)}}
-.pw-strength{height:3px;border-radius:2px;margin-top:.4rem;transition:all .3s;}
-.auth-profile-hint{display:flex;align-items:center;gap:.5rem;padding:.65rem .85rem;background:#f7f5f0;border-radius:8px;font-size:.75rem;color:#7a7672;margin-bottom:1.25rem;}
-.auth-profile-hint svg{flex-shrink:0;color:#b5893a;}
+.auth-hint{display:flex;align-items:center;gap:.5rem;padding:.65rem .85rem;background:#f7f5f0;border-radius:8px;font-size:.75rem;color:#7a7672;margin-bottom:1.25rem;}
 @media(max-width:768px){
   .auth-shell{grid-template-columns:1fr;}
   .auth-left{display:none;}
@@ -87,22 +80,20 @@ const css = `
 }
 `
 
-// ── PASSWORD STRENGTH ──────────────────────────────────────────
 function getStrength(pw) {
   if (!pw) return { w: 0, color: '#e4e0d8', label: '' }
-  let score = 0
-  if (pw.length >= 8)  score++
-  if (pw.length >= 12) score++
-  if (/[A-Z]/.test(pw)) score++
-  if (/[0-9]/.test(pw)) score++
-  if (/[^A-Za-z0-9]/.test(pw)) score++
-  if (score <= 1) return { w: 20,  color: '#c0392b', label: 'Weak' }
-  if (score <= 2) return { w: 45,  color: '#e67e22', label: 'Fair' }
-  if (score <= 3) return { w: 70,  color: '#f1c40f', label: 'Good' }
+  let s = 0
+  if (pw.length >= 8)  s++
+  if (pw.length >= 12) s++
+  if (/[A-Z]/.test(pw)) s++
+  if (/[0-9]/.test(pw)) s++
+  if (/[^A-Za-z0-9]/.test(pw)) s++
+  if (s <= 1) return { w: 20,  color: '#c0392b', label: 'Weak' }
+  if (s <= 2) return { w: 45,  color: '#e67e22', label: 'Fair' }
+  if (s <= 3) return { w: 70,  color: '#f1c40f', label: 'Good' }
   return { w: 100, color: '#2e7d52', label: 'Strong' }
 }
 
-// ── GOOGLE ICON ────────────────────────────────────────────────
 function GoogleIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24">
@@ -114,16 +105,16 @@ function GoogleIcon() {
   )
 }
 
-// ── COMPONENT ──────────────────────────────────────────────────
-export default function Auth({ onAuth }) {
-  const [mode, setMode]       = useState('signup')
-  const [step, setStep]       = useState(1)
-  const [loading, setLoading] = useState(false)
-  const [gLoading, setGLoading] = useState(false) // google loading
-  const [error, setError]     = useState('')
-  const [forgotMode, setForgotMode]   = useState(false)
-  const [forgotSent, setForgotSent]   = useState(false)
-  const [oauthFlow, setOauthFlow]     = useState(false) // came from Google OAuth
+export default function Auth({ onAuth, onOnboarded }) {
+  const [mode,       setMode]     = useState('signup')
+  const [step,       setStep]     = useState(1)
+  const [loading,    setLoading]  = useState(false)
+  const [gLoading,   setGLoading] = useState(false)
+  const [checking,   setChecking] = useState(true)
+  const [error,      setError]    = useState('')
+  const [forgotMode, setForgotMode] = useState(false)
+  const [forgotSent, setForgotSent] = useState(false)
+  const [oauthFlow,  setOauthFlow]  = useState(false)
   const [form, setForm] = useState({
     full_name: '', email: '', password: '', confirm_password: '',
     business_name: '', business_type: '',
@@ -133,59 +124,41 @@ export default function Auth({ onAuth }) {
 
   function set(k, v) { setForm(f => ({ ...f, [k]: v })); setError('') }
 
-  // ── Detect OAuth return ───────────────────────────────────────
+  // ── Detect OAuth new user ─────────────────────────────────────
+  // App.jsx routes session'd users with no workspace to /auth.
+  // We detect them here and jump straight to the business step.
   useEffect(() => {
-    const checkOAuth = async () => {
+    const detect = async () => {
       const { data: { session } } = await supabase.auth.getSession()
-      if (!session) return
-
-      // Check if this user already has a workspace (returning user)
-      const { data: workspace } = await supabase
-        .from('workspaces')
-        .select('id')
-        .eq('user_id', session.user.id)
-        .maybeSingle()
-
-      if (workspace) {
-        onAuth(session)
-        navigate('/dashboard')
-        return
+      if (session) {
+        const meta = session.user.user_metadata || {}
+        setForm(f => ({
+          ...f,
+          full_name: meta.full_name || meta.name || '',
+          email:     session.user.email || '',
+        }))
+        setOauthFlow(true)
+        setMode('signup')
+        setStep(3)
       }
-
-      // New OAuth user — needs business setup
-      const meta = session.user.user_metadata || {}
-      setForm(f => ({
-        ...f,
-        full_name:  meta.full_name || meta.name || '',
-        email:      session.user.email || '',
-      }))
-      setOauthFlow(true)
-      setMode('signup')
-      setStep(3)
+      setChecking(false)
     }
-
-    // Hash contains OAuth tokens on redirect back from Google
-    if (window.location.hash?.includes('access_token')) {
-      checkOAuth()
-    }
+    detect()
   }, [])
 
-  // ── OTP Handlers ─────────────────────────────────────────────
+  // ── OTP ───────────────────────────────────────────────────────
   function handleOtp(i, val) {
     if (!/^\d*$/.test(val)) return
-    const next = [...otp]
-    next[i] = val.slice(-1)
-    setOtp(next)
+    const next = [...otp]; next[i] = val.slice(-1); setOtp(next)
     if (val && i < 5) document.getElementById(`otp-${i+1}`)?.focus()
   }
   function handleOtpKey(i, e) {
     if (e.key === 'Backspace' && !otp[i] && i > 0) document.getElementById(`otp-${i-1}`)?.focus()
   }
 
-  // ── GOOGLE SIGN IN ────────────────────────────────────────────
+  // ── GOOGLE ────────────────────────────────────────────────────
   async function signInWithGoogle() {
-    setGLoading(true)
-    setError('')
+    setGLoading(true); setError('')
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
@@ -194,32 +167,27 @@ export default function Auth({ onAuth }) {
       },
     })
     if (error) { setError(error.message); setGLoading(false) }
-    // If no error, browser redirects to Google — no more code runs here
   }
 
-  // ── STEP 1 — Account ─────────────────────────────────────────
+  // ── STEP 1 ────────────────────────────────────────────────────
   async function submitStep1(e) {
-    e.preventDefault()
-    setError('')
+    e.preventDefault(); setError('')
     if (!form.full_name.trim())   return setError('Please enter your full name.')
     if (!form.email.trim())       return setError('Please enter your email.')
     if (form.password.length < 8) return setError('Password must be at least 8 characters.')
     if (form.password !== form.confirm_password) return setError('Passwords do not match.')
     setLoading(true)
     const { error } = await supabase.auth.signUp({
-      email: form.email,
-      password: form.password,
+      email: form.email, password: form.password,
       options: { data: { full_name: form.full_name } },
     })
     if (error) { setError(error.message); setLoading(false); return }
-    setStep(2)
-    setLoading(false)
+    setStep(2); setLoading(false)
   }
 
-  // ── STEP 2 — Verify OTP ───────────────────────────────────────
+  // ── STEP 2 ────────────────────────────────────────────────────
   async function submitStep2(e) {
-    e.preventDefault()
-    setError('')
+    e.preventDefault(); setError('')
     const code = otp.join('')
     if (code.length < 6) return setError('Please enter the full 6-digit code.')
     setLoading(true)
@@ -227,62 +195,48 @@ export default function Auth({ onAuth }) {
       email: form.email, token: code, type: 'email',
     })
     if (error) { setError('Invalid or expired code. Please try again.'); setLoading(false); return }
-    setStep(3)
-    setLoading(false)
+    setStep(3); setLoading(false)
   }
 
   async function resendCode() {
     await supabase.auth.resend({ type: 'signup', email: form.email })
   }
 
-  // ── STEP 3 — Business + Create Workspace ─────────────────────
+  // ── STEP 3 — Create workspace ─────────────────────────────────
   async function submitStep3(e) {
-    e.preventDefault()
-    setError('')
+    e.preventDefault(); setError('')
     if (!form.business_name.trim()) return setError('Please enter your business name.')
     if (!form.business_type)        return setError('Please select a business type.')
     setLoading(true)
-
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { setError('Session expired. Please sign in again.'); setLoading(false); return }
 
-      // Upsert user profile
       await supabase.from('users').upsert({
-        id:        user.id,
+        id: user.id,
         full_name: form.full_name || user.user_metadata?.full_name || '',
-        email:     user.email,
+        email: user.email,
         onboarding_complete: true,
       })
 
-      // Lookup workspace_type_id
       const { data: wt } = await supabase
-        .from('workspace_types')
-        .select('id')
-        .eq('slug', form.business_type)
-        .maybeSingle()
+        .from('workspace_types').select('id')
+        .eq('slug', form.business_type).maybeSingle()
 
-      // Generate slug
       const slug = form.business_name.toLowerCase()
-        .replace(/\s+/g, '-')
-        .replace(/[^a-z0-9-]/g, '')
-        .slice(0, 30)
+        .replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').slice(0, 30)
         + '-' + Math.random().toString(36).slice(2, 6)
 
-      // Create workspace
       const { error: wsError } = await supabase.from('workspaces').insert({
-        user_id:           user.id,
-        name:              form.business_name,
-        slug,
-        workspace_type_id: wt?.id || null,
+        user_id: user.id, name: form.business_name,
+        slug, workspace_type_id: wt?.id || null,
       })
       if (wsError) throw wsError
 
-      // Navigate straight to dashboard
       const { data: { session } } = await supabase.auth.getSession()
       onAuth(session)
+      onOnboarded()          // tells App.jsx: user now has a workspace
       navigate('/dashboard')
-
     } catch (err) {
       setError(err.message || 'Something went wrong. Please try again.')
     }
@@ -291,8 +245,7 @@ export default function Auth({ onAuth }) {
 
   // ── LOGIN ─────────────────────────────────────────────────────
   async function submitLogin(e) {
-    e.preventDefault()
-    setError('')
+    e.preventDefault(); setError('')
     if (!form.email || !form.password) return setError('Please fill in all fields.')
     setLoading(true)
     const { data, error } = await supabase.auth.signInWithPassword({
@@ -304,42 +257,40 @@ export default function Auth({ onAuth }) {
     setLoading(false)
   }
 
-  // ── FORGOT PASSWORD ───────────────────────────────────────────
+  // ── FORGOT ────────────────────────────────────────────────────
   async function submitForgot(e) {
-    e.preventDefault()
-    setError('')
+    e.preventDefault(); setError('')
     if (!form.email) return setError('Please enter your email.')
     setLoading(true)
     await supabase.auth.resetPasswordForEmail(form.email, {
       redirectTo: `${window.location.origin}/auth`,
     })
-    setForgotSent(true)
-    setLoading(false)
+    setForgotSent(true); setLoading(false)
   }
 
-  // ── PROGRESS ──────────────────────────────────────────────────
-  const totalSteps  = oauthFlow ? 1 : 3
-  const currentStep = oauthFlow ? 1 : step
-  const progress    = mode === 'login' ? 100 : (currentStep / totalSteps) * 100
-
+  const progress = mode === 'login' ? 100 : oauthFlow ? 100 : (step / 3) * 100
   const strength = getStrength(form.password)
 
-  // ── RENDER ────────────────────────────────────────────────────
+  if (checking) return (
+    <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', background:'#f7f5f0' }}>
+      <div style={{ fontFamily:"'Playfair Display',serif", fontSize:'1.5rem', color:'#b5893a' }}>
+        Organized<span style={{ color:'#0d0c0a' }}>.</span>
+      </div>
+    </div>
+  )
+
   return (
     <>
       <style>{css}</style>
       <div className="auth-shell">
 
-        {/* ── LEFT PANEL ── */}
+        {/* LEFT */}
         <div className="auth-left">
           <div className="auth-glow"/>
           <div className="auth-logo" onClick={() => navigate('/')}>Organized<span>.</span></div>
-
           <div className="auth-left-body">
             <div className="auth-left-title">
-              {mode === 'login'
-                ? <>Welcome<br/>back.</>
-                : <>Your business,<br/><em style={{ color: '#b5893a' }}>finally organized.</em></>}
+              {mode === 'login' ? <>Welcome<br/>back.</> : <>Your business,<br/><em style={{ color:'#b5893a' }}>finally organized.</em></>}
             </div>
             <div className="auth-left-sub">
               {mode === 'login'
@@ -375,55 +326,45 @@ export default function Auth({ onAuth }) {
           )}
         </div>
 
-        {/* ── RIGHT PANEL ── */}
+        {/* RIGHT */}
         <div className="auth-right">
           <div className="auth-box">
-
             <div className="auth-progress">
-              <div className="auth-progress-fill" style={{ width: `${progress}%` }}/>
+              <div className="auth-progress-fill" style={{ width:`${progress}%` }}/>
             </div>
 
-            {/* ──────── LOGIN ──────── */}
+            {/* LOGIN */}
             {mode === 'login' && !forgotMode && (
               <form onSubmit={submitLogin}>
                 <div className="auth-title">Welcome back</div>
                 <div className="auth-sub">Sign in to your Organized. dashboard.</div>
                 {error && <div className="auth-error">{error}</div>}
-
                 <button type="button" className="btn-google" onClick={signInWithGoogle} disabled={gLoading}>
                   {gLoading ? <div className="spinner-dark"/> : <GoogleIcon/>}
                   Continue with Google
                 </button>
-
                 <div className="auth-divider">
                   <div className="auth-divider-line"/>
                   <span className="auth-divider-text">or sign in with email</span>
                   <div className="auth-divider-line"/>
                 </div>
-
-                <div className="auth-field">
-                  <label>Email address</label>
+                <div className="auth-field"><label>Email address</label>
                   <input className="auth-input" type="email" value={form.email} onChange={e => set('email', e.target.value)} placeholder="you@example.com"/>
                 </div>
-                <div className="auth-field">
-                  <label>Password</label>
+                <div className="auth-field"><label>Password</label>
                   <input className="auth-input" type="password" value={form.password} onChange={e => set('password', e.target.value)} placeholder="Your password"/>
                 </div>
-                <div style={{ textAlign: 'right', marginBottom: '1rem' }}>
-                  <span style={{ fontSize: '.75rem', color: '#7a7672', cursor: 'pointer' }} onClick={() => setForgotMode(true)}>
-                    Forgot password?
-                  </span>
+                <div style={{ textAlign:'right', marginBottom:'1rem' }}>
+                  <span style={{ fontSize:'.75rem', color:'#7a7672', cursor:'pointer' }} onClick={() => setForgotMode(true)}>Forgot password?</span>
                 </div>
                 <button type="submit" className="btn-primary" disabled={loading}>
                   {loading ? <><div className="spinner"/>Signing in...</> : 'Sign in'}
                 </button>
-                <div className="auth-note">
-                  Don't have an account? <span onClick={() => { setMode('signup'); setError('') }}>Create one free</span>
-                </div>
+                <div className="auth-note">Don't have an account? <span onClick={() => { setMode('signup'); setError('') }}>Create one free</span></div>
               </form>
             )}
 
-            {/* ──────── FORGOT PASSWORD ──────── */}
+            {/* FORGOT */}
             {mode === 'login' && forgotMode && (
               <form onSubmit={submitForgot}>
                 <div className="auth-title">Reset password</div>
@@ -432,8 +373,7 @@ export default function Auth({ onAuth }) {
                   ? <div className="auth-success-msg">Reset link sent to <strong>{form.email}</strong>. Check your inbox.</div>
                   : <>
                       {error && <div className="auth-error">{error}</div>}
-                      <div className="auth-field">
-                        <label>Email address</label>
+                      <div className="auth-field"><label>Email address</label>
                         <input className="auth-input" type="email" value={form.email} onChange={e => set('email', e.target.value)} placeholder="you@example.com"/>
                       </div>
                       <button type="submit" className="btn-primary" disabled={loading}>
@@ -441,97 +381,75 @@ export default function Auth({ onAuth }) {
                       </button>
                     </>
                 }
-                <button type="button" className="btn-ghost" onClick={() => { setForgotMode(false); setForgotSent(false) }}>
-                  Back to sign in
-                </button>
+                <button type="button" className="btn-ghost" onClick={() => { setForgotMode(false); setForgotSent(false) }}>Back to sign in</button>
               </form>
             )}
 
-            {/* ──────── SIGNUP STEP 1 — Account ──────── */}
+            {/* STEP 1 */}
             {mode === 'signup' && step === 1 && (
               <form onSubmit={submitStep1}>
                 <div className="auth-step-label">Step 1 of 3</div>
                 <div className="auth-title">Create your account</div>
                 <div className="auth-sub">Start your 14-day free trial. No credit card needed.</div>
                 {error && <div className="auth-error">{error}</div>}
-
                 <button type="button" className="btn-google" onClick={signInWithGoogle} disabled={gLoading}>
                   {gLoading ? <div className="spinner-dark"/> : <GoogleIcon/>}
                   Continue with Google
                 </button>
-
                 <div className="auth-divider">
                   <div className="auth-divider-line"/>
                   <span className="auth-divider-text">or sign up with email</span>
                   <div className="auth-divider-line"/>
                 </div>
-
-                <div className="auth-field">
-                  <label>Full name</label>
+                <div className="auth-field"><label>Full name</label>
                   <input className="auth-input" value={form.full_name} onChange={e => set('full_name', e.target.value)} placeholder="e.g. Maya Johnson"/>
                 </div>
-                <div className="auth-field">
-                  <label>Email address</label>
+                <div className="auth-field"><label>Email address</label>
                   <input className="auth-input" type="email" value={form.email} onChange={e => set('email', e.target.value)} placeholder="you@example.com"/>
                 </div>
-                <div className="auth-field">
-                  <label>Password</label>
+                <div className="auth-field"><label>Password</label>
                   <input className="auth-input" type="password" value={form.password} onChange={e => set('password', e.target.value)} placeholder="At least 8 characters"/>
                   {form.password && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem', marginTop: '.4rem' }}>
-                      <div className="pw-strength" style={{ flex: 1, background: strength.color, height: '3px', borderRadius: '2px', width: `${strength.w}%`, maxWidth: '100%', transition: 'all .3s' }}/>
-                      <span style={{ fontSize: '.68rem', color: strength.color, fontWeight: 500 }}>{strength.label}</span>
+                    <div style={{ display:'flex', alignItems:'center', gap:'.5rem', marginTop:'.4rem' }}>
+                      <div style={{ flex:1, height:'3px', borderRadius:'2px', background:strength.color, transition:'all .3s' }}/>
+                      <span style={{ fontSize:'.68rem', color:strength.color, fontWeight:500 }}>{strength.label}</span>
                     </div>
                   )}
                 </div>
-                <div className="auth-field">
-                  <label>Confirm password</label>
+                <div className="auth-field"><label>Confirm password</label>
                   <input className="auth-input" type="password" value={form.confirm_password} onChange={e => set('confirm_password', e.target.value)} placeholder="Repeat your password"/>
                 </div>
                 <button type="submit" className="btn-primary" disabled={loading}>
                   {loading ? <><div className="spinner"/>Creating account...</> : 'Continue'}
                 </button>
-                <div className="auth-note">
-                  Already have an account? <span onClick={() => { setMode('login'); setError('') }}>Sign in</span>
-                </div>
+                <div className="auth-note">Already have an account? <span onClick={() => { setMode('login'); setError('') }}>Sign in</span></div>
               </form>
             )}
 
-            {/* ──────── SIGNUP STEP 2 — Verify OTP ──────── */}
+            {/* STEP 2 — OTP */}
             {mode === 'signup' && step === 2 && (
               <form onSubmit={submitStep2}>
                 <div className="auth-step-label">Step 2 of 3</div>
                 <div className="auth-title">Verify your email</div>
-                <div className="auth-sub">
-                  We sent a 6-digit code to <strong>{form.email}</strong>. Enter it below.
-                </div>
+                <div className="auth-sub">We sent a 6-digit code to <strong>{form.email}</strong>.</div>
                 {error && <div className="auth-error">{error}</div>}
                 <div className="otp-row">
                   {otp.map((v, i) => (
-                    <input
-                      key={i}
-                      id={`otp-${i}`}
-                      className="otp-input"
-                      type="text"
-                      inputMode="numeric"
-                      maxLength={1}
-                      value={v}
+                    <input key={i} id={`otp-${i}`} className="otp-input"
+                      type="text" inputMode="numeric" maxLength={1} value={v}
                       onChange={e => handleOtp(i, e.target.value)}
-                      onKeyDown={e => handleOtpKey(i, e)}
-                    />
+                      onKeyDown={e => handleOtpKey(i, e)}/>
                   ))}
                 </div>
                 <button type="submit" className="btn-primary btn-gold" disabled={loading}>
                   {loading ? <><div className="spinner"/>Verifying...</> : 'Verify email'}
                 </button>
-                <div className="auth-note">
-                  Didn't receive it? <span onClick={resendCode}>Resend code</span>
-                </div>
+                <div className="auth-note">Didn't receive it? <span onClick={resendCode}>Resend code</span></div>
                 <button type="button" className="btn-ghost" onClick={() => setStep(1)}>Back</button>
               </form>
             )}
 
-            {/* ──────── SIGNUP STEP 3 — Business ──────── */}
+            {/* STEP 3 — Business */}
             {mode === 'signup' && step === 3 && (
               <form onSubmit={submitStep3}>
                 <div className="auth-step-label">{oauthFlow ? 'One last thing' : 'Step 3 of 3'}</div>
@@ -539,51 +457,37 @@ export default function Auth({ onAuth }) {
                 <div className="auth-sub">
                   {oauthFlow
                     ? `Welcome${form.full_name ? ', ' + form.full_name.split(' ')[0] : ''}! Tell us about your business.`
-                    : "Just two things and you're in."}
+                    : "Two things and you're in."}
                 </div>
-
                 {oauthFlow && (
-                  <div className="auth-profile-hint">
+                  <div className="auth-hint">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>
                     </svg>
-                    Location, bio, and logo can be added from your dashboard settings.
+                    Location, bio, and logo can be added in your dashboard settings.
                   </div>
                 )}
-
                 {error && <div className="auth-error">{error}</div>}
-
-                <div className="auth-field">
-                  <label>Business name</label>
-                  <input
-                    className="auth-input"
-                    value={form.business_name}
+                <div className="auth-field"><label>Business name</label>
+                  <input className="auth-input" value={form.business_name}
                     onChange={e => set('business_name', e.target.value)}
-                    placeholder="e.g. Elixir Hair Studio"
-                    autoFocus
-                  />
+                    placeholder="e.g. Elixir Hair Studio" autoFocus/>
                 </div>
-
                 <div className="auth-field">
                   <label>What kind of business?</label>
                   <div className="auth-type-grid">
                     {businessTypes.map(t => (
-                      <button
-                        key={t.slug}
-                        type="button"
+                      <button key={t.slug} type="button"
                         className={`auth-type-btn ${form.business_type === t.slug ? 'sel' : ''}`}
-                        onClick={() => set('business_type', t.slug)}
-                      >
+                        onClick={() => set('business_type', t.slug)}>
                         {t.label}
                       </button>
                     ))}
                   </div>
                 </div>
-
                 <button type="submit" className="btn-primary btn-gold" disabled={loading}>
                   {loading ? <><div className="spinner"/>Creating workspace...</> : 'Go to my dashboard'}
                 </button>
-
                 {!oauthFlow && (
                   <button type="button" className="btn-ghost" onClick={() => setStep(2)}>Back</button>
                 )}
