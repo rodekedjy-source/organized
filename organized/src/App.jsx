@@ -9,12 +9,6 @@ import ClientPage from './pages/ClientPage'
 export default function App() {
   const [session, setSession] = useState(null)
   const [ready,   setReady]   = useState(false)
-// SENTRY TEST - DELETE AFTER
-useEffect(() => {
-  if (window.location.search.includes('sentry_test')) {
-    throw new Error('Sentry test - Organized.')
-  }
-}, [])
 
   useEffect(() => {
     // Init — catch all errors, always exit splash
