@@ -7,20 +7,23 @@ import Dashboard  from './pages/Dashboard'
 import ClientPage from './pages/ClientPage'
 
 export default function App() {
-  const [session, setSession] = useState(undefined) // undefined = still loading
+  const [session, setSession] = useState(null)
   const [ready,   setReady]   = useState(false)
 
   useEffect(() => {
-    // Simple session check — no extra queries, guaranteed to resolve
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data?.session ?? null)
-      setReady(true)
-    })
+    supabase.auth.getSession()
+      .then(({ data }) => {
+        setSession(data?.session ?? null)
+      })
+      .catch(() => {
+        setSession(null) // lock contention or network error — treat as no session
+      })
+      .finally(() => {
+        setReady(true)  // ALWAYS exit loading, no matter what
+      })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        // Only update session — no redirects, no extra queries
-        // Route guards below handle all navigation logic
         setSession(session ?? null)
       }
     )
@@ -28,7 +31,6 @@ export default function App() {
     return () => subscription.unsubscribe()
   }, [])
 
-  // ── Splash ───────────────────────────────────────────────────
   if (!ready) return (
     <div style={{
       minHeight: '100vh',
@@ -49,22 +51,12 @@ export default function App() {
 
   return (
     <Routes>
-      {/* Public */}
       <Route path="/" element={<Landing />} />
       <Route path="/:slug" element={<ClientPage />} />
-
-      {/* Auth — Auth.jsx handles session detection and workspace routing internally */}
       <Route
         path="/auth"
-        element={
-          <Auth
-            session={session}
-            onAuth={setSession}
-          />
-        }
+        element={<Auth session={session} onAuth={setSession} />}
       />
-
-      {/* Dashboard — only if session exists */}
       <Route
         path="/dashboard/*"
         element={
