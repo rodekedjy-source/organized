@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 
 const businessTypes = [
   { slug:'hair_studio',   label:'Hair Studio'  },
@@ -116,6 +116,13 @@ export default function Auth({ onAuth }) {
   })
   const [otp, setOtp] = useState(['','','','','',''])
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+
+  // Read mode from URL param (?mode=login or ?mode=signup)
+  useEffect(() => {
+    const urlMode = searchParams.get('mode')
+    if (urlMode === 'login') { setMode('login'); setStep(1) }
+  }, [])
 
   function set(k,v){ setForm(f=>({...f,[k]:v})); setError('') }
 
