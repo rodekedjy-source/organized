@@ -740,7 +740,7 @@ export default function Landing() {
           <span className="nav-link" onClick={()=>document.getElementById('faq')?.scrollIntoView({behavior:'smooth'})}>{t.nav_faq}</span>
         </div>
         <div className="nav-right">
-          <span className="nav-signin" onClick={()=>navigate('/auth')}>{t.nav_signin}</span>
+          <span className="nav-signin" onClick={()=>navigate('/auth?mode=login')}>{t.nav_signin}</span>
           <button className="nav-cta" onClick={()=>navigate('/auth')}>{t.nav_cta}</button>
         </div>
       </nav>
