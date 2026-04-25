@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
+import { useNavigate } from 'react-router-dom'
 
 const LANG = {
   en: {
@@ -2784,6 +2785,17 @@ export default function Dashboard() {
   const [lang,setLang]=useState('en')
   const [avatarExpanded,setAvatarExpanded]=useState(false)
   const [avatarUploading,setAvatarUploading]=useState(false)
+  const navigate = useNavigate()
+
+  // Lock body scroll when sidebar is open
+  useEffect(()=>{
+    if(menuOpen){
+      document.body.style.overflow='hidden'
+    } else {
+      document.body.style.overflow=''
+    }
+    return()=>{ document.body.style.overflow='' }
+  },[menuOpen])
 
   useEffect(()=>{
     supabase.auth.getSession().then(({data:{session}})=>{setSession(session);if(session)fetchWorkspace(session)})
@@ -2829,7 +2841,7 @@ export default function Dashboard() {
     if(pageStack.length>0){const prev=pageStack[pageStack.length-1];setPageStack(s=>s.slice(0,-1));setPage(prev)}
   }
 
-  async function handleSignOut(){await supabase.auth.signOut()}
+  async function handleSignOut(){ await supabase.auth.signOut(); navigate('/') }
 
   const NAV=[
     {key:'overview',label:'nav_overview',icon:I.home},
