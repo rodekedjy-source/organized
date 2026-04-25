@@ -169,11 +169,19 @@ export default function ClientPage() {
     const allSlots = generateTimeSlots(avail.open_time, avail.close_time, modal.duration_min || 60)
     const duration = modal.duration_min || 60
 
-    // Filter out slots that conflict with existing appointments
+    // Check if selected date is today
+    const now = new Date()
+    const isToday = selectedDate.toDateString() === now.toDateString()
+    const nowMinutes = now.getHours() * 60 + now.getMinutes()
+
+    // Filter out past slots (if today) and slots conflicting with existing appointments
     return allSlots.filter(slot => {
       const [sh, sm] = slot.split(':').map(Number)
       const slotStart = sh * 60 + sm
       const slotEnd = slotStart + duration
+
+      // Block past time slots for today
+      if (isToday && slotStart <= nowMinutes) return false
 
       return !existingAppts.some(appt => {
         const apptDate = new Date(appt.scheduled_at)
