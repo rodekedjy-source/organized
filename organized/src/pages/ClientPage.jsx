@@ -2,11 +2,110 @@
  * ClientPage.jsx — Page publique · Book · Shop · Learn
  * Route:  /:slug
  * Import: '../lib/supabase'
+ * Hero: WebGL fluid shader (warm cream organic animation)
  */
 
-import { useState, useEffect, useLayoutEffect, useCallback } from 'react'
+import { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react'
 import { useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+
+// ── WebGL Shader strings ──────────────────────────────────────────────────────
+const VERT = `attribute vec2 a_pos;void main(){gl_Position=vec4(a_pos,0.,1.);}`
+
+const FRAG = `
+precision mediump float;
+uniform float u_t;
+uniform vec2 u_r;
+
+float h(vec2 p){p=fract(p*vec2(234.34,435.345));p+=dot(p,p+34.23);return fract(p.x*p.y);}
+float n(vec2 p){
+  vec2 i=floor(p),f=fract(p);
+  f=f*f*(3.-2.*f);
+  return mix(mix(h(i),h(i+vec2(1,0)),f.x),mix(h(i+vec2(0,1)),h(i+vec2(1,1)),f.x),f.y);
+}
+float fbm(vec2 p){
+  float v=0.,a=.5;
+  mat2 m=mat2(.8,-.6,.6,.8);
+  for(int i=0;i<6;i++){v+=a*n(p);p=m*p*2.1;a*=.5;}
+  return v;
+}
+
+void main(){
+  vec2 uv=gl_FragCoord.xy/u_r;
+  float t=u_t*.08;
+  uv.y=1.-uv.y;
+  vec2 q=vec2(fbm(uv+t*.25),fbm(uv+vec2(5.2,1.3)));
+  vec2 r=vec2(fbm(uv+4.*q+vec2(1.7,9.2)+.15*t),fbm(uv+4.*q+vec2(8.3,2.8)+.126*t));
+  float f=fbm(uv+4.*r);
+
+  /* Warm cream ↔ warm dark palette */
+  vec3 c=mix(vec3(.86,.79,.68),vec3(.13,.09,.05),clamp(f*f*3.8,0.,1.));
+  c=mix(c,vec3(.93,.88,.80),clamp(length(q)*.45,0.,1.));
+  c=mix(c,vec3(.50,.36,.22),clamp(f*f*f+.6*f*f+.4*f,0.,1.));
+  gl_FragColor=vec4(c,1.);
+}
+`
+
+// ── Shader hook ───────────────────────────────────────────────────────────────
+function useShader(canvasRef) {
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const gl = canvas.getContext('webgl')
+    if (!gl) return
+
+    function compile(type, src) {
+      const s = gl.createShader(type)
+      gl.shaderSource(s, src)
+      gl.compileShader(s)
+      return s
+    }
+
+    const prog = gl.createProgram()
+    gl.attachShader(prog, compile(gl.VERTEX_SHADER, VERT))
+    gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, FRAG))
+    gl.linkProgram(prog)
+    gl.useProgram(prog)
+
+    const buf = gl.createBuffer()
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf)
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,1,-1,-1,1,1,1]), gl.STATIC_DRAW)
+    const loc = gl.getAttribLocation(prog, 'a_pos')
+    gl.enableVertexAttribArray(loc)
+    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0)
+
+    const uT = gl.getUniformLocation(prog, 'u_t')
+    const uR = gl.getUniformLocation(prog, 'u_r')
+
+    let raf, start = null
+
+    function resize() {
+      canvas.width  = canvas.offsetWidth
+      canvas.height = canvas.offsetHeight
+      gl.viewport(0, 0, canvas.width, canvas.height)
+    }
+    resize()
+    const ro = new ResizeObserver(resize)
+    ro.observe(canvas)
+
+    function draw(ts) {
+      if (!start) start = ts
+      const t = (ts - start) / 1000
+      gl.uniform1f(uT, t)
+      gl.uniform2f(uR, canvas.width, canvas.height)
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
+      raf = requestAnimationFrame(draw)
+    }
+    raf = requestAnimationFrame(draw)
+
+    return () => {
+      cancelAnimationFrame(raf)
+      ro.disconnect()
+      gl.deleteProgram(prog)
+      gl.deleteBuffer(buf)
+    }
+  }, [canvasRef])
+}
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
@@ -27,9 +126,8 @@ const toMin  = t => { const [h,m]=t.split(':').map(Number); return h*60+m }
 const frMin  = m => `${pad(Math.floor(m/60))}:${pad(m%60)}`
 const fmt12  = t => { const [h,m]=t.split(':').map(Number); const p=h>=12?'PM':'AM'; const h12=h===0?12:h>12?h-12:h; return `${h12}:${pad(m)} ${p}` }
 const fmtDur = m => { if(!m)return''; if(m<60)return`${m} min`; const h=Math.floor(m/60),r=m%60; return r?`${h}h ${r}min`:`${h} hr` }
-const fmtP   = (p,c) => !p||p===0 ? 'Free' : `$${Math.round(p)}`
+const fmtP   = p => !p||p===0 ? 'Free' : `$${Math.round(p)}`
 const fmtSP  = s => s.is_free||s.price===0 ? 'Free' : `$${Math.round(s.price)} & up`
-const stars  = n => Array.from({length:5},(_,i)=><span key={i} style={{color:i<n?'#C9A84C':'rgba(201,168,76,0.2)',marginRight:1}}>{Icons.star}</span>)
 
 const svcIcon = n => { const x=n.toLowerCase(); if(x.includes('color')||x.includes('balayage'))return'✦'; if(x.includes('cut')||x.includes('coupe'))return'◆'; if(x.includes('natural')||x.includes('texture'))return'❋'; if(x.includes('keratin'))return'◈'; if(x.includes('bridal'))return'◇'; if(x.includes('consult'))return'○'; return'◉' }
 const svcAdn = n => { const x=n.toLowerCase(); if(x.includes('color')||x.includes('balayage'))return['Toning +$40','Deep Condition +$30','Olaplex +$50']; if(x.includes('cut'))return['Blowout +$35','Deep Treatment +$45']; if(x.includes('natural')||x.includes('texture'))return['Scalp Massage +$20','Steam Treatment +$30']; if(x.includes('keratin'))return['Express Blowout +$40','Olaplex +$50']; if(x.includes('bridal'))return['Trial Run +$120','Bridesmaid Styling +$85/person']; return[] }
@@ -44,7 +142,6 @@ function buildSocials(ws){
   return l
 }
 
-// Contextual FAQ
 const FAQS = {
   book: [
     {q:"What's the cancellation policy?",     a:"Free cancellation up to 24 hours before your appointment. Cancellations within 24 hours forfeit the deposit."},
@@ -66,28 +163,24 @@ const FAQS = {
   ],
 }
 
-// ── Stars display ─────────────────────────────────────────────────────────────
 function StarRow({ rating }) {
   return (
-    <div style={{display:'flex',gap:2,alignItems:'center'}}>
+    <div style={{display:'flex',gap:2}}>
       {Array.from({length:5},(_,i)=>(
-        <span key={i} style={{color:i<rating?'#C9A84C':'rgba(201,168,76,0.2)',display:'flex'}}>
-          {Icons.star}
-        </span>
+        <span key={i} style={{color:i<rating?'#B89030':'rgba(184,144,48,0.2)',display:'flex'}}>{Icons.star}</span>
       ))}
     </div>
   )
 }
 
-// ── Review card ───────────────────────────────────────────────────────────────
 function ReviewCard({ review }) {
   return (
     <div className="cp-rev-card">
       <div className="cp-rev-top">
-        <StarRow rating={review.rating} />
-        {review.service_label && <div className="cp-rev-svc">{review.service_label}</div>}
+        <StarRow rating={review.rating}/>
+        {review.service_label&&<div className="cp-rev-svc">{review.service_label}</div>}
       </div>
-      {review.body && <p className="cp-rev-body">{review.body}</p>}
+      {review.body&&<p className="cp-rev-body">{review.body}</p>}
       <div className="cp-rev-author">
         <div className="cp-rev-av">{review.reviewer_name.charAt(0).toUpperCase()}</div>
         <div className="cp-rev-name">{review.reviewer_name}</div>
@@ -99,6 +192,8 @@ function ReviewCard({ review }) {
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function ClientPage() {
   const { slug } = useParams()
+  const canvasRef = useRef(null)
+  useShader(canvasRef)
 
   useLayoutEffect(() => {
     const el = document.createElement('style')
@@ -108,28 +203,24 @@ export default function ClientPage() {
     return () => document.getElementById('cp-page-styles')?.remove()
   }, [])
 
-  // ── Data ──
+  // Data
   const [ws,        setWs]        = useState(null)
   const [services,  setServices]  = useState([])
   const [products,  setProducts]  = useState([])
   const [offerings, setOfferings] = useState([])
   const [portfolio, setPortfolio] = useState([])
-  const [wsReviews, setWsReviews] = useState([])  // workspace-level reviews
+  const [wsReviews, setWsReviews] = useState([])
   const [loading,   setLoading]   = useState(true)
   const [error,     setError]     = useState(null)
 
-  // ── Active tab + detail views ──
   const [activeTab,  setActiveTab]  = useState('book')
-  const [prodDetail, setProdDetail] = useState(null) // product object + reviews
-  const [offDetail,  setOffDetail]  = useState(null) // offering object + reviews
+  const [prodDetail, setProdDetail] = useState(null)
+  const [offDetail,  setOffDetail]  = useState(null)
 
-  // ── Calendar ──
   const today = new Date()
   const [calYear,   setCalYear]   = useState(today.getFullYear())
   const [calMonth,  setCalMonth]  = useState(today.getMonth())
   const [availDays, setAvailDays] = useState([])
-
-  // ── Booking ──
   const [bkStep,    setBkStep]    = useState(1)
   const [selSvc,    setSelSvc]    = useState(null)
   const [selAddons, setSelAddons] = useState([])
@@ -142,19 +233,16 @@ export default function ClientPage() {
   const [bkSub,     setBkSub]     = useState(false)
   const [bkDone,    setBkDone]    = useState(null)
 
-  // ── Shop modal ──
   const [shopModal, setShopModal] = useState(null)
   const [shopForm,  setShopForm]  = useState({fname:'',lname:'',email:'',phone:'',qty:1})
   const [shopSub,   setShopSub]   = useState(false)
   const [shopDone,  setShopDone]  = useState(null)
 
-  // ── Learn modal ──
   const [learnModal, setLearnModal] = useState(null)
   const [learnForm,  setLearnForm]  = useState({fname:'',lname:'',email:'',phone:''})
   const [learnSub,   setLearnSub]   = useState(false)
   const [learnDone,  setLearnDone]  = useState(null)
 
-  // ── Fetch ──
   useEffect(() => {
     if (!slug) return
     ;(async () => {
@@ -165,25 +253,15 @@ export default function ClientPage() {
           .eq('slug', slug).single()
         if (wErr || !workspace) throw new Error('Not found')
 
-        const [
-          { data: svcs },
-          { data: prods },
-          { data: offs },
-          { data: revs },
-        ] = await Promise.all([
+        const [{ data: svcs },{ data: prods },{ data: offs },{ data: revs }] = await Promise.all([
           supabase.from('services').select('id,name,description,duration_min,price,currency,is_free,display_order').eq('workspace_id', workspace.id).eq('is_active', true).is('deleted_at', null).order('display_order', { ascending: true }),
           supabase.from('products').select('id,name,description,price,currency,stock,image_url,images').eq('workspace_id', workspace.id).eq('is_active', true).is('deleted_at', null).gt('stock', 0),
           supabase.from('offerings').select('id,title,description,price,currency,duration_label,format,max_students').eq('workspace_id', workspace.id).eq('is_active', true).is('deleted_at', null),
           supabase.from('reviews').select('*').eq('workspace_id', workspace.id).eq('entity_type', 'workspace').eq('is_visible', true).order('created_at', { ascending: false }).limit(12),
         ])
 
-        setWs(workspace)
-        setServices(svcs || [])
-        setProducts(prods || [])
-        setOfferings(offs || [])
-        setWsReviews(revs || [])
+        setWs(workspace); setServices(svcs||[]); setProducts(prods||[]); setOfferings(offs||[]); setWsReviews(revs||[])
         document.title = `${workspace.name} — Organized.`
-
         const hasSvcs = (svcs||[]).length > 0 && workspace.accepts_bookings !== false
         setActiveTab(hasSvcs ? 'book' : (prods||[]).length > 0 ? 'shop' : 'learn')
       } catch(e) { setError(e.message) }
@@ -191,20 +269,18 @@ export default function ClientPage() {
     })()
   }, [slug])
 
-  // ── Fetch product or offering reviews on detail open ──
   async function openProdDetail(p) {
     const { data: revs } = await supabase.from('reviews').select('*').eq('entity_id', p.id).eq('entity_type', 'product').eq('is_visible', true).order('created_at', { ascending: false })
-    setProdDetail({ ...p, reviews: revs || [] })
+    setProdDetail({ ...p, reviews: revs||[] })
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   async function openOffDetail(o) {
     const { data: revs } = await supabase.from('reviews').select('*').eq('entity_id', o.id).eq('entity_type', 'offering').eq('is_visible', true).order('created_at', { ascending: false })
-    setOffDetail({ ...o, reviews: revs || [] })
+    setOffDetail({ ...o, reviews: revs||[] })
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  // ── Available days ──
   const fetchAvailDays = useCallback(async () => {
     if (!ws) return
     try {
@@ -218,9 +294,7 @@ export default function ClientPage() {
       const days = []
       for (let d=1; d<=lastDay.getDate(); d++) {
         const dt = new Date(calYear, calMonth, d)
-        if (dt <= todayMid) continue
-        if (!dows.has(dt.getDay())) continue
-        if (blkSet.has(`${calYear}-${pad(calMonth+1)}-${pad(d)}`)) continue
+        if (dt<=todayMid||!dows.has(dt.getDay())||blkSet.has(`${calYear}-${pad(calMonth+1)}-${pad(d)}`)) continue
         days.push(d)
       }
       setAvailDays(days)
@@ -229,7 +303,6 @@ export default function ClientPage() {
 
   useEffect(() => { fetchAvailDays() }, [fetchAvailDays])
 
-  // ── Slots ──
   async function fetchSlots(day) {
     if (!ws) return
     setLoadSlots(true); setSlots([])
@@ -237,7 +310,7 @@ export default function ClientPage() {
       const ds = `${calYear}-${pad(calMonth+1)}-${pad(day)}`
       const dow = new Date(calYear, calMonth, day).getDay()
       const dur = selSvc?.duration_min || 60
-      const [{ data: wins }, { data: appts }] = await Promise.all([
+      const [{ data: wins },{ data: appts }] = await Promise.all([
         supabase.from('availability').select('open_time,close_time').eq('workspace_id', ws.id).eq('day_of_week', dow).eq('is_open', true),
         supabase.from('appointments').select('scheduled_at,duration_min').eq('workspace_id', ws.id).gte('scheduled_at',`${ds}T00:00:00`).lt('scheduled_at',`${ds}T23:59:59`).not('status','in','("cancelled","no_show")').is('deleted_at', null),
       ])
@@ -257,7 +330,6 @@ export default function ClientPage() {
     finally { setLoadSlots(false) }
   }
 
-  // ── Booking ──
   function pickSvc(s){ setSelSvc(s); setSelAddons([]) }
   function toggleAddon(a){ setSelAddons(p=>p.includes(a)?p.filter(x=>x!==a):[...p,a]) }
   function pickDay(d){ setSelDay(d); setSelTime(null); fetchSlots(d) }
@@ -269,8 +341,7 @@ export default function ClientPage() {
     setCalYear(y); setCalMonth(m); setSelDay(null); setSelTime(null); setSlots([])
   }
   function goStep(n){
-    if(n===2&&!selSvc) return
-    if(n===3&&(!selDay||!selTime)) return
+    if(n===2&&!selSvc||n===3&&(!selDay||!selTime)) return
     setBkStep(n)
     setTimeout(()=>document.getElementById('cp-book-anchor')?.scrollIntoView({behavior:'smooth',block:'start'}),50)
   }
@@ -287,12 +358,11 @@ export default function ClientPage() {
       const sAt=new Date(`${ds}T${selTime}:00`)
       const dur=selSvc.duration_min||60
       const eAt=new Date(sAt.getTime()+dur*60000)
-      const addNote=selAddons.length?`[Add-ons: ${selAddons.join(', ')}]\n`:''
       const {error:iErr}=await supabase.from('appointments').insert({
         workspace_id:ws.id, service_id:selSvc.id, service_name:selSvc.name,
         client_name:`${bkForm.fname.trim()} ${bkForm.lname.trim()}`,
         client_email:bkForm.email.trim(), client_phone:bkForm.phone.trim(),
-        notes:(addNote+(bkForm.notes||'')).trim()||null,
+        notes:((selAddons.length?`[Add-ons: ${selAddons.join(', ')}]\n`:'')+bkForm.notes).trim()||null,
         scheduled_at:sAt.toISOString(), duration_min:dur, ends_at:eAt.toISOString(),
         status:'pending', amount:selSvc.is_free?0:selSvc.price,
         currency:selSvc.currency||ws.currency||'CAD', payment_status:'unpaid',
@@ -300,11 +370,10 @@ export default function ClientPage() {
       if(iErr){if(iErr.code==='23505'){alert('Slot taken — pick another.');setSelTime(null);fetchSlots(selDay);setBkStep(2);return} throw iErr}
       setBkDone({ serviceName:selSvc.name, displayDate:`${MONTHS[calMonth]} ${selDay}, ${calYear}`, displayTime:fmt12(selTime), duration:fmtDur(dur), email:bkForm.email.trim(), addons:selAddons, needsDeposit:!selSvc.is_free&&selSvc.price>=100 })
       setBkStep(4)
-    } catch(e){alert('Something went wrong.'); console.error(e)}
+    } catch(e){alert('Something went wrong.');console.error(e)}
     finally{setBkSub(false)}
   }
 
-  // ── Shop ──
   function openShop(p){ setShopModal(p); setShopDone(null); setShopForm({fname:'',lname:'',email:'',phone:'',qty:1}) }
   async function submitOrder(){
     const f=shopForm
@@ -318,7 +387,6 @@ export default function ClientPage() {
     finally{setShopSub(false)}
   }
 
-  // ── Learn ──
   function openLearn(o){ setLearnModal(o); setLearnDone(null); setLearnForm({fname:'',lname:'',email:'',phone:''}) }
   async function submitEnrollment(){
     const f=learnForm
@@ -332,32 +400,27 @@ export default function ClientPage() {
     finally{setLearnSub(false)}
   }
 
-  // ── Calendar ──
   function renderCal(){
-    const firstDay=new Date(calYear,calMonth,1).getDay()
+    const fd=new Date(calYear,calMonth,1).getDay()
     const dim=new Date(calYear,calMonth+1,0).getDate()
     const todayMid=new Date(); todayMid.setHours(0,0,0,0)
-    const avSet=new Set(availDays)
-    const cells=[]
-    for(let i=0;i<firstDay;i++) cells.push(<div key={`e${i}`} className="cp-day empty"/>)
+    const avSet=new Set(availDays); const cells=[]
+    for(let i=0;i<fd;i++) cells.push(<div key={`e${i}`} className="cp-day empty"/>)
     for(let d=1;d<=dim;d++){
       const date=new Date(calYear,calMonth,d)
       const isToday=date.toDateString()===todayMid.toDateString()
-      const isPast=date<todayMid
-      const isAvail=avSet.has(d)&&!isPast&&!isToday
-      const isSel=selDay===d
+      const isPast=date<todayMid; const isAvail=avSet.has(d)&&!isPast&&!isToday; const isSel=selDay===d
       let cls='cp-day'+(isSel?' sel':isPast?' past':isToday?' today':isAvail?' avail':' off')
       cells.push(<div key={d} className={cls} onClick={isAvail&&!isSel?()=>pickDay(d):undefined}>{d}</div>)
     }
     return cells
   }
 
-  // ── Splash ──
   const Splash=({msg})=>(
-    <div style={{minHeight:'100vh',background:'#080604',display:'flex',alignItems:'center',justifyContent:'center'}}>
+    <div style={{minHeight:'100vh',background:'#C8B89A',display:'flex',alignItems:'center',justifyContent:'center'}}>
       <div style={{textAlign:'center'}}>
-        <div style={{fontFamily:'Playfair Display,Georgia,serif',fontSize:24,color:'#C9A84C',marginBottom:12}}>Organized.</div>
-        <div style={{fontSize:12,color:'rgba(245,240,232,0.35)',letterSpacing:'0.14em',textTransform:'uppercase'}}>{msg}</div>
+        <div style={{fontFamily:'Playfair Display,Georgia,serif',fontSize:24,color:'#3A2A18',marginBottom:12}}>Organized.</div>
+        <div style={{fontSize:12,color:'rgba(58,42,24,0.5)',letterSpacing:'0.14em',textTransform:'uppercase'}}>{msg}</div>
       </div>
     </div>
   )
@@ -366,7 +429,6 @@ export default function ClientPage() {
   if(error||!ws)        return <Splash msg="This page doesn't exist."/>
   if(!ws.is_published)  return <Splash msg="Not available yet."/>
 
-  // ── Derived ──
   const socials   = buildSocials(ws)
   const firstName = ws.name.split(' ')[0]
   const hasBook   = services.length > 0 && ws.accepts_bookings !== false
@@ -380,117 +442,100 @@ export default function ClientPage() {
   const selDTD    = selDateD&&selTime ? `${selDateD} · ${fmt12(selTime)}` : selDateD
   const isCurMo   = calYear===today.getFullYear()&&calMonth===today.getMonth()
   const faqItems  = FAQS[activeTab] || FAQS.book
+  const nextAvail = availDays.length > 0 ? `${MONTHS[calMonth]} ${availDays[0]}` : 'See calendar'
 
   function switchTab(id){
     setActiveTab(id); setProdDetail(null); setOffDetail(null)
     setTimeout(()=>document.getElementById('cp-content-start')?.scrollIntoView({behavior:'smooth',block:'start'}),50)
   }
 
-  // ── Next available for hero ──
-  const nextAvailLabel = availDays.length > 0 ? `${MONTHS[calMonth]} ${availDays[0]}` : 'See calendar'
-
-  // ══════════════════════════════════════════
-  // RENDER
-  // ══════════════════════════════════════════
   return (
     <>
-      {/* NAV — logo only, no tab links */}
+      {/* NAV */}
       <nav className="cp-nav">
         <div className="cp-logo">Organized.<span>by {ws.name}</span></div>
-        {ws.accepts_bookings !== false && hasBook && (
-          <button className="cp-nav-book-btn" onClick={()=>{ setActiveTab('book'); document.getElementById('cp-content-start')?.scrollIntoView({behavior:'smooth'}) }}>
+        {hasBook && (
+          <button className="cp-nav-cta" onClick={()=>{ setActiveTab('book'); document.getElementById('cp-content-start')?.scrollIntoView({behavior:'smooth'}) }}>
             Book Now
           </button>
         )}
       </nav>
 
-      {/* ═══════════════════════════════════════
-          DARK WRAP — animated hero + tabs bar
-      ═══════════════════════════════════════ */}
-      <div className="cp-dark-wrap">
+      {/* ═══ SHADER WRAP — hero + tabs on warm fluid bg ═══ */}
+      <div className="cp-shader-wrap">
 
-        {/* Animated ambient background orbs */}
-        <div className="cp-hero-bg" aria-hidden="true">
-          <div className="cp-orb cp-orb-1"/>
-          <div className="cp-orb cp-orb-2"/>
-          <div className="cp-orb cp-orb-3"/>
-          <div className="cp-orb cp-orb-4"/>
-        </div>
+        {/* WebGL canvas — fills the entire wrap */}
+        <canvas ref={canvasRef} className="cp-shader-canvas" />
 
         {/* HERO */}
         <section className="cp-hero">
-          {/* Left — text */}
+          {/* Left — dark overlay for text legibility */}
           <div className="cp-hero-left">
-
-            <div className="cp-hero-tag">
-              {ws.accepts_bookings !== false
-                ? <><span className="cp-tag-dot"/>&nbsp;Accepting bookings</>
-                : 'Viewing only'}
-            </div>
-
-            <h1 className="cp-hero-name">
-              {ws.name.split(' ')[0]}
-              {ws.name.split(' ').length > 1 && <><br/><em>{ws.name.split(' ').slice(1).join(' ')}</em></>}
-            </h1>
-
-            {ws.tagline && <p className="cp-hero-title">{ws.tagline}</p>}
-            {ws.location && (
-              <p className="cp-hero-sub">
-                <span style={{color:'var(--gold)',marginRight:5}}>◉</span>{ws.location}
-              </p>
-            )}
-            {ws.bio && <p className="cp-hero-bio">{ws.bio}</p>}
-
-            {socials.length > 0 && (
-              <div className="cp-socials">
-                {socials.map(({k,icon,label,href})=>(
-                  <a key={k} href={href} target="_blank" rel="noreferrer" className="cp-social" title={label} aria-label={label}>{icon}</a>
-                ))}
+            <div className="cp-hero-overlay-left" />
+            <div className="cp-hero-content">
+              <div className="cp-hero-tag">
+                {ws.accepts_bookings!==false
+                  ? <><span className="cp-tag-dot"/>&nbsp;Accepting bookings</>
+                  : 'Viewing only'}
               </div>
-            )}
 
-            <div className="cp-hero-cta">
-              {hasBook && (
-                <button className="cp-btn-gold" onClick={()=>{ setActiveTab('book'); document.getElementById('cp-content-start')?.scrollIntoView({behavior:'smooth'}) }}>
-                  Book a Session
-                </button>
+              <h1 className="cp-hero-name">
+                {ws.name.split(' ')[0]}
+                {ws.name.split(' ').length > 1 && <><br/><em>{ws.name.split(' ').slice(1).join(' ')}</em></>}
+              </h1>
+
+              {ws.tagline && <p className="cp-hero-title">{ws.tagline}</p>}
+              {ws.location && <p className="cp-hero-sub"><span className="cp-gold-dot">◉</span>{ws.location}</p>}
+              {ws.bio && <p className="cp-hero-bio">{ws.bio}</p>}
+
+              {socials.length > 0 && (
+                <div className="cp-socials">
+                  {socials.map(({k,icon,label,href})=>(
+                    <a key={k} href={href} target="_blank" rel="noreferrer" className="cp-social" title={label}>{icon}</a>
+                  ))}
+                </div>
               )}
-              {hasShop && (
-                <button className="cp-btn-ghost" onClick={()=>{ setActiveTab('shop'); document.getElementById('cp-content-start')?.scrollIntoView({behavior:'smooth'}) }}>
-                  Shop
-                </button>
-              )}
-              {!hasBook && !hasShop && hasLearn && (
-                <button className="cp-btn-gold" onClick={()=>{ setActiveTab('learn'); document.getElementById('cp-content-start')?.scrollIntoView({behavior:'smooth'}) }}>
-                  View Formations
-                </button>
-              )}
+
+              <div className="cp-hero-cta">
+                {hasBook && (
+                  <button className="cp-btn-dark" onClick={()=>{ setActiveTab('book'); document.getElementById('cp-content-start')?.scrollIntoView({behavior:'smooth'}) }}>
+                    Book a Session
+                  </button>
+                )}
+                {hasShop && (
+                  <button className="cp-btn-outline" onClick={()=>{ setActiveTab('shop'); document.getElementById('cp-content-start')?.scrollIntoView({behavior:'smooth'}) }}>
+                    Shop
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
-          {/* Right — cover photo */}
+          {/* Right — cover photo with shader showing through when no photo */}
           <div className="cp-hero-right">
-            {ws.cover_url
-              ? <img src={ws.cover_url} alt={ws.name} className="cp-cover-img"/>
-              : <div className="cp-portrait-wrap">
-                  <div className="cp-p-glow"/><div className="cp-p-head"/>
-                  <div className="cp-p-neck"/><div className="cp-p-body"/>
-                  <div className="cp-p-accent">· · ·</div>
-                </div>
-            }
-            <div className="cp-hero-overlay"/>
+            {ws.cover_url && (
+              <>
+                <img src={ws.cover_url} alt={ws.name} className="cp-cover-img"/>
+                <div className="cp-cover-overlay"/>
+              </>
+            )}
+            {!ws.cover_url && (
+              <div className="cp-portrait-wrap">
+                <div className="cp-p-head"/><div className="cp-p-neck"/>
+                <div className="cp-p-body"/><div className="cp-p-glow"/>
+              </div>
+            )}
 
-            {/* Single floating card — Next Available */}
             {hasBook && (
               <div className="cp-fc">
                 <div className="cp-fc-lbl">Next Available</div>
-                <div className="cp-fc-val">{nextAvailLabel}</div>
+                <div className="cp-fc-val">{nextAvail}</div>
               </div>
             )}
           </div>
         </section>
 
-        {/* TABS BAR — inside dark wrap */}
+        {/* TABS BAR — bottom of shader wrap */}
         <div className="cp-tabs-bar" id="cp-content-start">
           {tabs.map(t=>(
             <button key={t.id} className={`cp-tab-btn ${activeTab===t.id?'active':''}`} onClick={()=>switchTab(t.id)}>
@@ -500,11 +545,9 @@ export default function ClientPage() {
         </div>
       </div>
 
-      {/* ═══════════════════════════════════════
-          CONTENT — ivory sections
-      ═══════════════════════════════════════ */}
+      {/* ═══ CONTENT — ivory sections ═══ */}
 
-      {/* ── BOOK ───────────────────────────── */}
+      {/* BOOK */}
       {activeTab==='book' && hasBook && (
         <section id="cp-book-anchor" className="cp-section">
           <div className="cp-inner">
@@ -524,30 +567,17 @@ export default function ClientPage() {
                     </span>
                   ))}
                 </div>
-
                 <div className="cp-wiz-layout">
-                  {/* Summary */}
                   <div className="cp-summary">
                     <div className="cp-sum-title">Summary</div>
                     <div className="cp-sum-row"><div className="cp-sum-k">Stylist</div><div className="cp-sum-v">{ws.name}</div></div>
-                    <div className="cp-sum-row">
-                      <div className="cp-sum-k">Service</div>
-                      {selSvc?<><div className="cp-sum-v">{selSvc.name}</div>{selSvc.duration_min&&<div className="cp-sum-s">{fmtDur(selSvc.duration_min)}</div>}</>:<div className="cp-sum-e">—</div>}
-                    </div>
-                    <div className="cp-sum-row">
-                      <div className="cp-sum-k">Date & Time</div>
-                      {selDTD?<div className="cp-sum-v">{selDTD}</div>:<div className="cp-sum-e">—</div>}
-                    </div>
-                    <div className="cp-sum-row">
-                      <div className="cp-sum-k">Price</div>
-                      {selSvc?<div className="cp-sum-v">{fmtSP(selSvc)}</div>:<div className="cp-sum-e">—</div>}
-                    </div>
+                    <div className="cp-sum-row"><div className="cp-sum-k">Service</div>{selSvc?<><div className="cp-sum-v">{selSvc.name}</div>{selSvc.duration_min&&<div className="cp-sum-s">{fmtDur(selSvc.duration_min)}</div>}</>:<div className="cp-sum-e">—</div>}</div>
+                    <div className="cp-sum-row"><div className="cp-sum-k">Date & Time</div>{selDTD?<div className="cp-sum-v">{selDTD}</div>:<div className="cp-sum-e">—</div>}</div>
+                    <div className="cp-sum-row"><div className="cp-sum-k">Price</div>{selSvc?<div className="cp-sum-v">{fmtSP(selSvc)}</div>:<div className="cp-sum-e">—</div>}</div>
                     {needsDep&&<div className="cp-deposit"><strong>$40 deposit</strong> required. Applied to your total. Refundable with 24h+ notice.</div>}
                   </div>
-
                   <div>
-                    {/* Step 1 */}
-                    {bkStep===1 && (
+                    {bkStep===1&&(
                       <div>
                         <p className="cp-step-note">Select the service you'd like to book.</p>
                         <div className="cp-s1-grid">
@@ -561,50 +591,23 @@ export default function ClientPage() {
                             </div>
                           ))}
                         </div>
-                        {selSvc&&addons.length>0&&(
-                          <div className="cp-addons">
-                            <div className="cp-addons-lbl">Pair it with</div>
-                            <div className="cp-chips">
-                              {addons.map(a=><div key={a} className={`cp-chip ${selAddons.includes(a)?'on':''}`} onClick={()=>toggleAddon(a)}>{a}</div>)}
-                            </div>
-                          </div>
-                        )}
+                        {selSvc&&addons.length>0&&<div className="cp-addons"><div className="cp-addons-lbl">Pair it with</div><div className="cp-chips">{addons.map(a=><div key={a} className={`cp-chip ${selAddons.includes(a)?'on':''}`} onClick={()=>toggleAddon(a)}>{a}</div>)}</div></div>}
                         <div className="cp-nav-row"><span/><button className="cp-btn-next" onClick={()=>goStep(2)} disabled={!selSvc}>Next — Pick a Time &#8594;</button></div>
                       </div>
                     )}
-
-                    {/* Step 2 */}
-                    {bkStep===2 && (
+                    {bkStep===2&&(
                       <div>
                         <p className="cp-step-note">Highlighted dates have openings. Select a date then a time.</p>
                         <div className="cp-cal-wrap">
-                          <div className="cp-cal-head">
-                            <div className="cp-cal-month">{MONTHS[calMonth]} {calYear}</div>
-                            <div className="cp-cal-nav">
-                              <button className="cp-cal-btn" onClick={()=>changeMonth(-1)} disabled={isCurMo}>&#8249;</button>
-                              <button className="cp-cal-btn" onClick={()=>changeMonth(1)}>&#8250;</button>
-                            </div>
-                          </div>
+                          <div className="cp-cal-head"><div className="cp-cal-month">{MONTHS[calMonth]} {calYear}</div><div className="cp-cal-nav"><button className="cp-cal-btn" onClick={()=>changeMonth(-1)} disabled={isCurMo}>&#8249;</button><button className="cp-cal-btn" onClick={()=>changeMonth(1)}>&#8250;</button></div></div>
                           <div className="cp-dnames">{['Su','Mo','Tu','We','Th','Fr','Sa'].map(d=><div key={d} className="cp-dname">{d}</div>)}</div>
                           <div className="cp-cal-grid">{renderCal()}</div>
                         </div>
-                        {selDay&&(
-                          <div className="cp-slots-wrap">
-                            <div className="cp-slots-lbl">Available Times — {selDateD}</div>
-                            {loadSlots?<div className="cp-slots-empty">Loading…</div>
-                              :slots.length===0?<div className="cp-slots-empty">No availability for this date.</div>
-                              :<div className="cp-slots-grid">{slots.map(sl=><div key={sl.raw} className={`cp-slot ${sl.booked?'booked':selTime===sl.raw?'sel':'avail'}`} onClick={()=>!sl.booked&&pickTime(sl)}>{sl.display}</div>)}</div>}
-                          </div>
-                        )}
-                        <div className="cp-nav-row">
-                          <button className="cp-btn-back" onClick={()=>goStep(1)}>&#8592; Back</button>
-                          <button className="cp-btn-next" onClick={()=>goStep(3)} disabled={!selDay||!selTime}>Next — Your Info &#8594;</button>
-                        </div>
+                        {selDay&&<div className="cp-slots-wrap"><div className="cp-slots-lbl">Available Times — {selDateD}</div>{loadSlots?<div className="cp-slots-empty">Loading…</div>:slots.length===0?<div className="cp-slots-empty">No availability for this date.</div>:<div className="cp-slots-grid">{slots.map(sl=><div key={sl.raw} className={`cp-slot ${sl.booked?'booked':selTime===sl.raw?'sel':'avail'}`} onClick={()=>!sl.booked&&pickTime(sl)}>{sl.display}</div>)}</div>}</div>}
+                        <div className="cp-nav-row"><button className="cp-btn-back" onClick={()=>goStep(1)}>&#8592; Back</button><button className="cp-btn-next" onClick={()=>goStep(3)} disabled={!selDay||!selTime}>Next — Your Info &#8594;</button></div>
                       </div>
                     )}
-
-                    {/* Step 3 */}
-                    {bkStep===3 && (
+                    {bkStep===3&&(
                       <div>
                         <p className="cp-step-note">Almost done. Confirmation sent to your inbox right away.</p>
                         <div className="cp-2col">
@@ -616,10 +619,7 @@ export default function ClientPage() {
                         <div className="cp-fg"><label className="cp-fl">How did you find {firstName}?</label><select className="cp-fsel" value={bkForm.source} onChange={e=>setBkForm(f=>({...f,source:e.target.value}))}><option value="">Select one</option><option value="instagram">Instagram</option><option value="referral">Friend or Referral</option><option value="google">Google</option><option value="tiktok">TikTok</option><option value="other">Other</option></select></div>
                         <div className="cp-fg"><label className="cp-fl">Notes — optional</label><input className="cp-fi" type="text" placeholder="Allergies, goals, reference photos…" value={bkForm.notes} onChange={e=>setBkForm(f=>({...f,notes:e.target.value}))}/></div>
                         <div className="cp-policy">By confirming, you agree to {firstName}&apos;s <a href="#cp-faq">cancellation policy</a>. Free cancellation up to 24h before your appointment.{needsDep&&' $40 deposit required.'}</div>
-                        <div className="cp-nav-row">
-                          <button className="cp-btn-back" onClick={()=>goStep(2)}>&#8592; Back</button>
-                          <button className="cp-btn-next" onClick={submitBooking} disabled={bkSub}>{bkSub?'Confirming…':'Confirm Appointment →'}</button>
-                        </div>
+                        <div className="cp-nav-row"><button className="cp-btn-back" onClick={()=>goStep(2)}>&#8592; Back</button><button className="cp-btn-next" onClick={submitBooking} disabled={bkSub}>{bkSub?'Confirming…':'Confirm Appointment →'}</button></div>
                       </div>
                     )}
                   </div>
@@ -627,8 +627,7 @@ export default function ClientPage() {
               </>
             )}
 
-            {/* Success */}
-            {bkStep===4 && bkDone && (
+            {bkStep===4&&bkDone&&(
               <div className="cp-success">
                 <div className="cp-success-icon">✓</div>
                 <h2 className="cp-success-title">You&apos;re booked.</h2>
@@ -647,21 +646,17 @@ export default function ClientPage() {
             )}
           </div>
 
-          {/* Reviews — workspace level */}
-          {wsReviews.length > 0 && (
+          {wsReviews.length>0&&(
             <div className="cp-inner" style={{marginTop:72}}>
               <div className="cp-eyebrow">Client Love</div>
-              <h3 className="cp-heading">What they <em>say</em></h3>
-              <div className="cp-rev-grid">
-                {wsReviews.map(r=><ReviewCard key={r.id} review={r}/>)}
-              </div>
+              <h3 className="cp-heading" style={{marginBottom:32}}>What they <em>say</em></h3>
+              <div className="cp-rev-grid">{wsReviews.map(r=><ReviewCard key={r.id} review={r}/>)}</div>
             </div>
           )}
         </section>
       )}
 
-      {/* ── PORTFOLIO (conditional) ─────────── */}
-      {hasPF && activeTab==='book' && (
+      {hasPF&&activeTab==='book'&&(
         <section className="cp-section cp-section-alt">
           <div className="cp-inner">
             <div className="cp-eyebrow">Portfolio</div>
@@ -678,10 +673,10 @@ export default function ClientPage() {
         </section>
       )}
 
-      {/* ── SHOP ───────────────────────────── */}
-      {activeTab==='shop' && hasShop && (
+      {/* SHOP */}
+      {activeTab==='shop'&&hasShop&&(
         <>
-          {!prodDetail ? (
+          {!prodDetail?(
             <section className="cp-section">
               <div className="cp-inner">
                 <div className="cp-eyebrow">Shop</div>
@@ -709,54 +704,41 @@ export default function ClientPage() {
                 </div>
               </div>
             </section>
-          ) : (
-            /* PRODUCT DETAIL VIEW */
+          ):(
             <section className="cp-section">
               <div className="cp-inner">
-                <button className="cp-back-btn" onClick={()=>setProdDetail(null)}>
-                  {Icons.back}&nbsp; Back to Shop
-                </button>
+                <button className="cp-back-btn" onClick={()=>setProdDetail(null)}>{Icons.back}&nbsp;Back to Shop</button>
                 <div className="cp-detail-layout">
-                  {/* Image */}
                   <div className="cp-detail-img">
-                    {(prodDetail.image_url||(prodDetail.images&&prodDetail.images[0]))
-                      ? <img src={prodDetail.image_url||(prodDetail.images&&prodDetail.images[0])} alt={prodDetail.name}/>
-                      : <div className="cp-detail-ph">◈</div>}
-                    {prodDetail.stock<=3&&<div className="cp-prod-badge" style={{position:'static',marginTop:12,display:'inline-block'}}>Only {prodDetail.stock} left</div>}
+                    {(prodDetail.image_url||(prodDetail.images&&prodDetail.images[0]))?<img src={prodDetail.image_url||(prodDetail.images&&prodDetail.images[0])} alt={prodDetail.name}/>:<div className="cp-detail-ph">◈</div>}
                   </div>
-                  {/* Info */}
                   <div className="cp-detail-info">
                     <div className="cp-eyebrow">Product</div>
                     <h2 className="cp-detail-title">{prodDetail.name}</h2>
                     <div className="cp-detail-price">{fmtP(prodDetail.price)}</div>
                     {prodDetail.description&&<p className="cp-detail-desc">{prodDetail.description}</p>}
+                    {prodDetail.stock<=3&&<div style={{marginTop:12,fontSize:12,color:'var(--gold-d)',fontWeight:500}}>Only {prodDetail.stock} left in stock</div>}
                     <button className="cp-btn-gold" style={{marginTop:24}} onClick={()=>openShop(prodDetail)}>Order This Product</button>
                   </div>
                 </div>
-
-                {/* Product reviews */}
-                {prodDetail.reviews.length > 0 && (
+                {prodDetail.reviews.length>0&&(
                   <div style={{marginTop:56}}>
                     <div className="cp-eyebrow">Reviews</div>
-                    <h3 className="cp-heading" style={{marginBottom:32}}>What clients <em>say</em></h3>
-                    <div className="cp-rev-grid">
-                      {prodDetail.reviews.map(r=><ReviewCard key={r.id} review={r}/>)}
-                    </div>
+                    <h3 className="cp-heading" style={{marginBottom:28}}>What clients <em>say</em></h3>
+                    <div className="cp-rev-grid">{prodDetail.reviews.map(r=><ReviewCard key={r.id} review={r}/>)}</div>
                   </div>
                 )}
-                {prodDetail.reviews.length === 0 && (
-                  <p style={{marginTop:48,fontSize:13,color:'var(--tx-m)',fontStyle:'italic'}}>No reviews yet for this product.</p>
-                )}
+                {prodDetail.reviews.length===0&&<p style={{marginTop:48,fontSize:13,color:'var(--tx-m)',fontStyle:'italic'}}>No reviews yet for this product.</p>}
               </div>
             </section>
           )}
         </>
       )}
 
-      {/* ── LEARN ──────────────────────────── */}
-      {activeTab==='learn' && hasLearn && (
+      {/* LEARN */}
+      {activeTab==='learn'&&hasLearn&&(
         <>
-          {!offDetail ? (
+          {!offDetail?(
             <section className="cp-section">
               <div className="cp-inner">
                 <div className="cp-eyebrow">Formations</div>
@@ -764,39 +746,27 @@ export default function ClientPage() {
                 <div className="cp-off-grid">
                   {offerings.map(o=>(
                     <div key={o.id} className="cp-off-card" onClick={()=>openOffDetail(o)} style={{cursor:'pointer'}}>
-                      <div className="cp-off-top">
-                        <div className="cp-off-icon">◈</div>
-                        {o.format&&<div className="cp-off-fmt">{o.format}</div>}
-                      </div>
+                      <div className="cp-off-top"><div className="cp-off-icon">◈</div>{o.format&&<div className="cp-off-fmt">{o.format}</div>}</div>
                       <div className="cp-off-title">{o.title}</div>
                       {o.description&&<div className="cp-off-desc">{o.description}</div>}
-                      <div className="cp-off-meta">
-                        {o.duration_label&&<span>&#9201; {o.duration_label}</span>}
-                        {o.max_students&&<span>&#128101; Max {o.max_students}</span>}
-                      </div>
-                      <div className="cp-off-foot">
-                        <div className="cp-off-price">{fmtP(o.price)}</div>
-                        <span className="cp-prod-see">View →</span>
-                      </div>
+                      <div className="cp-off-meta">{o.duration_label&&<span>&#9201; {o.duration_label}</span>}{o.max_students&&<span>&#128101; Max {o.max_students}</span>}</div>
+                      <div className="cp-off-foot"><div className="cp-off-price">{fmtP(o.price)}</div><span className="cp-prod-see">View →</span></div>
                     </div>
                   ))}
                 </div>
               </div>
             </section>
-          ) : (
-            /* FORMATION DETAIL VIEW */
+          ):(
             <section className="cp-section">
               <div className="cp-inner">
-                <button className="cp-back-btn" onClick={()=>setOffDetail(null)}>
-                  {Icons.back}&nbsp; Back to Formations
-                </button>
-                <div className="cp-detail-layout" style={{gridTemplateColumns:'1fr 1fr'}}>
+                <button className="cp-back-btn" onClick={()=>setOffDetail(null)}>{Icons.back}&nbsp;Back to Formations</button>
+                <div className="cp-detail-layout">
                   <div className="cp-off-detail-badge">
-                    <div className="cp-off-icon" style={{width:72,height:72,fontSize:32}}>◈</div>
-                    {offDetail.format&&<div className="cp-off-fmt" style={{marginTop:16}}>{offDetail.format}</div>}
-                    <div className="cp-off-meta" style={{marginTop:20,flexDirection:'column',gap:10}}>
-                      {offDetail.duration_label&&<div style={{fontSize:14,color:'var(--tx-s)'}}>&#9201; {offDetail.duration_label}</div>}
-                      {offDetail.max_students&&<div style={{fontSize:14,color:'var(--tx-s)'}}>&#128101; Max {offDetail.max_students} students</div>}
+                    <div className="cp-off-icon" style={{width:72,height:72,fontSize:32,marginBottom:16}}>◈</div>
+                    {offDetail.format&&<div className="cp-off-fmt">{offDetail.format}</div>}
+                    <div style={{marginTop:20,display:'flex',flexDirection:'column',gap:10}}>
+                      {offDetail.duration_label&&<div style={{fontSize:13,color:'var(--tx-s)'}}>&#9201; {offDetail.duration_label}</div>}
+                      {offDetail.max_students&&<div style={{fontSize:13,color:'var(--tx-s)'}}>&#128101; Max {offDetail.max_students} students</div>}
                     </div>
                   </div>
                   <div className="cp-detail-info">
@@ -807,27 +777,21 @@ export default function ClientPage() {
                     <button className="cp-btn-gold" style={{marginTop:24}} onClick={()=>openLearn(offDetail)}>Enroll Now</button>
                   </div>
                 </div>
-
-                {/* Formation reviews */}
-                {offDetail.reviews.length > 0 && (
+                {offDetail.reviews.length>0&&(
                   <div style={{marginTop:56}}>
                     <div className="cp-eyebrow">Reviews</div>
-                    <h3 className="cp-heading" style={{marginBottom:32}}>What students <em>say</em></h3>
-                    <div className="cp-rev-grid">
-                      {offDetail.reviews.map(r=><ReviewCard key={r.id} review={r}/>)}
-                    </div>
+                    <h3 className="cp-heading" style={{marginBottom:28}}>What students <em>say</em></h3>
+                    <div className="cp-rev-grid">{offDetail.reviews.map(r=><ReviewCard key={r.id} review={r}/>)}</div>
                   </div>
                 )}
-                {offDetail.reviews.length === 0 && (
-                  <p style={{marginTop:48,fontSize:13,color:'var(--tx-m)',fontStyle:'italic'}}>No reviews yet for this formation.</p>
-                )}
+                {offDetail.reviews.length===0&&<p style={{marginTop:48,fontSize:13,color:'var(--tx-m)',fontStyle:'italic'}}>No reviews yet for this formation.</p>}
               </div>
             </section>
           )}
         </>
       )}
 
-      {/* ── FAQ — contextual ───────────────── */}
+      {/* FAQ */}
       <section id="cp-faq" className="cp-section cp-section-alt">
         <div className="cp-inner cp-faq-inner">
           <div className="cp-eyebrow">Good to Know</div>
@@ -843,76 +807,64 @@ export default function ClientPage() {
         </div>
       </section>
 
-      {/* ── FOOTER ─────────────────────────── */}
+      {/* FOOTER */}
       <footer className="cp-footer">
         <div className="cp-footer-logo">Organized.</div>
-        <div className="cp-footer-socials">
-          {socials.map(({k,icon,label,href})=>(
-            <a key={k} href={href} target="_blank" rel="noreferrer" className="cp-footer-social" title={label}>{icon}</a>
-          ))}
-        </div>
+        <div className="cp-footer-socials">{socials.map(({k,icon,label,href})=><a key={k} href={href} target="_blank" rel="noreferrer" className="cp-footer-social" title={label}>{icon}</a>)}</div>
         <div className="cp-footer-right">Powered by <a href="https://beorganized.io" target="_blank" rel="noreferrer">beorganized.io</a></div>
       </footer>
 
-      {/* ── SHOP MODAL ─────────────────────── */}
-      {shopModal && (
+      {/* SHOP MODAL */}
+      {shopModal&&(
         <div className="cp-overlay" onClick={e=>{if(e.target.classList.contains('cp-overlay')){setShopModal(null);setShopDone(null)}}}>
           <div className="cp-modal">
             <button className="cp-modal-close" onClick={()=>{setShopModal(null);setShopDone(null)}}>✕</button>
-            {!shopDone?(
-              <>
-                <div className="cp-modal-title">Order — {shopModal.name}</div>
-                <div className="cp-modal-price">{fmtP(shopModal.price)}</div>
-                <div className="cp-2col">
-                  <div className="cp-fg"><label className="cp-fl">First Name *</label><input className="cp-fi" type="text" placeholder="Marie" value={shopForm.fname} onChange={e=>setShopForm(f=>({...f,fname:e.target.value}))}/></div>
-                  <div className="cp-fg"><label className="cp-fl">Last Name *</label><input className="cp-fi" type="text" placeholder="Dupont" value={shopForm.lname} onChange={e=>setShopForm(f=>({...f,lname:e.target.value}))}/></div>
-                </div>
-                <div className="cp-fg"><label className="cp-fl">Email *</label><input className="cp-fi" type="email" placeholder="marie@example.com" value={shopForm.email} onChange={e=>setShopForm(f=>({...f,email:e.target.value}))}/></div>
-                <div className="cp-fg"><label className="cp-fl">Phone *</label><input className="cp-fi" type="tel" placeholder="+1 (514) 000-0000" value={shopForm.phone} onChange={e=>setShopForm(f=>({...f,phone:e.target.value}))}/></div>
-                <div className="cp-fg"><label className="cp-fl">Quantity</label><select className="cp-fsel" value={shopForm.qty} onChange={e=>setShopForm(f=>({...f,qty:parseInt(e.target.value)}))}>
-                  {[1,2,3,4,5].filter(q=>q<=shopModal.stock).map(q=><option key={q} value={q}>{q}</option>)}
-                </select></div>
-                <button className="cp-btn-gold cp-btn-block" onClick={submitOrder} disabled={shopSub}>{shopSub?'Placing order…':'Place Order →'}</button>
-                <p className="cp-modal-note">{firstName} will contact you with payment and delivery details.</p>
-              </>
-            ):(
-              <div className="cp-success" style={{padding:'20px 0 4px'}}>
-                <div className="cp-success-icon">✓</div>
-                <h3 className="cp-success-title" style={{fontSize:22}}>Order placed!</h3>
-                <p className="cp-success-sub">Confirmation to {shopDone.email}.</p>
-                <button className="cp-btn-ghost" onClick={()=>{setShopModal(null);setShopDone(null)}}>Close</button>
+            {!shopDone?(<>
+              <div className="cp-modal-title">Order — {shopModal.name}</div>
+              <div className="cp-modal-price">{fmtP(shopModal.price)}</div>
+              <div className="cp-2col">
+                <div className="cp-fg"><label className="cp-fl">First Name *</label><input className="cp-fi" type="text" placeholder="Marie" value={shopForm.fname} onChange={e=>setShopForm(f=>({...f,fname:e.target.value}))}/></div>
+                <div className="cp-fg"><label className="cp-fl">Last Name *</label><input className="cp-fi" type="text" placeholder="Dupont" value={shopForm.lname} onChange={e=>setShopForm(f=>({...f,lname:e.target.value}))}/></div>
               </div>
-            )}
+              <div className="cp-fg"><label className="cp-fl">Email *</label><input className="cp-fi" type="email" placeholder="marie@example.com" value={shopForm.email} onChange={e=>setShopForm(f=>({...f,email:e.target.value}))}/></div>
+              <div className="cp-fg"><label className="cp-fl">Phone *</label><input className="cp-fi" type="tel" placeholder="+1 (514) 000-0000" value={shopForm.phone} onChange={e=>setShopForm(f=>({...f,phone:e.target.value}))}/></div>
+              <div className="cp-fg"><label className="cp-fl">Quantity</label><select className="cp-fsel" value={shopForm.qty} onChange={e=>setShopForm(f=>({...f,qty:parseInt(e.target.value)}))}>
+                {[1,2,3,4,5].filter(q=>q<=shopModal.stock).map(q=><option key={q} value={q}>{q}</option>)}
+              </select></div>
+              <button className="cp-btn-gold cp-btn-block" onClick={submitOrder} disabled={shopSub}>{shopSub?'Placing order…':'Place Order →'}</button>
+              <p className="cp-modal-note">{firstName} will contact you with payment and delivery details.</p>
+            </>):(<div className="cp-success" style={{padding:'20px 0 4px'}}>
+              <div className="cp-success-icon">✓</div>
+              <h3 className="cp-success-title" style={{fontSize:22}}>Order placed!</h3>
+              <p className="cp-success-sub">Confirmation to {shopDone.email}.</p>
+              <button className="cp-btn-ghost" onClick={()=>{setShopModal(null);setShopDone(null)}}>Close</button>
+            </div>)}
           </div>
         </div>
       )}
 
-      {/* ── LEARN MODAL ────────────────────── */}
-      {learnModal && (
+      {/* LEARN MODAL */}
+      {learnModal&&(
         <div className="cp-overlay" onClick={e=>{if(e.target.classList.contains('cp-overlay')){setLearnModal(null);setLearnDone(null)}}}>
           <div className="cp-modal">
             <button className="cp-modal-close" onClick={()=>{setLearnModal(null);setLearnDone(null)}}>✕</button>
-            {!learnDone?(
-              <>
-                <div className="cp-modal-title">Enroll — {learnModal.title}</div>
-                {learnModal.price>0&&<div className="cp-modal-price">{fmtP(learnModal.price)}</div>}
-                <div className="cp-2col">
-                  <div className="cp-fg"><label className="cp-fl">First Name *</label><input className="cp-fi" type="text" placeholder="Marie" value={learnForm.fname} onChange={e=>setLearnForm(f=>({...f,fname:e.target.value}))}/></div>
-                  <div className="cp-fg"><label className="cp-fl">Last Name *</label><input className="cp-fi" type="text" placeholder="Dupont" value={learnForm.lname} onChange={e=>setLearnForm(f=>({...f,lname:e.target.value}))}/></div>
-                </div>
-                <div className="cp-fg"><label className="cp-fl">Email *</label><input className="cp-fi" type="email" placeholder="marie@example.com" value={learnForm.email} onChange={e=>setLearnForm(f=>({...f,email:e.target.value}))}/></div>
-                <div className="cp-fg"><label className="cp-fl">Phone *</label><input className="cp-fi" type="tel" placeholder="+1 (514) 000-0000" value={learnForm.phone} onChange={e=>setLearnForm(f=>({...f,phone:e.target.value}))}/></div>
-                <button className="cp-btn-gold cp-btn-block" onClick={submitEnrollment} disabled={learnSub}>{learnSub?'Enrolling…':'Confirm Enrollment →'}</button>
-                <p className="cp-modal-note">{firstName} will contact you with payment and session details.</p>
-              </>
-            ):(
-              <div className="cp-success" style={{padding:'20px 0 4px'}}>
-                <div className="cp-success-icon">✓</div>
-                <h3 className="cp-success-title" style={{fontSize:22}}>Enrolled!</h3>
-                <p className="cp-success-sub">Confirmation to {learnDone.email}.</p>
-                <button className="cp-btn-ghost" onClick={()=>{setLearnModal(null);setLearnDone(null)}}>Close</button>
+            {!learnDone?(<>
+              <div className="cp-modal-title">Enroll — {learnModal.title}</div>
+              {learnModal.price>0&&<div className="cp-modal-price">{fmtP(learnModal.price)}</div>}
+              <div className="cp-2col">
+                <div className="cp-fg"><label className="cp-fl">First Name *</label><input className="cp-fi" type="text" placeholder="Marie" value={learnForm.fname} onChange={e=>setLearnForm(f=>({...f,fname:e.target.value}))}/></div>
+                <div className="cp-fg"><label className="cp-fl">Last Name *</label><input className="cp-fi" type="text" placeholder="Dupont" value={learnForm.lname} onChange={e=>setLearnForm(f=>({...f,lname:e.target.value}))}/></div>
               </div>
-            )}
+              <div className="cp-fg"><label className="cp-fl">Email *</label><input className="cp-fi" type="email" placeholder="marie@example.com" value={learnForm.email} onChange={e=>setLearnForm(f=>({...f,email:e.target.value}))}/></div>
+              <div className="cp-fg"><label className="cp-fl">Phone *</label><input className="cp-fi" type="tel" placeholder="+1 (514) 000-0000" value={learnForm.phone} onChange={e=>setLearnForm(f=>({...f,phone:e.target.value}))}/></div>
+              <button className="cp-btn-gold cp-btn-block" onClick={submitEnrollment} disabled={learnSub}>{learnSub?'Enrolling…':'Confirm Enrollment →'}</button>
+              <p className="cp-modal-note">{firstName} will contact you with payment and session details.</p>
+            </>):(<div className="cp-success" style={{padding:'20px 0 4px'}}>
+              <div className="cp-success-icon">✓</div>
+              <h3 className="cp-success-title" style={{fontSize:22}}>Enrolled!</h3>
+              <p className="cp-success-sub">Confirmation to {learnDone.email}.</p>
+              <button className="cp-btn-ghost" onClick={()=>{setLearnModal(null);setLearnDone(null)}}>Close</button>
+            </div>)}
           </div>
         </div>
       )}
@@ -927,91 +879,95 @@ const STYLES = `
 :root{
   --bg:#F9F5EF; --bg2:#F1EAE0; --card:#FFFFFF;
   --gold:#C9A84C; --gold-d:#B89030;
-  --gold-dim:rgba(201,168,76,0.10); --gold-bdr:rgba(201,168,76,0.28);
+  --gold-dim:rgba(184,144,48,.10); --gold-bdr:rgba(184,144,48,.28);
   --tx:#1C1814; --tx-m:#9A8E7C; --tx-s:#5A5040;
-  --bdr:rgba(30,18,8,0.08); --bdr-m:rgba(30,18,8,0.14);
-  --sh-sm:0 1px 8px rgba(30,18,8,0.06); --sh:0 2px 20px rgba(30,18,8,0.09);
-  --dk:#080604; --err:#b94040; --ok:#3a9e6a;
+  --bdr:rgba(30,18,8,.08); --bdr-m:rgba(30,18,8,.14);
+  --sh-sm:0 1px 8px rgba(30,18,8,.06); --sh:0 2px 20px rgba(30,18,8,.09);
+  --err:#b94040; --ok:#3a9e6a;
 }
 html{scroll-behavior:smooth}
 body{background:var(--bg);color:var(--tx);font-family:'DM Sans',sans-serif;overflow-x:hidden}
 body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");pointer-events:none;z-index:9999;opacity:.5;mix-blend-mode:multiply}
 
-/* NAV */
-.cp-nav{position:fixed;top:0;left:0;right:0;z-index:600;padding:14px 40px;display:flex;align-items:center;justify-content:space-between;background:rgba(8,6,4,0.88);backdrop-filter:blur(20px);border-bottom:1px solid rgba(201,168,76,0.07)}
-.cp-logo{font-family:'Playfair Display',serif;font-size:18px;letter-spacing:.04em;color:var(--gold)}
-.cp-logo span{color:rgba(245,240,232,0.35);font-size:11px;margin-left:7px;font-family:'DM Sans',sans-serif;font-weight:300}
-.cp-nav-book-btn{background:transparent;border:1px solid rgba(201,168,76,0.35);color:var(--gold);font-family:'DM Sans',sans-serif;font-size:11px;letter-spacing:.09em;text-transform:uppercase;cursor:pointer;padding:8px 18px;border-radius:2px;transition:all .22s}
-.cp-nav-book-btn:hover{background:rgba(201,168,76,0.1);border-color:var(--gold)}
+/* NAV — subtle on shader */
+.cp-nav{position:fixed;top:0;left:0;right:0;z-index:600;padding:14px 40px;display:flex;align-items:center;justify-content:space-between;background:rgba(180,155,120,0.15);backdrop-filter:blur(20px);border-bottom:1px solid rgba(180,140,80,0.12)}
+.cp-logo{font-family:'Playfair Display',serif;font-size:18px;letter-spacing:.04em;color:#2C1E0E;text-shadow:0 1px 12px rgba(255,240,200,.6)}
+.cp-logo span{color:rgba(44,30,14,0.45);font-size:11px;margin-left:7px;font-family:'DM Sans',sans-serif;font-weight:300}
+.cp-nav-cta{background:rgba(44,30,14,0.12);border:1px solid rgba(44,30,14,0.2);color:#2C1E0E;font-family:'DM Sans',sans-serif;font-size:11px;letter-spacing:.09em;text-transform:uppercase;cursor:pointer;padding:8px 18px;border-radius:2px;transition:all .22s;backdrop-filter:blur(8px)}
+.cp-nav-cta:hover{background:rgba(44,30,14,0.22);border-color:rgba(44,30,14,0.4)}
 
-/* DARK WRAP */
-.cp-dark-wrap{position:relative;background:var(--dk);overflow:hidden}
+/* SHADER WRAP — canvas fills this */
+.cp-shader-wrap{position:relative;overflow:hidden}
 
-/* ANIMATED BACKGROUND ORBS */
-.cp-hero-bg{position:absolute;inset:0;pointer-events:none;z-index:0;overflow:hidden}
-.cp-orb{position:absolute;border-radius:50%;filter:blur(80px);opacity:0}
-.cp-orb-1{width:600px;height:600px;background:radial-gradient(circle,rgba(201,168,76,0.18) 0%,transparent 70%);top:-10%;left:-5%;animation:orbFloat1 18s ease-in-out infinite}
-.cp-orb-2{width:500px;height:500px;background:radial-gradient(circle,rgba(180,120,40,0.12) 0%,transparent 70%);top:20%;right:-8%;animation:orbFloat2 22s ease-in-out infinite}
-.cp-orb-3{width:400px;height:400px;background:radial-gradient(circle,rgba(160,100,30,0.10) 0%,transparent 70%);bottom:-5%;left:30%;animation:orbFloat3 16s ease-in-out infinite}
-.cp-orb-4{width:350px;height:350px;background:radial-gradient(circle,rgba(201,168,76,0.08) 0%,transparent 70%);top:40%;left:20%;animation:orbFloat4 20s ease-in-out infinite}
-
-@keyframes orbFloat1{0%{opacity:0;transform:translate(0,0) scale(1)}20%{opacity:1}50%{transform:translate(60px,-40px) scale(1.15)}80%{opacity:1}100%{opacity:0;transform:translate(0,0) scale(1)}}
-@keyframes orbFloat2{0%{opacity:0;transform:translate(0,0) scale(1)}20%{opacity:1}50%{transform:translate(-50px,60px) scale(1.2)}80%{opacity:1}100%{opacity:0;transform:translate(0,0) scale(1)}}
-@keyframes orbFloat3{0%{opacity:0;transform:translate(0,0) scale(1)}25%{opacity:1}55%{transform:translate(-40px,-50px) scale(1.1)}80%{opacity:1}100%{opacity:0;transform:translate(0,0) scale(1)}}
-@keyframes orbFloat4{0%{opacity:0;transform:translate(0,0) scale(1)}30%{opacity:1}60%{transform:translate(70px,40px) scale(1.08)}85%{opacity:1}100%{opacity:0;transform:translate(0,0) scale(1)}}
+.cp-shader-canvas{
+  position:absolute;inset:0;width:100%;height:100%;
+  display:block;z-index:0;
+}
 
 /* HERO */
-.cp-hero{min-height:100vh;display:grid;grid-template-columns:52% 48%;position:relative;z-index:1;overflow:hidden}
+.cp-hero{min-height:100vh;display:grid;grid-template-columns:52% 48%;position:relative;z-index:1}
 
-.cp-hero-left{display:flex;flex-direction:column;justify-content:center;padding:130px 64px 72px;position:relative}
-.cp-hero-left::after{content:'';position:absolute;right:0;top:10%;bottom:10%;width:1px;background:linear-gradient(to bottom,transparent,rgba(201,168,76,0.1),transparent)}
+/* Left — semi-dark overlay so text is legible over the warm shader */
+.cp-hero-left{position:relative;display:flex;align-items:stretch}
+.cp-hero-overlay-left{
+  position:absolute;inset:0;
+  background:linear-gradient(110deg,rgba(22,14,6,0.52) 0%,rgba(22,14,6,0.3) 60%,transparent 100%);
+  pointer-events:none;z-index:0;
+}
+.cp-hero-content{
+  position:relative;z-index:1;
+  display:flex;flex-direction:column;justify-content:center;
+  padding:130px 64px 80px;
+}
+.cp-hero-left::after{content:'';position:absolute;right:0;top:10%;bottom:10%;width:1px;background:linear-gradient(to bottom,transparent,rgba(200,160,80,.15),transparent);z-index:1}
 
-.cp-hero-tag{display:inline-flex;align-items:center;gap:8px;background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.2);border-radius:100px;padding:6px 16px 6px 10px;font-size:11px;color:var(--gold);letter-spacing:.12em;text-transform:uppercase;margin-bottom:32px;width:fit-content;animation:cpFadeUp .6s ease both}
-.cp-tag-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--gold);animation:cpPulse 2s infinite;flex-shrink:0}
+/* Tag */
+.cp-hero-tag{display:inline-flex;align-items:center;gap:8px;background:rgba(255,240,200,0.12);border:1px solid rgba(200,160,80,.25);border-radius:100px;padding:6px 16px 6px 10px;font-size:11px;color:rgba(255,235,160,.95);letter-spacing:.12em;text-transform:uppercase;margin-bottom:32px;width:fit-content;animation:cpFadeUp .6s ease both;backdrop-filter:blur(8px)}
+.cp-tag-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:#E8C97A;animation:cpPulse 2s infinite;flex-shrink:0}
 @keyframes cpPulse{0%,100%{opacity:1}50%{opacity:.2}}
 @keyframes cpFadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
 @keyframes cpScaleIn{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
 
-.cp-hero-name{font-family:'Playfair Display',serif;font-size:clamp(48px,5.5vw,72px);font-weight:500;line-height:1;margin-bottom:12px;color:#F5F0E8;animation:cpFadeUp .6s .08s ease both}
-.cp-hero-name em{font-style:italic;color:var(--gold)}
-.cp-hero-title{font-size:12px;color:rgba(245,240,232,0.45);letter-spacing:.2em;text-transform:uppercase;margin-bottom:8px;animation:cpFadeUp .6s .15s ease both}
-.cp-hero-sub{font-size:13px;color:rgba(245,240,232,0.38);margin-bottom:20px;animation:cpFadeUp .6s .2s ease both}
-.cp-hero-bio{font-size:14px;line-height:1.85;color:rgba(245,240,232,0.5);max-width:380px;margin-bottom:28px;font-weight:300;animation:cpFadeUp .6s .24s ease both}
+/* Text colors — white over the dark overlay */
+.cp-gold-dot{color:#E8C97A;margin-right:5px}
+.cp-hero-name{font-family:'Playfair Display',serif;font-size:clamp(48px,5.5vw,72px);font-weight:500;line-height:1;margin-bottom:12px;color:#FAF5EC;text-shadow:0 2px 24px rgba(0,0,0,0.25);animation:cpFadeUp .6s .08s ease both}
+.cp-hero-name em{font-style:italic;color:#E8C97A}
+.cp-hero-title{font-size:12px;color:rgba(250,245,236,.5);letter-spacing:.2em;text-transform:uppercase;margin-bottom:8px;animation:cpFadeUp .6s .15s ease both}
+.cp-hero-sub{font-size:13px;color:rgba(250,245,236,.4);margin-bottom:20px;animation:cpFadeUp .6s .2s ease both}
+.cp-hero-bio{font-size:14px;line-height:1.85;color:rgba(250,245,236,.55);max-width:380px;margin-bottom:28px;font-weight:300;animation:cpFadeUp .6s .24s ease both}
 .cp-socials{display:flex;gap:9px;margin-bottom:28px;animation:cpFadeUp .6s .3s ease both}
-.cp-social{width:34px;height:34px;border-radius:50%;border:1px solid rgba(245,240,232,0.12);display:flex;align-items:center;justify-content:center;color:rgba(245,240,232,0.4);text-decoration:none;transition:all .22s}
-.cp-social:hover{border-color:rgba(201,168,76,.4);color:var(--gold);background:rgba(201,168,76,.08);transform:translateY(-2px)}
+.cp-social{width:34px;height:34px;border-radius:50%;border:1px solid rgba(250,245,236,.15);display:flex;align-items:center;justify-content:center;color:rgba(250,245,236,.5);text-decoration:none;transition:all .22s;backdrop-filter:blur(8px)}
+.cp-social:hover{border-color:rgba(232,201,122,.45);color:#E8C97A;background:rgba(200,160,80,.1);transform:translateY(-2px)}
 .cp-hero-cta{display:flex;gap:10px;animation:cpFadeUp .6s .35s ease both}
 
-/* Buttons on dark bg */
-.cp-btn-gold{background:var(--gold);color:#0D0A06;border:none;padding:12px 26px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;letter-spacing:.07em;cursor:pointer;border-radius:2px;text-transform:uppercase;transition:all .25s;display:inline-block}
-.cp-btn-gold:hover{background:#DDB84E;transform:translateY(-1px);box-shadow:0 6px 22px rgba(201,168,76,.3)}
-.cp-btn-gold:disabled{background:rgba(201,168,76,0.2);color:rgba(245,240,232,0.3);cursor:not-allowed;transform:none;box-shadow:none}
-.cp-btn-ghost{background:transparent;color:rgba(245,240,232,0.55);border:1px solid rgba(245,240,232,0.18);padding:12px 22px;font-family:'DM Sans',sans-serif;font-size:12px;letter-spacing:.07em;cursor:pointer;border-radius:2px;text-transform:uppercase;transition:all .25s}
-.cp-btn-ghost:hover{border-color:rgba(201,168,76,.35);color:var(--gold)}
+/* CTA buttons on shader */
+.cp-btn-dark{background:rgba(22,14,6,0.7);color:#F5EDD8;border:1px solid rgba(200,160,80,.2);padding:13px 28px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;letter-spacing:.08em;cursor:pointer;border-radius:2px;text-transform:uppercase;transition:all .25s;backdrop-filter:blur(8px)}
+.cp-btn-dark:hover{background:rgba(22,14,6,0.88);border-color:rgba(200,160,80,.4);transform:translateY(-1px);box-shadow:0 6px 24px rgba(0,0,0,.25)}
+.cp-btn-outline{background:transparent;color:rgba(250,245,236,.7);border:1px solid rgba(250,245,236,.2);padding:13px 22px;font-family:'DM Sans',sans-serif;font-size:12px;letter-spacing:.08em;cursor:pointer;border-radius:2px;text-transform:uppercase;transition:all .25s;backdrop-filter:blur(8px)}
+.cp-btn-outline:hover{border-color:rgba(232,201,122,.4);color:#E8C97A}
 
 /* Hero right */
 .cp-hero-right{position:relative;overflow:hidden}
-.cp-cover-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:brightness(.55) saturate(.7)}
+.cp-cover-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.cp-cover-overlay{position:absolute;inset:0;background:linear-gradient(to left,transparent 60%,rgba(22,14,6,.3) 100%),linear-gradient(to top,rgba(22,14,6,.4) 0%,transparent 40%)}
 .cp-portrait-wrap{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
-.cp-p-glow{position:absolute;top:-30px;left:50%;transform:translateX(-50%);width:200px;height:200px;background:radial-gradient(circle,rgba(201,168,76,.07) 0%,transparent 70%);border-radius:50%}
-.cp-p-head{position:absolute;top:80px;left:50%;transform:translateX(-50%);width:100px;height:110px;background:linear-gradient(160deg,#2e2416,#1a1208);border-radius:50%;border:1px solid rgba(201,168,76,.09)}
-.cp-p-neck{position:absolute;top:178px;left:50%;transform:translateX(-50%);width:38px;height:52px;background:linear-gradient(160deg,#2e2416,#1a1208)}
-.cp-p-body{position:absolute;bottom:60px;left:50%;transform:translateX(-50%);width:180px;height:240px;background:linear-gradient(160deg,#261e0e,#130e06);border-radius:90px 90px 60px 60px;border:1px solid rgba(201,168,76,.07)}
-.cp-p-accent{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:16px;color:rgba(201,168,76,.13);letter-spacing:12px}
-.cp-hero-overlay{position:absolute;inset:0;background:linear-gradient(to right,rgba(8,6,4,.4) 0%,transparent 50%),linear-gradient(to top,var(--dk) 0%,transparent 30%)}
+.cp-p-glow{position:absolute;top:10%;left:50%;transform:translateX(-50%);width:280px;height:280px;background:radial-gradient(circle,rgba(200,160,80,.12) 0%,transparent 70%);border-radius:50%}
+.cp-p-head{position:absolute;top:80px;left:50%;transform:translateX(-50%);width:110px;height:120px;background:rgba(80,55,30,0.35);border-radius:50%;border:1px solid rgba(200,160,80,.1)}
+.cp-p-neck{position:absolute;top:188px;left:50%;transform:translateX(-50%);width:42px;height:55px;background:rgba(80,55,30,0.35)}
+.cp-p-body{position:absolute;bottom:60px;left:50%;transform:translateX(-50%);width:200px;height:260px;background:rgba(60,40,20,0.3);border-radius:100px 100px 70px 70px;border:1px solid rgba(200,160,80,.07)}
 
-/* Single floating card */
-.cp-fc{position:absolute;bottom:56px;left:-20px;background:rgba(8,6,4,.9);border:1px solid rgba(201,168,76,.18);border-radius:3px;padding:14px 20px;backdrop-filter:blur(20px);min-width:170px}
-.cp-fc-lbl{font-size:9px;color:rgba(201,168,76,.55);letter-spacing:.18em;text-transform:uppercase;margin-bottom:5px}
+/* Floating card */
+.cp-fc{position:absolute;bottom:56px;left:-20px;background:rgba(18,12,6,0.82);border:1px solid rgba(200,160,80,.2);border-radius:3px;padding:14px 20px;backdrop-filter:blur(20px);min-width:170px}
+.cp-fc-lbl{font-size:9px;color:rgba(232,201,122,.55);letter-spacing:.18em;text-transform:uppercase;margin-bottom:5px}
 .cp-fc-val{font-family:'Playfair Display',serif;font-size:17px;color:#E8C97A}
 
-/* TABS BAR */
-.cp-tabs-bar{display:flex;position:sticky;top:52px;z-index:500;background:rgba(6,4,2,0.97);backdrop-filter:blur(20px);border-top:1px solid rgba(201,168,76,0.08);border-bottom:1px solid rgba(201,168,76,0.05)}
-.cp-tab-btn{flex:1;background:transparent;border:none;color:rgba(245,240,232,0.38);font-family:'DM Sans',sans-serif;font-size:12px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;padding:18px 12px;border-bottom:2px solid transparent;transition:all .25s;font-weight:400}
-.cp-tab-btn:hover{color:rgba(245,240,232,0.65)}
-.cp-tab-btn.active{color:var(--gold);border-bottom-color:var(--gold);background:rgba(201,168,76,.04)}
+/* TABS BAR — inside shader wrap, bottom edge */
+.cp-tabs-bar{display:flex;position:sticky;top:52px;z-index:500;background:rgba(18,12,6,0.88);backdrop-filter:blur(20px);border-top:1px solid rgba(200,160,80,.1);border-bottom:1px solid rgba(200,160,80,.06)}
+.cp-tab-btn{flex:1;background:transparent;border:none;color:rgba(245,240,230,.38);font-family:'DM Sans',sans-serif;font-size:12px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;padding:18px 12px;border-bottom:2px solid transparent;transition:all .25s;font-weight:400}
+.cp-tab-btn:hover{color:rgba(245,240,230,.65)}
+.cp-tab-btn.active{color:#E8C97A;border-bottom-color:#E8C97A;background:rgba(200,160,80,.05)}
 
-/* CONTENT */
+/* CONTENT SECTIONS */
 .cp-section{padding:80px 64px;background:var(--bg)}
 .cp-section-alt{background:var(--bg2)}
 .cp-inner{max-width:1100px;margin:0 auto}
@@ -1019,14 +975,18 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 .cp-heading{font-family:'Playfair Display',serif;font-size:clamp(26px,3.2vw,38px);font-weight:500;line-height:1.15;color:var(--tx);margin-bottom:44px}
 .cp-heading em{font-style:italic;color:var(--gold-d)}
 
-/* Light theme buttons */
+.cp-btn-gold{background:var(--gold-d);color:#FAF7F0;border:none;padding:12px 26px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;letter-spacing:.07em;cursor:pointer;border-radius:2px;text-transform:uppercase;transition:all .25s;display:inline-block}
+.cp-btn-gold:hover{background:var(--gold);transform:translateY(-1px);box-shadow:0 6px 20px rgba(184,144,48,.2)}
+.cp-btn-gold:disabled{background:rgba(30,18,8,.1);color:var(--tx-m);cursor:not-allowed;transform:none;box-shadow:none}
+.cp-btn-ghost{background:transparent;color:var(--tx-s);border:1px solid var(--bdr-m);padding:11px 20px;font-family:'DM Sans',sans-serif;font-size:12px;letter-spacing:.07em;cursor:pointer;border-radius:2px;text-transform:uppercase;transition:all .25s}
+.cp-btn-ghost:hover{border-color:var(--gold-bdr);color:var(--gold-d)}
 .cp-btn-next{background:var(--gold-d);color:#FAF7F0;border:none;padding:12px 28px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;letter-spacing:.06em;cursor:pointer;border-radius:2px;transition:all .25s}
 .cp-btn-next:hover{background:var(--gold);transform:translateY(-1px);box-shadow:0 8px 24px rgba(184,144,48,.2)}
 .cp-btn-next:disabled{background:rgba(30,18,8,.1);color:var(--tx-m);cursor:not-allowed;transform:none;box-shadow:none}
 .cp-btn-back{background:transparent;color:var(--tx-m);border:1px solid var(--bdr-m);padding:10px 18px;font-family:'DM Sans',sans-serif;font-size:12px;letter-spacing:.06em;cursor:pointer;border-radius:2px;transition:all .2s;text-transform:uppercase}
-.cp-btn-back:hover{color:var(--tx-s)}
 .cp-back-btn{display:inline-flex;align-items:center;gap:8px;background:transparent;border:none;color:var(--tx-m);font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;padding:0;margin-bottom:36px;transition:color .2s}
 .cp-back-btn:hover{color:var(--gold-d)}
+.cp-btn-block{width:100%;margin-top:4px;text-align:center;display:block;padding:13px}
 
 /* Progress */
 .cp-progress{display:flex;align-items:center;margin-bottom:40px}
@@ -1052,19 +1012,22 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 .cp-sum-e{font-size:12px;color:rgba(30,18,8,.2)}
 .cp-deposit{margin-top:14px;padding:11px 13px;background:rgba(184,144,48,.07);border:1px solid rgba(184,144,48,.2);border-radius:2px;font-size:11px;color:var(--tx-s);line-height:1.65}
 .cp-deposit strong{color:var(--gold-d)}
-
 .cp-step-note{font-size:13px;color:var(--tx-m);font-weight:300;margin-bottom:22px;line-height:1.6}
+
+/* Services grid */
 .cp-s1-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
 .cp-s1-card{background:var(--card);border:1px solid var(--bdr);border-radius:2px;padding:18px;cursor:pointer;transition:all .2s;position:relative;box-shadow:var(--sh-sm)}
 .cp-s1-card:hover{border-color:rgba(184,144,48,.3);box-shadow:var(--sh)}
 .cp-s1-card.sel{border-color:var(--gold-d);box-shadow:0 0 0 2px rgba(184,144,48,.12),var(--sh)}
-.cp-s1-chk{position:absolute;top:10px;right:10px;width:15px;height:15px;border-radius:50%;border:1px solid var(--bdr-m);display:flex;align-items:center;justify-content:center;font-size:9px;transition:all .2s;color:transparent}
+.cp-s1-chk{position:absolute;top:10px;right:10px;width:15px;height:15px;border-radius:50%;border:1px solid var(--bdr-m);display:flex;align-items:center;justify-content:center;font-size:9px;color:transparent;transition:all .2s}
 .cp-s1-card.sel .cp-s1-chk{background:var(--gold-d);border-color:var(--gold-d);color:#FAF7F0;font-weight:700}
 .cp-s1-icon{font-size:17px;color:var(--tx-m);margin-bottom:9px}
 .cp-s1-card.sel .cp-s1-icon{color:var(--gold-d)}
 .cp-s1-name{font-family:'Playfair Display',serif;font-size:14px;margin-bottom:4px;color:var(--tx)}
 .cp-s1-meta{font-size:11px;color:var(--tx-m)}
 .cp-s1-price{margin-top:9px;font-family:'Playfair Display',serif;font-size:15px;color:var(--gold-d)}
+
+/* Addons */
 .cp-addons{margin-top:22px;padding-top:20px;border-top:1px solid var(--bdr)}
 .cp-addons-lbl{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--tx-m);margin-bottom:11px}
 .cp-chips{display:flex;flex-wrap:wrap;gap:7px}
@@ -1084,7 +1047,7 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 .cp-dname{text-align:center;font-size:9px;color:var(--tx-m);letter-spacing:.12em;text-transform:uppercase}
 .cp-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);padding:3px 18px 18px;gap:2px}
 .cp-day{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:12px;border-radius:2px;cursor:pointer;transition:all .15s;color:var(--tx-m);position:relative;user-select:none}
-.cp-day.avail{color:var(--tx);font-weight:500;cursor:pointer}
+.cp-day.avail{color:var(--tx);font-weight:500}
 .cp-day.avail::after{content:'';position:absolute;bottom:2px;left:50%;transform:translateX(-50%);width:3px;height:3px;border-radius:50%;background:var(--gold-d)}
 .cp-day.avail:hover{background:rgba(184,144,48,.08);color:var(--gold-d)}
 .cp-day.today{border:1px solid rgba(184,144,48,.25);color:var(--gold-d)}
@@ -1145,7 +1108,7 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 .cp-pf-main{grid-column:1/3;grid-row:1/3}
 .cp-pf-item img{width:100%;height:100%;object-fit:cover;transition:transform .5s}
 .cp-pf-item:hover img{transform:scale(1.04)}
-.cp-pf-caption{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(to top,rgba(0,0,0,.65) 0%,transparent 100%);color:#fff;font-size:11px;padding:16px 12px 10px;letter-spacing:.06em;opacity:0;transition:opacity .3s}
+.cp-pf-caption{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(to top,rgba(0,0,0,.65) 0%,transparent 100%);color:#fff;font-size:11px;padding:16px 12px 10px;opacity:0;transition:opacity .3s}
 .cp-pf-item:hover .cp-pf-caption{opacity:1}
 
 /* Shop */
@@ -1161,17 +1124,18 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 .cp-prod-desc{font-size:12px;color:var(--tx-m);line-height:1.55;margin-bottom:12px;font-weight:300}
 .cp-prod-foot{display:flex;align-items:center;justify-content:space-between}
 .cp-prod-price{font-family:'Playfair Display',serif;font-size:18px;color:var(--gold-d)}
-.cp-prod-see{font-size:12px;color:var(--tx-m);letter-spacing:.06em}
+.cp-prod-see{font-size:12px;color:var(--tx-m);letter-spacing:.06em;transition:color .2s}
+.cp-prod-card:hover .cp-prod-see{color:var(--gold-d)}
 
-/* Detail view */
-.cp-detail-layout{display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:start;margin-bottom:0}
+/* Detail */
+.cp-detail-layout{display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:start}
 .cp-detail-img{border-radius:3px;overflow:hidden;background:var(--bg2);aspect-ratio:1;display:flex;align-items:center;justify-content:center}
 .cp-detail-img img{width:100%;height:100%;object-fit:cover}
 .cp-detail-ph{font-size:72px;color:rgba(184,144,48,.2)}
-.cp-detail-title{font-family:'Playfair Display',serif;font-size:clamp(24px,3vw,36px);margin-bottom:8px;color:var(--tx);line-height:1.15}
+.cp-off-detail-badge{display:flex;flex-direction:column;align-items:flex-start;background:var(--bg2);border:1px solid var(--bdr);border-radius:3px;padding:36px;box-shadow:var(--sh-sm)}
+.cp-detail-title{font-family:'Playfair Display',serif;font-size:clamp(22px,3vw,34px);margin-bottom:8px;color:var(--tx);line-height:1.15}
 .cp-detail-price{font-family:'Playfair Display',serif;font-size:28px;color:var(--gold-d);margin-bottom:20px}
 .cp-detail-desc{font-size:14px;color:var(--tx-s);line-height:1.8;font-weight:300}
-.cp-off-detail-badge{display:flex;flex-direction:column;align-items:flex-start;background:var(--bg2);border:1px solid var(--bdr);border-radius:3px;padding:40px;box-shadow:var(--sh-sm)}
 
 /* Learn */
 .cp-off-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:20px}
@@ -1202,30 +1166,27 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 .cp-footer-right a{color:var(--gold-d);text-decoration:none;font-weight:500}
 
 /* Modals */
-.cp-overlay{position:fixed;inset:0;background:rgba(8,6,4,.6);z-index:800;display:flex;align-items:flex-end;justify-content:center;backdrop-filter:blur(6px)}
+.cp-overlay{position:fixed;inset:0;background:rgba(20,12,4,.55);z-index:800;display:flex;align-items:flex-end;justify-content:center;backdrop-filter:blur(6px)}
 .cp-modal{background:var(--card);border-radius:14px 14px 0 0;padding:28px 28px 40px;width:100%;max-width:480px;max-height:88vh;overflow-y:auto;position:relative;animation:cpFadeUp .3s ease}
 .cp-modal-close{position:absolute;top:16px;right:16px;width:28px;height:28px;border-radius:50%;border:1px solid var(--bdr-m);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:11px;color:var(--tx-m);background:var(--card);transition:all .2s}
 .cp-modal-close:hover{background:var(--bg2);color:var(--tx)}
 .cp-modal-title{font-family:'Playfair Display',serif;font-size:20px;margin-bottom:6px;margin-right:32px;color:var(--tx)}
 .cp-modal-price{font-family:'Playfair Display',serif;font-size:22px;color:var(--gold-d);margin-bottom:20px}
 .cp-modal-note{font-size:11px;color:var(--tx-m);margin-top:12px;line-height:1.6}
-.cp-btn-block{width:100%;margin-top:4px;text-align:center;display:block;padding:13px}
 
 /* MOBILE */
 @media(max-width:960px){
   .cp-nav{padding:12px 20px}
   .cp-logo span{display:none}
   .cp-hero{grid-template-columns:1fr;min-height:auto}
-  .cp-hero-right{height:42vh;order:-1;position:relative}
-  .cp-hero-left{padding:28px 24px 52px}
-  .cp-hero-left::after{display:none}
+  .cp-hero-right{height:42vh;position:relative;order:-1}
+  .cp-hero-content{padding:28px 24px 52px}
   .cp-hero-name{font-size:42px}
   .cp-section{padding:52px 24px}
   .cp-wiz-layout{grid-template-columns:1fr}
   .cp-summary{position:static}
   .cp-s1-grid,.cp-2col{grid-template-columns:1fr}
   .cp-slots-grid{grid-template-columns:repeat(3,1fr)}
-  /* Products: 2 per row on mobile */
   .cp-prod-grid{grid-template-columns:1fr 1fr}
   .cp-off-grid{grid-template-columns:1fr}
   .cp-rev-grid{grid-template-columns:1fr}
@@ -1236,9 +1197,6 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
   .cp-pf-item{height:180px}
   .cp-footer{flex-direction:column;gap:10px;text-align:center;padding:24px}
   .cp-tabs-bar{top:49px}
-  .cp-orb-1{width:300px;height:300px}
-  .cp-orb-2{width:250px;height:250px}
-  .cp-orb-3,.cp-orb-4{display:none}
 }
 @media(max-width:480px){
   .cp-prod-grid{grid-template-columns:1fr 1fr}
