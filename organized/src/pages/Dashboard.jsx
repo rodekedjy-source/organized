@@ -2782,6 +2782,8 @@ export default function Dashboard() {
   const [theme,setThemeState]=useState(()=>localStorage.getItem('org-theme')||'light')
   const [subscription,setSubscription]=useState(null)
   const [lang,setLang]=useState('en')
+  const [avatarExpanded,setAvatarExpanded]=useState(false)
+  const [avatarUploading,setAvatarUploading]=useState(false)
 
   useEffect(()=>{
     supabase.auth.getSession().then(({data:{session}})=>{setSession(session);if(session)fetchWorkspace(session)})
@@ -2897,7 +2899,7 @@ export default function Dashboard() {
           <button className={`vt-btn${!clientView?' active':''}`} onClick={()=>setClientView(false)}>Dash</button>
           <button className={`vt-btn${clientView?' active':''}`} onClick={()=>setClientView(true)}>Client</button>
         </div>
-        <div className="av-btn">{initials}</div>
+
       </div>
 
       {/* SIDEBAR */}
@@ -2907,9 +2909,64 @@ export default function Dashboard() {
           <div className="sb-brand">Organized<span style={{color:'var(--gold)'}}>.</span></div>
           <button className="sb-close" onClick={()=>setMenuOpen(false)}>✕</button>
         </div>
-        <div className="sb-user">
-          <div className="sb-av">{initials}</div>
-          <div><div className="sb-name">{ownerData?.full_name||firstName(workspace,session)}</div><div className="sb-email">{session?.user?.email}</div></div>
+        <div className="sb-user" style={{flexDirection:'column',alignItems:'center',padding:'1.25rem',gap:'.6rem'}}>
+          {/* Avatar — click to expand */}
+          <div style={{position:'relative',cursor:'pointer'}} onClick={()=>setAvatarExpanded(o=>!o)}>
+            {ownerData?.avatar_url
+              ? <img src={ownerData.avatar_url} alt="avatar" style={{width:56,height:56,borderRadius:'50%',objectFit:'cover',border:'2px solid var(--gold)'}}/>
+              : <div className="sb-av" style={{width:56,height:56,fontSize:'1.1rem'}}>{initials}</div>
+            }
+            <div style={{position:'absolute',bottom:0,right:0,width:20,height:20,borderRadius:'50%',background:'var(--gold)',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 1px 4px rgba(0,0,0,.2)'}}>
+              <svg viewBox="0 0 16 16" fill="none" stroke="var(--ink)" strokeWidth="1.5" width="10" height="10"><path d="M1 12V5a1 1 0 011-1h1.5l1-2h5l1 2H13a1 1 0 011 1v7a1 1 0 01-1 1H2a1 1 0 01-1-1z"/><circle cx="8" cy="8.5" r="2"/></svg>
+            </div>
+          </div>
+
+          {/* Expanded photo upload */}
+          {avatarExpanded&&(
+            <div style={{width:'100%',background:'var(--bg)',borderRadius:10,padding:'.75rem',border:'1px solid var(--border)',textAlign:'center',animation:'fadeIn .15s ease'}}>
+              <div style={{fontSize:'.7rem',color:'var(--ink-3)',marginBottom:'.5rem'}}>
+                {avatarUploading ? 'Uploading...' : 'Update profile photo'}
+              </div>
+              <label style={{display:'inline-block',cursor:'pointer'}}>
+                <div style={{background:'var(--gold)',color:'var(--ink)',borderRadius:8,padding:'.4rem .9rem',fontSize:'.75rem',fontWeight:600,display:'inline-flex',alignItems:'center',gap:'.35rem'}}>
+                  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" width="12" height="12"><path d="M8 3v8M4 7l4-4 4 4"/><path d="M2 13h12"/></svg>
+                  Choose photo
+                </div>
+                <input type="file" accept="image/*" style={{display:'none'}} disabled={avatarUploading} onChange={async(e)=>{
+                  const file=e.target.files?.[0]; if(!file||!session) return
+                  setAvatarUploading(true)
+                  try {
+                    const ext=file.name.split('.').pop()
+                    const path=`${session.user.id}/avatar.${ext}`
+                    const {error:upErr}=await supabase.storage.from('avatars').upload(path,file,{upsert:true,contentType:file.type})
+                    if(upErr) throw upErr
+                    const {data:{publicUrl}}=supabase.storage.from('avatars').getPublicUrl(path)
+                    const bust=publicUrl+'?t='+Date.now()
+                    await supabase.from('users').update({avatar_url:bust}).eq('id',session.user.id)
+                    setOwnerData(d=>({...d,avatar_url:bust}))
+                    setAvatarExpanded(false)
+                    toast('Profile photo updated')
+                  } catch(err) { toast('Upload failed — try again') }
+                  finally { setAvatarUploading(false) }
+                }}/>
+              </label>
+              {ownerData?.avatar_url&&(
+                <button onClick={async()=>{
+                  await supabase.from('users').update({avatar_url:null}).eq('id',session.user.id)
+                  setOwnerData(d=>({...d,avatar_url:null}))
+                  setAvatarExpanded(false)
+                  toast('Photo removed')
+                }} style={{display:'block',width:'100%',marginTop:'.4rem',background:'none',border:'none',fontSize:'.7rem',color:'var(--ink-3)',cursor:'pointer',padding:'.25rem'}}>
+                  Remove photo
+                </button>
+              )}
+            </div>
+          )}
+
+          <div style={{textAlign:'center'}}>
+            <div className="sb-name">{ownerData?.full_name||firstName(workspace,session)}</div>
+            <div className="sb-email">{session?.user?.email}</div>
+          </div>
         </div>
         <nav className="sb-nav">
           {NAV.map(n=>(
