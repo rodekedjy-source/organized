@@ -2747,7 +2747,7 @@ function ClientPage({ workspace, onSwitchToDash }) {
     if(!cfg?.is_open){ setLoadingSlots(false); return }
     const {data:ap}=await supabase.from('appointments').select('scheduled_at,ends_at,duration_min').eq('workspace_id',workspace.id).in('status',['confirmed','pending']).gte('scheduled_at',dateStr+'T00:00:00Z').lte('scheduled_at',dateStr+'T23:59:59Z')
     const taken=ap||[]
-    const dur=modal?.duration_min||60
+    const dur=60 // Fixed 1-hour block per slot — owner declines if service needs more time
     const [oh,om]=cfg.open_time.split(':').map(Number)
     const [ch,cm]=cfg.close_time.split(':').map(Number)
     const openMin=oh*60+om; const closeMin=ch*60+cm
