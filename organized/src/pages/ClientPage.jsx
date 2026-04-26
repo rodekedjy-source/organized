@@ -2685,7 +2685,8 @@ function ClientPage({ workspace, onSwitchToDash }) {
   const [modal,setModal]=useState(null)
   const [productPage,setProductPage]=useState(null)
   const [learnPage,setLearnPage]=useState(null)
-  const [bookForm,setBookForm]=useState({name:'',phone:'',date:'',time:'',notes:''})
+  const [bookForm,setBookForm]=useState({name:'',email:'',phone:'',date:'',time:'',notes:''})
+  const [bookStep,setBookStep]=useState(1)
   const [booking,setBooking]=useState(false)
   const [booked,setBooked]=useState(false)
   const [faqOpen,setFaqOpen]=useState(null)
@@ -2712,15 +2713,23 @@ function ClientPage({ workspace, onSwitchToDash }) {
     {q:'How far in advance should I book?',a:'Standard services: 1–2 weeks. Colour or bridal: 3–4 weeks minimum.'},
   ]
   async function submitBooking(e){
-    e.preventDefault(); if(!modal||!bookForm.date||!bookForm.time) return
+    e.preventDefault()
+    if(!modal||!bookForm.date||!bookForm.time) return
+    if(!bookForm.name.trim()) return
+    if(!bookForm.email.trim()&&!bookForm.phone.trim()) return
     setBooking(true)
     await supabase.from('appointments').insert({
-      workspace_id:workspace.id, client_name:bookForm.name, client_phone:bookForm.phone,
-      notes:`Service: ${modal.name}.${bookForm.notes?' '+bookForm.notes:''}`,
-      scheduled_at:new Date(`${bookForm.date}T${bookForm.time}:00`).toISOString(),
-      amount:modal.price, status:'pending',
+      workspace_id: workspace.id,
+      client_name:  bookForm.name.trim(),
+      client_phone: bookForm.phone.trim()||null,
+      client_email: bookForm.email.trim()||null,
+      notes: `Service: ${modal.name}.${bookForm.notes?' '+bookForm.notes:''}`,
+      scheduled_at: new Date(`${bookForm.date}T${bookForm.time}:00`).toISOString(),
+      amount:  modal.price,
+      status: 'pending',
     })
-    setBooked(true); setBooking(false)
+    setBooked(true)
+    setBooking(false)
   }
   const initial=workspace?.name?.charAt(0)?.toUpperCase()||'?'
   return (
@@ -2983,36 +2992,165 @@ function ClientPage({ workspace, onSwitchToDash }) {
 
       {/* ═══ BOOKING MODAL ════════════════════════════════════════════════ */}
       {modal&&(
-        <div style={{position:'fixed',inset:0,background:'rgba(26,24,20,.55)',backdropFilter:'blur(4px)',zIndex:100,display:'flex',alignItems:'flex-end',justifyContent:'center'}} onClick={()=>setModal(null)}>
-          <div style={{background:'#fff',width:'100%',maxWidth:520,borderRadius:'18px 18px 0 0',padding:'2rem 1.75rem',maxHeight:'92vh',overflowY:'auto'}} onClick={e=>e.stopPropagation()}>
-            <div style={{width:32,height:4,borderRadius:2,background:'#e0dbd4',margin:'-0.5rem auto 1.5rem'}}/>
+        <div style={{position:'fixed',inset:0,background:'rgba(26,24,20,.6)',backdropFilter:'blur(6px)',zIndex:100,display:'flex',alignItems:'flex-end',justifyContent:'center'}} onClick={()=>{setModal(null);setBookStep(1);setBooked(false);setBookForm({name:'',email:'',phone:'',date:'',time:'',notes:''})}}>
+          <div style={{background:'#fff',width:'100%',maxWidth:520,borderRadius:'20px 20px 0 0',maxHeight:'92vh',overflowY:'auto'}} onClick={e=>e.stopPropagation()}>
+
+            {/* drag handle */}
+            <div style={{width:36,height:4,borderRadius:2,background:'#e0dbd4',margin:'1rem auto .25rem'}}/>
+
             {booked?(
-              <div style={{textAlign:'center',padding:'1.5rem 0 1rem'}}>
-                <div style={{width:52,height:52,borderRadius:'50%',background:'#f0faf5',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 1.25rem'}}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2e7d52" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              /* ── SUCCESS ── */
+              <div style={{textAlign:'center',padding:'2.5rem 1.75rem 3rem'}}>
+                <div style={{width:60,height:60,borderRadius:'50%',background:'linear-gradient(135deg,#f0faf5,#dcf5e8)',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 1.5rem',boxShadow:'0 4px 16px rgba(46,125,82,.12)'}}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2e7d52" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
                 </div>
-                <div style={{fontFamily:"'Playfair Display',serif",fontSize:'1.4rem',marginBottom:6}}>Request sent</div>
-                <div style={{fontSize:'.82rem',color:'#7a7774',lineHeight:1.7,maxWidth:260,margin:'0 auto'}}>Your request for <strong>{modal.name}</strong> has been sent. The studio will confirm shortly.</div>
-                <button onClick={()=>setModal(null)} style={{marginTop:24,background:'#1a1814',color:'#fff',border:'none',borderRadius:10,padding:'12px 28px',fontSize:'.85rem',fontWeight:600,cursor:'pointer',fontFamily:'inherit'}}>Done</button>
+                <div style={{fontFamily:"'Playfair Display',serif",fontSize:'1.6rem',marginBottom:8,color:'#1a1814'}}>Request sent</div>
+                <div style={{fontSize:'.88rem',color:'#7a7774',lineHeight:1.75,maxWidth:280,margin:'0 auto .5rem'}}>
+                  Your request for <strong style={{color:'#1a1814'}}>{modal.name}</strong> has been sent.
+                </div>
+                <div style={{fontSize:'.82rem',color:'#9a9490',marginBottom:2}}>
+                  {bookForm.email?`Confirmation to ${bookForm.email}`:bookForm.phone?`We'll reach you at ${bookForm.phone}`:'The studio will confirm shortly.'}
+                </div>
+                <button onClick={()=>{setModal(null);setBookStep(1);setBooked(false);setBookForm({name:'',email:'',phone:'',date:'',time:'',notes:''})}}
+                  style={{marginTop:28,background:'#1a1814',color:'#fff',border:'none',borderRadius:12,padding:'14px 32px',fontSize:'.88rem',fontWeight:600,cursor:'pointer',fontFamily:'inherit'}}>
+                  Done
+                </button>
               </div>
             ):(
-              <form onSubmit={submitBooking}>
-                <div style={{fontFamily:"'Playfair Display',serif",fontSize:'1.35rem',marginBottom:4,color:'#1a1814'}}>{modal.name}</div>
-                <div style={{fontSize:'.78rem',color:'#9a9490',marginBottom:20,display:'flex',gap:10}}>
-                  {modal.duration_min&&<span>{modal.duration_min} min</span>}
-                  {modal.price>0&&<span>— ${modal.price}</span>}
-                </div>
-                {[['name','Full name','text',true],['phone','Phone','tel',false],['date','Preferred date','date',true],['time','Preferred time','time',true],['notes','Notes (optional)','text',false]].map(([k,l,t,req])=>(
-                  <div key={k} style={{marginBottom:12}}>
-                    <label style={{display:'block',fontSize:'.7rem',letterSpacing:'.12em',textTransform:'uppercase',color:'#9a9490',marginBottom:5}}>{l}</label>
-                    <input type={t} value={bookForm[k]} onChange={e=>setBookForm(f=>({...f,[k]:e.target.value}))} required={req}
-                      style={{width:'100%',border:'1px solid #e4e0d8',borderRadius:8,padding:'11px 14px',fontSize:'1rem',fontFamily:'inherit',color:'#1a1814',outline:'none',background:'#fdfcfa',boxSizing:'border-box'}}/>
+              <form onSubmit={submitBooking} style={{padding:'1rem 1.75rem 2rem'}}>
+
+                {/* Service header */}
+                <div style={{marginBottom:'1.5rem'}}>
+                  <div style={{fontFamily:"'Playfair Display',serif",fontSize:'1.35rem',color:'#1a1814',marginBottom:4}}>{modal.name}</div>
+                  <div style={{display:'flex',gap:10,fontSize:'.78rem',color:'#9a9490'}}>
+                    {modal.duration_min&&<span>⏱ {modal.duration_min} min</span>}
+                    {modal.price>0&&<span>· ${modal.price}</span>}
                   </div>
-                ))}
-                <div style={{display:'flex',gap:8,justifyContent:'flex-end',marginTop:16}}>
-                  <button type="button" onClick={()=>setModal(null)} style={{padding:'11px 18px',border:'1px solid #d8d4cc',borderRadius:8,fontSize:'.82rem',cursor:'pointer',background:'#fff',fontFamily:'inherit',color:'#7a7774'}}>Cancel</button>
-                  <button type="submit" disabled={booking} style={{background:'#1a1814',color:'#fff',border:'none',borderRadius:8,padding:'11px 22px',fontSize:'.82rem',fontWeight:600,cursor:'pointer',fontFamily:'inherit',opacity:booking?.6:1}}>{booking?'Sending…':'Send request →'}</button>
                 </div>
+
+                {/* Step indicators */}
+                <div style={{display:'flex',gap:6,marginBottom:'1.75rem'}}>
+                  {[1,2,3].map(s=>(
+                    <div key={s} style={{flex:1,height:3,borderRadius:2,background:s<=bookStep?'#1a1814':'#e0dbd4',transition:'background .3s'}}/>
+                  ))}
+                </div>
+
+                {/* STEP 1 — Your info */}
+                {bookStep===1&&(
+                  <div>
+                    <div style={{fontSize:'.65rem',fontWeight:700,letterSpacing:'.14em',textTransform:'uppercase',color:'#b5a898',marginBottom:'1.25rem'}}>Step 1 of 3 — Your info</div>
+                    <div style={{marginBottom:14}}>
+                      <label style={{display:'block',fontSize:'.7rem',letterSpacing:'.1em',textTransform:'uppercase',color:'#9a9490',marginBottom:6}}>Full name *</label>
+                      <input autoFocus type="text" value={bookForm.name} onChange={e=>setBookForm(f=>({...f,name:e.target.value}))} placeholder="Amara Diallo"
+                        style={{width:'100%',border:'1.5px solid #e4e0d8',borderRadius:10,padding:'13px 15px',fontSize:'1rem',fontFamily:'inherit',color:'#1a1814',outline:'none',background:'#fdfcfa',boxSizing:'border-box',transition:'border .15s'}}
+                        onFocus={e=>e.target.style.borderColor='#c5a96a'} onBlur={e=>e.target.style.borderColor='#e4e0d8'}/>
+                    </div>
+                    <div style={{marginBottom:14}}>
+                      <label style={{display:'block',fontSize:'.7rem',letterSpacing:'.1em',textTransform:'uppercase',color:'#9a9490',marginBottom:6}}>Email</label>
+                      <input type="email" value={bookForm.email} onChange={e=>setBookForm(f=>({...f,email:e.target.value}))} placeholder="amara@email.com"
+                        style={{width:'100%',border:'1.5px solid #e4e0d8',borderRadius:10,padding:'13px 15px',fontSize:'1rem',fontFamily:'inherit',color:'#1a1814',outline:'none',background:'#fdfcfa',boxSizing:'border-box',transition:'border .15s'}}
+                        onFocus={e=>e.target.style.borderColor='#c5a96a'} onBlur={e=>e.target.style.borderColor='#e4e0d8'}/>
+                    </div>
+                    <div style={{marginBottom:6}}>
+                      <label style={{display:'block',fontSize:'.7rem',letterSpacing:'.1em',textTransform:'uppercase',color:'#9a9490',marginBottom:6}}>Phone</label>
+                      <input type="tel" value={bookForm.phone} onChange={e=>setBookForm(f=>({...f,phone:e.target.value}))} placeholder="+1 (514) 000-0000"
+                        style={{width:'100%',border:'1.5px solid #e4e0d8',borderRadius:10,padding:'13px 15px',fontSize:'1rem',fontFamily:'inherit',color:'#1a1814',outline:'none',background:'#fdfcfa',boxSizing:'border-box',transition:'border .15s'}}
+                        onFocus={e=>e.target.style.borderColor='#c5a96a'} onBlur={e=>e.target.style.borderColor='#e4e0d8'}/>
+                    </div>
+                    <div style={{fontSize:'.72rem',color:'#b5a898',marginBottom:'1.5rem'}}>Email or phone required — we'll use this to confirm your booking.</div>
+                    <button type="button"
+                      onClick={()=>{
+                        if(!bookForm.name.trim()){cpNotify('Please enter your name.');return}
+                        if(!bookForm.email.trim()&&!bookForm.phone.trim()){cpNotify('Please add an email or phone number.');return}
+                        setBookStep(2)
+                      }}
+                      style={{width:'100%',background:'#1a1814',color:'#fff',border:'none',borderRadius:12,padding:'14px',fontSize:'.9rem',fontWeight:600,cursor:'pointer',fontFamily:'inherit'}}>
+                      Continue →
+                    </button>
+                  </div>
+                )}
+
+                {/* STEP 2 — Date & time */}
+                {bookStep===2&&(
+                  <div>
+                    <div style={{fontSize:'.65rem',fontWeight:700,letterSpacing:'.14em',textTransform:'uppercase',color:'#b5a898',marginBottom:'1.25rem'}}>Step 2 of 3 — Date & time</div>
+                    <div style={{marginBottom:14}}>
+                      <label style={{display:'block',fontSize:'.7rem',letterSpacing:'.1em',textTransform:'uppercase',color:'#9a9490',marginBottom:6}}>Preferred date *</label>
+                      <input autoFocus type="date" value={bookForm.date} onChange={e=>setBookForm(f=>({...f,date:e.target.value}))}
+                        min={new Date().toISOString().split('T')[0]}
+                        style={{width:'100%',border:'1.5px solid #e4e0d8',borderRadius:10,padding:'13px 15px',fontSize:'1rem',fontFamily:'inherit',color:'#1a1814',outline:'none',background:'#fdfcfa',boxSizing:'border-box',transition:'border .15s'}}
+                        onFocus={e=>e.target.style.borderColor='#c5a96a'} onBlur={e=>e.target.style.borderColor='#e4e0d8'}/>
+                    </div>
+                    <div style={{marginBottom:'1.5rem'}}>
+                      <label style={{display:'block',fontSize:'.7rem',letterSpacing:'.1em',textTransform:'uppercase',color:'#9a9490',marginBottom:6}}>Preferred time *</label>
+                      <input type="time" value={bookForm.time} onChange={e=>setBookForm(f=>({...f,time:e.target.value}))}
+                        style={{width:'100%',border:'1.5px solid #e4e0d8',borderRadius:10,padding:'13px 15px',fontSize:'1rem',fontFamily:'inherit',color:'#1a1814',outline:'none',background:'#fdfcfa',boxSizing:'border-box',transition:'border .15s'}}
+                        onFocus={e=>e.target.style.borderColor='#c5a96a'} onBlur={e=>e.target.style.borderColor='#e4e0d8'}/>
+                    </div>
+                    <div style={{display:'flex',gap:8}}>
+                      <button type="button" onClick={()=>setBookStep(1)}
+                        style={{flex:1,padding:'13px',border:'1.5px solid #e4e0d8',borderRadius:12,fontSize:'.88rem',cursor:'pointer',background:'#fff',fontFamily:'inherit',color:'#7a7774',fontWeight:500}}>
+                        ← Back
+                      </button>
+                      <button type="button"
+                        onClick={()=>{
+                          if(!bookForm.date){cpNotify('Please pick a date.');return}
+                          if(!bookForm.time){cpNotify('Please pick a time.');return}
+                          setBookStep(3)
+                        }}
+                        style={{flex:2,background:'#1a1814',color:'#fff',border:'none',borderRadius:12,padding:'13px',fontSize:'.9rem',fontWeight:600,cursor:'pointer',fontFamily:'inherit'}}>
+                        Continue →
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* STEP 3 — Confirm */}
+                {bookStep===3&&(
+                  <div>
+                    <div style={{fontSize:'.65rem',fontWeight:700,letterSpacing:'.14em',textTransform:'uppercase',color:'#b5a898',marginBottom:'1.25rem'}}>Step 3 of 3 — Confirm</div>
+
+                    {/* Summary card */}
+                    <div style={{background:'#faf8f5',border:'1px solid #ece8e2',borderRadius:12,padding:'1rem 1.25rem',marginBottom:'1.25rem'}}>
+                      <div style={{fontSize:'.72rem',letterSpacing:'.1em',textTransform:'uppercase',color:'#b5a898',marginBottom:8}}>Your booking</div>
+                      <div style={{display:'flex',flexDirection:'column',gap:6}}>
+                        <div style={{display:'flex',justifyContent:'space-between',fontSize:'.85rem'}}>
+                          <span style={{color:'#7a7774'}}>Service</span><span style={{fontWeight:600,color:'#1a1814'}}>{modal.name}</span>
+                        </div>
+                        <div style={{display:'flex',justifyContent:'space-between',fontSize:'.85rem'}}>
+                          <span style={{color:'#7a7774'}}>Date</span><span style={{fontWeight:600,color:'#1a1814'}}>{new Date(bookForm.date+'T12:00').toLocaleDateString('en-US',{weekday:'short',month:'long',day:'numeric'})}</span>
+                        </div>
+                        <div style={{display:'flex',justifyContent:'space-between',fontSize:'.85rem'}}>
+                          <span style={{color:'#7a7774'}}>Time</span><span style={{fontWeight:600,color:'#1a1814'}}>{bookForm.time}</span>
+                        </div>
+                        <div style={{display:'flex',justifyContent:'space-between',fontSize:'.85rem'}}>
+                          <span style={{color:'#7a7774'}}>Name</span><span style={{fontWeight:600,color:'#1a1814'}}>{bookForm.name}</span>
+                        </div>
+                        {bookForm.email&&<div style={{display:'flex',justifyContent:'space-between',fontSize:'.85rem'}}><span style={{color:'#7a7774'}}>Email</span><span style={{fontWeight:600,color:'#1a1814',overflow:'hidden',textOverflow:'ellipsis',maxWidth:'55%'}}>{bookForm.email}</span></div>}
+                        {bookForm.phone&&<div style={{display:'flex',justifyContent:'space-between',fontSize:'.85rem'}}><span style={{color:'#7a7774'}}>Phone</span><span style={{fontWeight:600,color:'#1a1814'}}>{bookForm.phone}</span></div>}
+                        {modal.price>0&&<div style={{display:'flex',justifyContent:'space-between',fontSize:'.85rem',paddingTop:6,borderTop:'1px solid #ece8e2',marginTop:2}}><span style={{color:'#7a7774'}}>Price</span><span style={{fontWeight:700,color:'#1a1814',fontFamily:"'Playfair Display',serif"}}>${modal.price}</span></div>}
+                      </div>
+                    </div>
+
+                    <div style={{marginBottom:'1.25rem'}}>
+                      <label style={{display:'block',fontSize:'.7rem',letterSpacing:'.1em',textTransform:'uppercase',color:'#9a9490',marginBottom:6}}>Notes (optional)</label>
+                      <textarea value={bookForm.notes} onChange={e=>setBookForm(f=>({...f,notes:e.target.value}))} rows={2} placeholder="Any details for the stylist…"
+                        style={{width:'100%',border:'1.5px solid #e4e0d8',borderRadius:10,padding:'12px 15px',fontSize:'.9rem',fontFamily:'inherit',color:'#1a1814',outline:'none',background:'#fdfcfa',boxSizing:'border-box',resize:'none',transition:'border .15s'}}
+                        onFocus={e=>e.target.style.borderColor='#c5a96a'} onBlur={e=>e.target.style.borderColor='#e4e0d8'}/>
+                    </div>
+
+                    <div style={{display:'flex',gap:8}}>
+                      <button type="button" onClick={()=>setBookStep(2)}
+                        style={{flex:1,padding:'13px',border:'1.5px solid #e4e0d8',borderRadius:12,fontSize:'.88rem',cursor:'pointer',background:'#fff',fontFamily:'inherit',color:'#7a7774',fontWeight:500}}>
+                        ← Back
+                      </button>
+                      <button type="submit" disabled={booking}
+                        style={{flex:2,background:'#1a1814',color:'#fff',border:'none',borderRadius:12,padding:'13px',fontSize:'.9rem',fontWeight:600,cursor:'pointer',fontFamily:'inherit',opacity:booking?0.6:1}}>
+                        {booking?'Sending…':'Confirm booking →'}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </form>
             )}
           </div>
@@ -3023,11 +3161,7 @@ function ClientPage({ workspace, onSwitchToDash }) {
   )
 }
 
-
-
 // ── PUBLIC ENTRY POINT ────────────────────────────────────────────────────────
-// This is what App.jsx's <Route path="/:slug"> renders.
-// It fetches the workspace by slug, then renders the ClientPage UI above.
 export default function PublicBookingPage() {
   const { slug } = useParams()
   const navigate  = useNavigate()
