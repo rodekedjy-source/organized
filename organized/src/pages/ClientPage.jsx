@@ -2687,12 +2687,13 @@ function ClientPage({ workspace, onSwitchToDash }) {
   const [learnPage,setLearnPage]=useState(null)
   const [bookForm,setBookForm]=useState({name:'',email:'',phone:'',date:'',time:'',notes:''})
   const [bookStep,setBookStep]=useState(1)
-  const [availability,setAvailability]=useState([])
-  const [blockedDates,setBlockedDates]=useState([])
-  const [bookedSlots,setBookedSlots]=useState([])
+  // Availability data
+  const [avail,setAvail]=useState([])
+  const [blocked,setBlocked]=useState([])
+  const [existingAppts,setExistingAppts]=useState([])
+  const [calMonth,setCalMonth]=useState(()=>{ const d=new Date(); return {y:d.getFullYear(),m:d.getMonth()} })
+  const [slots,setSlots]=useState([])
   const [loadingSlots,setLoadingSlots]=useState(false)
-  const [selectedDate,setSelectedDate]=useState(null)
-  const [slotsForDate,setSlotsForDate]=useState([])
   const [booking,setBooking]=useState(false)
   const [booked,setBooked]=useState(false)
   const [faqOpen,setFaqOpen]=useState(null)
@@ -2700,89 +2701,64 @@ function ClientPage({ workspace, onSwitchToDash }) {
 
   function cpNotify(msg){setCpToast(msg);setTimeout(()=>setCpToast(''),3000)}
 
-  // ── Smart availability logic ──────────────────────────────────────────────
+  // ── Load availability once workspace is ready ───────────────────────────
   useEffect(()=>{
     if(!workspace?.id) return
     Promise.all([
-      supabase.from('availability').select('*').eq('workspace_id',workspace.id).order('day_of_week'),
-      supabase.from('blocked_dates').select('*').eq('workspace_id',workspace.id),
-    ]).then(([av,bl])=>{
-      setAvailability(av.data||[])
-      setBlockedDates((bl.data||[]).map(b=>b.blocked_date))
+      supabase.from('availability').select('*').eq('workspace_id',workspace.id),
+      supabase.from('blocked_dates').select('blocked_date').eq('workspace_id',workspace.id),
+      supabase.from('appointments').select('scheduled_at,ends_at,duration_min').eq('workspace_id',workspace.id).in('status',['confirmed','pending']).gte('scheduled_at',new Date().toISOString()),
+    ]).then(([av,bl,ap])=>{
+      setAvail(av.data||[])
+      setBlocked((bl.data||[]).map(b=>b.blocked_date))
+      setExistingAppts(ap.data||[])
     })
   },[workspace])
 
-  async function loadSlotsForDate(dateStr, serviceDuration){
-    if(!dateStr||!workspace?.id) return
-    setLoadingSlots(true)
-    setSlotsForDate([])
-    const d = new Date(dateStr+'T12:00')
-    const dow = d.getDay() // 0=Sun…6=Sat
-    const dayConfig = availability.find(a=>a.day_of_week===dow)
-    if(!dayConfig?.is_open){ setLoadingSlots(false); return }
-    // fetch existing appts for that date
-    const dayStart = dateStr+'T00:00:00.000Z'
-    const dayEnd   = dateStr+'T23:59:59.999Z'
-    const {data:appts} = await supabase
-      .from('appointments')
-      .select('scheduled_at,ends_at,duration_min')
-      .eq('workspace_id',workspace.id)
-      .in('status',['confirmed','pending'])
-      .gte('scheduled_at',dayStart)
-      .lte('scheduled_at',dayEnd)
-    const existing = appts||[]
-    // generate slots
-    const dur = serviceDuration||60
-    const [oh,om] = dayConfig.open_time.split(':').map(Number)
-    const [ch,cm] = dayConfig.close_time.split(':').map(Number)
-    const openMin  = oh*60+om
-    const closeMin = ch*60+cm
-    const slots = []
-    const now = new Date()
-    const isToday = dateStr===now.toISOString().split('T')[0]
-    const nowMin  = isToday ? now.getHours()*60+now.getMinutes()+30 : 0
-    for(let m=openMin; m+dur<=closeMin; m+=30){
+  function isDayOpen(dateStr){
+    const d=new Date(dateStr+'T12:00'); const dow=d.getDay()
+    const cfg=(avail||[]).find(a=>a.day_of_week===dow)
+    return cfg?.is_open && !(blocked||[]).includes(dateStr)
+  }
+
+  async function pickDate(dateStr){
+    setBookForm(f=>({...f,date:dateStr,time:''}))
+    setLoadingSlots(true); setSlots([])
+    const d=new Date(dateStr+'T12:00'); const dow=d.getDay()
+    const cfg=(avail||[]).find(a=>a.day_of_week===dow)
+    if(!cfg?.is_open){ setLoadingSlots(false); return }
+    const {data:ap}=await supabase.from('appointments').select('scheduled_at,ends_at,duration_min').eq('workspace_id',workspace.id).in('status',['confirmed','pending']).gte('scheduled_at',dateStr+'T00:00:00Z').lte('scheduled_at',dateStr+'T23:59:59Z')
+    const taken=ap||[]
+    const dur=modal?.duration_min||60
+    const [oh,om]=cfg.open_time.split(':').map(Number)
+    const [ch,cm]=cfg.close_time.split(':').map(Number)
+    const openMin=oh*60+om; const closeMin=ch*60+cm
+    const now=new Date(); const isToday=dateStr===now.toISOString().split('T')[0]
+    const nowMin=isToday?now.getHours()*60+now.getMinutes()+15:0
+    const out=[]
+    for(let m=openMin;m+dur<=closeMin;m+=30){
       if(isToday&&m<=nowMin) continue
-      const slotH = Math.floor(m/60)
-      const slotM = m%60
-      const slotStr = `${String(slotH).padStart(2,'0')}:${String(slotM).padStart(2,'0')}`
-      const slotStart = new Date(`${dateStr}T${slotStr}:00`)
-      const slotEnd   = new Date(slotStart.getTime()+dur*60000)
-      // check conflict with existing appts
-      const taken = existing.some(a=>{
-        const aStart = new Date(a.scheduled_at)
-        const aEnd   = a.ends_at ? new Date(a.ends_at) : new Date(aStart.getTime()+(a.duration_min||60)*60000)
-        return slotStart < aEnd && slotEnd > aStart
-      })
-      slots.push({time:slotStr,taken})
+      const hh=Math.floor(m/60); const mm=m%60
+      const tStr=`${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}`
+      const sStart=new Date(`${dateStr}T${tStr}:00`)
+      const sEnd=new Date(sStart.getTime()+dur*60000)
+      const busy=taken.some(a=>{ const aS=new Date(a.scheduled_at); const aE=a.ends_at?new Date(a.ends_at):new Date(aS.getTime()+(a.duration_min||60)*60000); return sStart<aE&&sEnd>aS })
+      out.push({t:tStr,busy})
     }
-    setSlotsForDate(slots)
-    setLoadingSlots(false)
+    setSlots(out); setLoadingSlots(false)
   }
 
-  function fmtSlot(t){
-    const [h,m]=t.split(':').map(Number)
-    const ampm=h>=12?'PM':'AM'
-    const h12=h===0?12:h>12?h-12:h
-    return `${h12}:${String(m).padStart(2,'0')} ${ampm}`
-  }
+  function fmt12(t){ const [h,m]=t.split(':').map(Number); const ap=h>=12?'PM':'AM'; const h12=h===0?12:h>12?h-12:h; return `${h12}:${String(m).padStart(2,'0')} ${ap}` }
 
-  function getNextDays(n=21){
-    const days=[]
-    const today=new Date()
-    for(let i=0;i<n;i++){
-      const d=new Date(today)
-      d.setDate(today.getDate()+i)
-      const str=d.toISOString().split('T')[0]
-      const dow=d.getDay()
-      const cfg=availability.find(a=>a.day_of_week===dow)
-      const isBlocked=blockedDates.includes(str)
-      const isOpen=cfg?.is_open&&!isBlocked
-      days.push({str,dow,label:d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}),isOpen})
-    }
-    return days
+  function calDays(y,m){
+    const first=new Date(y,m,1).getDay()
+    const days=new Date(y,m+1,0).getDate()
+    const cells=[]
+    for(let i=0;i<first;i++) cells.push(null)
+    for(let d=1;d<=days;d++) cells.push(d)
+    return cells
   }
-  // ──────────────────────────────────────────────────────────────────────────
+  // ────────────────────────────────────────────────────────────────────────
 
   useEffect(()=>{
     if(!workspace) return
@@ -3082,218 +3058,187 @@ function ClientPage({ workspace, onSwitchToDash }) {
 
       {/* ═══ BOOKING MODAL ════════════════════════════════════════════════ */}
       {modal&&(
-        <div style={{position:'fixed',inset:0,background:'rgba(26,24,20,.6)',backdropFilter:'blur(6px)',zIndex:100,display:'flex',alignItems:'flex-end',justifyContent:'center'}} onClick={()=>{setModal(null);setBookStep(1);setBooked(false);setBookForm({name:'',email:'',phone:'',date:'',time:'',notes:''});setSelectedDate(null);setSlotsForDate([])}}>
-          <div style={{background:'#fff',width:'100%',maxWidth:520,borderRadius:'20px 20px 0 0',maxHeight:'92vh',overflowY:'auto'}} onClick={e=>e.stopPropagation()}>
-
-            {/* drag handle */}
-            <div style={{width:36,height:4,borderRadius:2,background:'#e0dbd4',margin:'1rem auto .25rem'}}/>
+        <div
+          style={{position:'fixed',inset:0,background:'rgba(13,12,10,.62)',backdropFilter:'blur(8px)',zIndex:100,display:'flex',alignItems:'flex-end',justifyContent:'center'}}
+          onClick={()=>{setModal(null);setBookStep(1);setBooked(false);setBookForm({name:'',email:'',phone:'',date:'',time:'',notes:''});setSlots([])}}>
+          <div
+            style={{background:'#fff',width:'100%',maxWidth:520,borderRadius:'22px 22px 0 0',maxHeight:'91vh',overflowY:'auto',boxShadow:'0 -8px 48px rgba(0,0,0,.18)'}}
+            onClick={e=>e.stopPropagation()}>
+            <div style={{width:38,height:4,borderRadius:2,background:'#e4e0d8',margin:'14px auto 0'}}/>
 
             {booked?(
-              /* ── SUCCESS ── */
-              <div style={{textAlign:'center',padding:'2.5rem 1.75rem 3rem'}}>
-                <div style={{width:60,height:60,borderRadius:'50%',background:'linear-gradient(135deg,#f0faf5,#dcf5e8)',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 1.5rem',boxShadow:'0 4px 16px rgba(46,125,82,.12)'}}>
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2e7d52" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              <div style={{padding:'2.75rem 2rem 3.5rem',textAlign:'center'}}>
+                <div style={{width:56,height:56,borderRadius:'50%',border:'1.5px solid #d8e8df',background:'#f5fbf7',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 1.75rem'}}>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#3a7d5a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                 </div>
-                <div style={{fontFamily:"'Playfair Display',serif",fontSize:'1.6rem',marginBottom:8,color:'#1a1814'}}>Request sent</div>
-                <div style={{fontSize:'.88rem',color:'#7a7774',lineHeight:1.75,maxWidth:280,margin:'0 auto .5rem'}}>
-                  Your request for <strong style={{color:'#1a1814'}}>{modal.name}</strong> has been sent.
+                <div style={{fontFamily:"'Playfair Display',serif",fontSize:'1.55rem',color:'#0d0c0a',marginBottom:10,letterSpacing:'-.01em'}}>Request received</div>
+                <div style={{fontSize:'.88rem',color:'#7a7774',lineHeight:1.8,maxWidth:300,margin:'0 auto'}}>
+                  Your request for <span style={{color:'#0d0c0a',fontWeight:600}}>{modal.name}</span> has been sent. The studio will confirm shortly.
                 </div>
-                <div style={{fontSize:'.82rem',color:'#9a9490',marginBottom:2}}>
-                  {bookForm.email?`Confirmation to ${bookForm.email}`:bookForm.phone?`We'll reach you at ${bookForm.phone}`:'The studio will confirm shortly.'}
-                </div>
-                <button onClick={()=>{setModal(null);setBookStep(1);setBooked(false);setBookForm({name:'',email:'',phone:'',date:'',time:'',notes:''});setSelectedDate(null);setSlotsForDate([])}}
-                  style={{marginTop:28,background:'#1a1814',color:'#fff',border:'none',borderRadius:12,padding:'14px 32px',fontSize:'.88rem',fontWeight:600,cursor:'pointer',fontFamily:'inherit'}}>
-                  Done
-                </button>
+                {bookForm.email&&<div style={{fontSize:'.78rem',color:'#a0998f',marginTop:8}}>A confirmation has been sent to {bookForm.email}.</div>}
+                <button onClick={()=>{setModal(null);setBookStep(1);setBooked(false);setBookForm({name:'',email:'',phone:'',date:'',time:'',notes:''});setSlots([])}} style={{marginTop:28,padding:'13px 36px',background:'#0d0c0a',color:'#fff',border:'none',borderRadius:12,fontSize:'.88rem',fontWeight:600,cursor:'pointer',fontFamily:'inherit'}}>Close</button>
               </div>
             ):(
-              <form onSubmit={submitBooking} style={{padding:'1rem 1.75rem 2rem'}}>
-
-                {/* Service header */}
-                <div style={{marginBottom:'1.5rem'}}>
-                  <div style={{fontFamily:"'Playfair Display',serif",fontSize:'1.35rem',color:'#1a1814',marginBottom:4}}>{modal.name}</div>
-                  <div style={{display:'flex',gap:10,fontSize:'.78rem',color:'#9a9490'}}>
-                    {modal.duration_min&&<span>⏱ {modal.duration_min} min</span>}
-                    {modal.price>0&&<span>· ${modal.price}</span>}
+              <div style={{padding:'1.5rem 1.75rem 2.5rem'}}>
+                <div style={{marginBottom:'1.75rem'}}>
+                  <div style={{fontFamily:"'Playfair Display',serif",fontSize:'1.3rem',color:'#0d0c0a',marginBottom:4}}>{modal.name}</div>
+                  <div style={{fontSize:'.78rem',color:'#a0998f',display:'flex',gap:12}}>
+                    {modal.duration_min&&<span>{modal.duration_min} min</span>}
+                    {modal.price>0&&<span>{modal.duration_min?'· ':''} ${modal.price}</span>}
                   </div>
                 </div>
-
-                {/* Step indicators */}
-                <div style={{display:'flex',gap:6,marginBottom:'1.75rem'}}>
-                  {[1,2,3].map(s=>(
-                    <div key={s} style={{flex:1,height:3,borderRadius:2,background:s<=bookStep?'#1a1814':'#e0dbd4',transition:'background .3s'}}/>
-                  ))}
+                <div style={{display:'flex',gap:5,marginBottom:'1.75rem'}}>
+                  {[1,2,3].map(s=><div key={s} style={{flex:1,height:2,borderRadius:1,background:s<=bookStep?'#0d0c0a':'#e4e0d8',transition:'background .25s'}}/>)}
                 </div>
 
-                {/* STEP 1 — Your info */}
                 {bookStep===1&&(
                   <div>
-                    <div style={{fontSize:'.65rem',fontWeight:700,letterSpacing:'.14em',textTransform:'uppercase',color:'#b5a898',marginBottom:'1.25rem'}}>Step 1 of 3 — Your info</div>
-                    <div style={{marginBottom:14}}>
-                      <label style={{display:'block',fontSize:'.7rem',letterSpacing:'.1em',textTransform:'uppercase',color:'#9a9490',marginBottom:6}}>Full name *</label>
-                      <input autoFocus type="text" value={bookForm.name} onChange={e=>setBookForm(f=>({...f,name:e.target.value}))} placeholder="Amara Diallo"
-                        style={{width:'100%',border:'1.5px solid #e4e0d8',borderRadius:10,padding:'13px 15px',fontSize:'1rem',fontFamily:'inherit',color:'#1a1814',outline:'none',background:'#fdfcfa',boxSizing:'border-box',transition:'border .15s'}}
-                        onFocus={e=>e.target.style.borderColor='#c5a96a'} onBlur={e=>e.target.style.borderColor='#e4e0d8'}/>
-                    </div>
-                    <div style={{marginBottom:14}}>
-                      <label style={{display:'block',fontSize:'.7rem',letterSpacing:'.1em',textTransform:'uppercase',color:'#9a9490',marginBottom:6}}>Email</label>
-                      <input type="email" value={bookForm.email} onChange={e=>setBookForm(f=>({...f,email:e.target.value}))} placeholder="amara@email.com"
-                        style={{width:'100%',border:'1.5px solid #e4e0d8',borderRadius:10,padding:'13px 15px',fontSize:'1rem',fontFamily:'inherit',color:'#1a1814',outline:'none',background:'#fdfcfa',boxSizing:'border-box',transition:'border .15s'}}
-                        onFocus={e=>e.target.style.borderColor='#c5a96a'} onBlur={e=>e.target.style.borderColor='#e4e0d8'}/>
-                    </div>
-                    <div style={{marginBottom:6}}>
-                      <label style={{display:'block',fontSize:'.7rem',letterSpacing:'.1em',textTransform:'uppercase',color:'#9a9490',marginBottom:6}}>Phone</label>
-                      <input type="tel" value={bookForm.phone} onChange={e=>setBookForm(f=>({...f,phone:e.target.value}))} placeholder="+1 (514) 000-0000"
-                        style={{width:'100%',border:'1.5px solid #e4e0d8',borderRadius:10,padding:'13px 15px',fontSize:'1rem',fontFamily:'inherit',color:'#1a1814',outline:'none',background:'#fdfcfa',boxSizing:'border-box',transition:'border .15s'}}
-                        onFocus={e=>e.target.style.borderColor='#c5a96a'} onBlur={e=>e.target.style.borderColor='#e4e0d8'}/>
-                    </div>
-                    <div style={{fontSize:'.72rem',color:'#b5a898',marginBottom:'1.5rem'}}>Email or phone required — we'll use this to confirm your booking.</div>
-                    <button type="button"
-                      onClick={()=>{
-                        if(!bookForm.name.trim()){cpNotify('Please enter your name.');return}
-                        if(!bookForm.email.trim()&&!bookForm.phone.trim()){cpNotify('Please add an email or phone number.');return}
-                        setBookStep(2)
-                      }}
-                      style={{width:'100%',background:'#1a1814',color:'#fff',border:'none',borderRadius:12,padding:'14px',fontSize:'.9rem',fontWeight:600,cursor:'pointer',fontFamily:'inherit'}}>
-                      Continue →
+                    <div style={{fontSize:'.65rem',fontWeight:600,letterSpacing:'.12em',textTransform:'uppercase',color:'#a0998f',marginBottom:'1.25rem'}}>Your information</div>
+                    {[
+                      {key:'name',label:'Full name',type:'text',ph:'Your full name'},
+                      {key:'email',label:'Email',type:'email',ph:'your@email.com'},
+                      {key:'phone',label:'Phone',type:'tel',ph:'+1 (514) 000-0000'},
+                    ].map(({key,label,type,ph},idx)=>(
+                      <div key={key} style={{marginBottom:key==='phone'?0:14}}>
+                        <label style={{display:'block',fontSize:'.68rem',fontWeight:600,letterSpacing:'.1em',textTransform:'uppercase',color:'#a0998f',marginBottom:7}}>{label}</label>
+                        <input autoFocus={idx===0} type={type} value={bookForm[key]} placeholder={ph}
+                          onChange={e=>setBookForm(f=>({...f,[key]:e.target.value}))}
+                          style={{width:'100%',padding:'13px 15px',border:'1.5px solid #e4e0d8',borderRadius:11,fontSize:'.95rem',fontFamily:'inherit',color:'#0d0c0a',background:'#fdfcfa',outline:'none',boxSizing:'border-box'}}
+                          onFocus={e=>e.target.style.borderColor='#b5893a'}
+                          onBlur={e=>e.target.style.borderColor='#e4e0d8'}/>
+                      </div>
+                    ))}
+                    <div style={{fontSize:'.72rem',color:'#b5a898',margin:'10px 0 22px'}}>Email or phone required — used to confirm your appointment.</div>
+                    <button type="button" onClick={()=>{
+                      if(!bookForm.name.trim()){cpNotify('Please enter your name.');return}
+                      if(!bookForm.email.trim()&&!bookForm.phone.trim()){cpNotify('Please provide an email or phone number.');return}
+                      setBookStep(2)
+                    }} style={{width:'100%',padding:'14px',background:'#0d0c0a',color:'#fff',border:'none',borderRadius:12,fontSize:'.9rem',fontWeight:600,cursor:'pointer',fontFamily:'inherit'}}>
+                      Continue
                     </button>
                   </div>
                 )}
 
-                {/* STEP 2 — Smart date + slot picker */}
-                {bookStep===2&&(
-                  <div>
-                    <div style={{fontSize:'.65rem',fontWeight:700,letterSpacing:'.14em',textTransform:'uppercase',color:'#b5a898',marginBottom:'1.25rem'}}>Step 2 of 3 — Pick a date & time</div>
-
-                    {/* Date strip — next 21 days, open days only */}
-                    <div style={{marginBottom:'1.5rem'}}>
-                      <div style={{fontSize:'.7rem',letterSpacing:'.1em',textTransform:'uppercase',color:'#9a9490',marginBottom:8}}>Available dates</div>
-                      <div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:4,WebkitOverflowScrolling:'touch',scrollbarWidth:'none'}}>
-                        {getNextDays(21).filter(d=>d.isOpen).map(day=>{
-                          const sel = selectedDate===day.str
+                {bookStep===2&&(()=>{
+                  const {y,m}=calMonth
+                  const today=new Date().toISOString().split('T')[0]
+                  const monthName=new Date(y,m,1).toLocaleDateString('en-US',{month:'long',year:'numeric'})
+                  const cells=calDays(y,m)
+                  return (
+                    <div>
+                      <div style={{fontSize:'.65rem',fontWeight:600,letterSpacing:'.12em',textTransform:'uppercase',color:'#a0998f',marginBottom:'1.25rem'}}>Pick a date</div>
+                      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14}}>
+                        <button type="button" onClick={()=>setCalMonth(({y,m})=>m===0?{y:y-1,m:11}:{y,m:m-1})}
+                          style={{background:'none',border:'1px solid #e4e0d8',borderRadius:8,width:34,height:34,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',color:'#7a7774'}}>
+                          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 3L5 8l5 5"/></svg>
+                        </button>
+                        <div style={{fontSize:'.9rem',fontWeight:600,color:'#0d0c0a'}}>{monthName}</div>
+                        <button type="button" onClick={()=>setCalMonth(({y,m})=>m===11?{y:y+1,m:0}:{y,m:m+1})}
+                          style={{background:'none',border:'1px solid #e4e0d8',borderRadius:8,width:34,height:34,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',color:'#7a7774'}}>
+                          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 3l5 5-5 5"/></svg>
+                        </button>
+                      </div>
+                      <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:2,marginBottom:4}}>
+                        {['Su','Mo','Tu','We','Th','Fr','Sa'].map(d=><div key={d} style={{textAlign:'center',fontSize:'.62rem',fontWeight:600,color:'#b5a898',letterSpacing:'.05em',padding:'4px 0'}}>{d}</div>)}
+                      </div>
+                      <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:3,marginBottom:'1.5rem'}}>
+                        {cells.map((day,i)=>{
+                          if(!day) return <div key={i}/>
+                          const ds=`${y}-${String(m+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`
+                          const isPast=ds<today
+                          const isOpen=!isPast&&isDayOpen(ds)
+                          const isSel=bookForm.date===ds
+                          const isToday=ds===today
                           return (
-                            <button key={day.str} type="button"
-                              onClick={()=>{
-                                setSelectedDate(day.str)
-                                setBookForm(f=>({...f,date:day.str,time:''}))
-                                loadSlotsForDate(day.str, modal?.duration_min)
-                              }}
-                              style={{
-                                flexShrink:0,padding:'8px 12px',borderRadius:10,border:sel?'2px solid #1a1814':'1.5px solid #e4e0d8',
-                                background:sel?'#1a1814':'#fff',color:sel?'#fff':'#1a1814',
-                                cursor:'pointer',fontFamily:'inherit',fontSize:'.75rem',fontWeight:sel?600:400,
-                                whiteSpace:'nowrap',transition:'all .15s'
-                              }}>
-                              <div style={{fontWeight:700,fontSize:'.8rem'}}>{new Date(day.str+'T12:00').toLocaleDateString('en-US',{weekday:'short'})}</div>
-                              <div style={{fontSize:'.72rem',opacity:.8}}>{new Date(day.str+'T12:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})}</div>
+                            <button key={i} type="button" disabled={!isOpen} onClick={()=>pickDate(ds)}
+                              style={{aspectRatio:'1',borderRadius:'50%',border:'none',display:'flex',alignItems:'center',justifyContent:'center',
+                                background:isSel?'#0d0c0a':isToday&&isOpen?'#fdf6e8':'transparent',
+                                color:isSel?'#fff':isPast||!isOpen?'#d8d4cc':'#0d0c0a',
+                                fontSize:'.82rem',fontWeight:isSel?700:400,cursor:isOpen?'pointer':'default',fontFamily:'inherit',
+                                outline:isToday&&!isSel?'1.5px solid #b5893a':'none',outlineOffset:1,transition:'all .15s'}}>
+                              {day}
                             </button>
                           )
                         })}
                       </div>
+                      {bookForm.date&&(
+                        <div style={{marginBottom:'1.5rem'}}>
+                          <div style={{fontSize:'.65rem',fontWeight:600,letterSpacing:'.12em',textTransform:'uppercase',color:'#a0998f',marginBottom:10}}>Available times</div>
+                          {loadingSlots?(
+                            <div style={{textAlign:'center',padding:'1.25rem',color:'#b5a898',fontSize:'.85rem'}}>Loading…</div>
+                          ):slots.length===0?(
+                            <div style={{textAlign:'center',padding:'1.25rem',background:'#faf8f5',borderRadius:10,color:'#a0998f',fontSize:'.85rem',border:'1px solid #ece9e4'}}>No availability for this date.</div>
+                          ):(
+                            <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:7}}>
+                              {slots.map(s=>{
+                                const sel=bookForm.time===s.t
+                                return (
+                                  <button key={s.t} type="button" disabled={s.busy} onClick={()=>!s.busy&&setBookForm(f=>({...f,time:s.t}))}
+                                    style={{padding:'10px 4px',borderRadius:10,fontFamily:'inherit',fontSize:'.82rem',fontWeight:500,
+                                      border:sel?'2px solid #0d0c0a':'1.5px solid #e4e0d8',
+                                      background:sel?'#0d0c0a':s.busy?'#faf8f5':'#fff',
+                                      color:sel?'#fff':s.busy?'#ccc':'#0d0c0a',
+                                      cursor:s.busy?'not-allowed':'pointer',
+                                      textDecoration:s.busy?'line-through':'none',transition:'all .15s'}}>
+                                    {fmt12(s.t)}
+                                  </button>
+                                )
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      <div style={{display:'flex',gap:8}}>
+                        <button type="button" onClick={()=>setBookStep(1)}
+                          style={{flex:1,padding:'13px',border:'1.5px solid #e4e0d8',borderRadius:12,fontSize:'.88rem',cursor:'pointer',background:'#fff',fontFamily:'inherit',color:'#7a7774',fontWeight:500}}>Back</button>
+                        <button type="button" onClick={()=>{
+                          if(!bookForm.date){cpNotify('Please select a date.');return}
+                          if(!bookForm.time){cpNotify('Please select a time.');return}
+                          setBookStep(3)
+                        }} style={{flex:2,padding:'13px',background:'#0d0c0a',color:'#fff',border:'none',borderRadius:12,fontSize:'.9rem',fontWeight:600,cursor:'pointer',fontFamily:'inherit'}}>
+                          Continue
+                        </button>
+                      </div>
                     </div>
+                  )
+                })()}
 
-                    {/* Time slots */}
-                    {selectedDate&&(
-                      <div style={{marginBottom:'1.5rem'}}>
-                        <div style={{fontSize:'.7rem',letterSpacing:'.1em',textTransform:'uppercase',color:'#9a9490',marginBottom:8}}>Available times</div>
-                        {loadingSlots?(
-                          <div style={{textAlign:'center',padding:'1.5rem',color:'#b5a898',fontSize:'.85rem'}}>Loading…</div>
-                        ):slotsForDate.length===0?(
-                          <div style={{textAlign:'center',padding:'1.5rem',background:'#faf8f5',borderRadius:10,color:'#b5a898',fontSize:'.85rem'}}>
-                            No available slots for this day.
-                          </div>
-                        ):(
-                          <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8}}>
-                            {slotsForDate.map(slot=>{
-                              const sel = bookForm.time===slot.time
-                              return (
-                                <button key={slot.time} type="button"
-                                  disabled={slot.taken}
-                                  onClick={()=>{
-                                    if(slot.taken) return
-                                    setBookForm(f=>({...f,time:slot.time}))
-                                    // auto-advance after short delay
-                                    setTimeout(()=>setBookStep(3), 220)
-                                  }}
-                                  style={{
-                                    padding:'10px 6px',borderRadius:10,
-                                    border:sel?'2px solid #1a1814':slot.taken?'1.5px solid #f0ece6':'1.5px solid #e4e0d8',
-                                    background:sel?'#1a1814':slot.taken?'#faf8f5':'#fff',
-                                    color:sel?'#fff':slot.taken?'#ccc':'#1a1814',
-                                    cursor:slot.taken?'not-allowed':'pointer',
-                                    fontFamily:'inherit',fontSize:'.82rem',fontWeight:500,
-                                    textDecoration:slot.taken?'line-through':'none',
-                                    transition:'all .15s',position:'relative'
-                                  }}>
-                                  {fmtSlot(slot.time)}
-                                </button>
-                              )
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {!selectedDate&&(
-                      <div style={{textAlign:'center',padding:'2rem 1rem',background:'#faf8f5',borderRadius:12,color:'#b5a898',fontSize:'.85rem',marginBottom:'1.5rem'}}>
-                        ← Select a date to see available times
-                      </div>
-                    )}
-
-                    <button type="button" onClick={()=>setBookStep(1)}
-                      style={{width:'100%',padding:'13px',border:'1.5px solid #e4e0d8',borderRadius:12,fontSize:'.88rem',cursor:'pointer',background:'#fff',fontFamily:'inherit',color:'#7a7774',fontWeight:500}}>
-                      ← Back
-                    </button>
-                  </div>
-                )}
-
-                {/* STEP 3 — Confirm */}
                 {bookStep===3&&(
-                  <div>
-                    <div style={{fontSize:'.65rem',fontWeight:700,letterSpacing:'.14em',textTransform:'uppercase',color:'#b5a898',marginBottom:'1.25rem'}}>Step 3 of 3 — Confirm</div>
-
-                    {/* Summary card */}
-                    <div style={{background:'#faf8f5',border:'1px solid #ece8e2',borderRadius:12,padding:'1rem 1.25rem',marginBottom:'1.25rem'}}>
-                      <div style={{fontSize:'.72rem',letterSpacing:'.1em',textTransform:'uppercase',color:'#b5a898',marginBottom:8}}>Your booking</div>
-                      <div style={{display:'flex',flexDirection:'column',gap:6}}>
-                        <div style={{display:'flex',justifyContent:'space-between',fontSize:'.85rem'}}>
-                          <span style={{color:'#7a7774'}}>Service</span><span style={{fontWeight:600,color:'#1a1814'}}>{modal.name}</span>
+                  <form onSubmit={submitBooking}>
+                    <div style={{fontSize:'.65rem',fontWeight:600,letterSpacing:'.12em',textTransform:'uppercase',color:'#a0998f',marginBottom:'1.25rem'}}>Review your booking</div>
+                    <div style={{background:'#faf8f5',border:'1px solid #ece9e4',borderRadius:14,padding:'1.25rem 1.4rem',marginBottom:'1.25rem'}}>
+                      {[
+                        ['Service',modal.name],
+                        ['Date',bookForm.date?new Date(bookForm.date+'T12:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'}):''],
+                        ['Time',bookForm.time?fmt12(bookForm.time):''],
+                        ['Name',bookForm.name],
+                        bookForm.email?['Email',bookForm.email]:null,
+                        bookForm.phone?['Phone',bookForm.phone]:null,
+                        modal.price>0?['Price',`$${modal.price}`]:null,
+                      ].filter(Boolean).map(([k,v],i,arr)=>(
+                        <div key={k} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'7px 0',borderBottom:i<arr.length-1?'1px solid #ece9e4':'none'}}>
+                          <span style={{fontSize:'.78rem',color:'#a0998f',fontWeight:500}}>{k}</span>
+                          <span style={{fontSize:'.85rem',color:'#0d0c0a',fontWeight:600,maxWidth:'58%',textAlign:'right',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{v}</span>
                         </div>
-                        <div style={{display:'flex',justifyContent:'space-between',fontSize:'.85rem'}}>
-                          <span style={{color:'#7a7774'}}>Date</span><span style={{fontWeight:600,color:'#1a1814'}}>{new Date(bookForm.date+'T12:00').toLocaleDateString('en-US',{weekday:'short',month:'long',day:'numeric'})}</span>
-                        </div>
-                        <div style={{display:'flex',justifyContent:'space-between',fontSize:'.85rem'}}>
-                          <span style={{color:'#7a7774'}}>Time</span><span style={{fontWeight:600,color:'#1a1814'}}>{bookForm.time}</span>
-                        </div>
-                        <div style={{display:'flex',justifyContent:'space-between',fontSize:'.85rem'}}>
-                          <span style={{color:'#7a7774'}}>Name</span><span style={{fontWeight:600,color:'#1a1814'}}>{bookForm.name}</span>
-                        </div>
-                        {bookForm.email&&<div style={{display:'flex',justifyContent:'space-between',fontSize:'.85rem'}}><span style={{color:'#7a7774'}}>Email</span><span style={{fontWeight:600,color:'#1a1814',overflow:'hidden',textOverflow:'ellipsis',maxWidth:'55%'}}>{bookForm.email}</span></div>}
-                        {bookForm.phone&&<div style={{display:'flex',justifyContent:'space-between',fontSize:'.85rem'}}><span style={{color:'#7a7774'}}>Phone</span><span style={{fontWeight:600,color:'#1a1814'}}>{bookForm.phone}</span></div>}
-                        {modal.price>0&&<div style={{display:'flex',justifyContent:'space-between',fontSize:'.85rem',paddingTop:6,borderTop:'1px solid #ece8e2',marginTop:2}}><span style={{color:'#7a7774'}}>Price</span><span style={{fontWeight:700,color:'#1a1814',fontFamily:"'Playfair Display',serif"}}>${modal.price}</span></div>}
-                      </div>
+                      ))}
                     </div>
-
-                    <div style={{marginBottom:'1.25rem'}}>
-                      <label style={{display:'block',fontSize:'.7rem',letterSpacing:'.1em',textTransform:'uppercase',color:'#9a9490',marginBottom:6}}>Notes (optional)</label>
-                      <textarea value={bookForm.notes} onChange={e=>setBookForm(f=>({...f,notes:e.target.value}))} rows={2} placeholder="Any details for the stylist…"
-                        style={{width:'100%',border:'1.5px solid #e4e0d8',borderRadius:10,padding:'12px 15px',fontSize:'.9rem',fontFamily:'inherit',color:'#1a1814',outline:'none',background:'#fdfcfa',boxSizing:'border-box',resize:'none',transition:'border .15s'}}
-                        onFocus={e=>e.target.style.borderColor='#c5a96a'} onBlur={e=>e.target.style.borderColor='#e4e0d8'}/>
+                    <div style={{marginBottom:'1.4rem'}}>
+                      <label style={{display:'block',fontSize:'.68rem',fontWeight:600,letterSpacing:'.1em',textTransform:'uppercase',color:'#a0998f',marginBottom:7}}>Notes (optional)</label>
+                      <textarea value={bookForm.notes} onChange={e=>setBookForm(f=>({...f,notes:e.target.value}))} rows={2} placeholder="Anything the stylist should know…"
+                        style={{width:'100%',padding:'12px 15px',border:'1.5px solid #e4e0d8',borderRadius:11,fontSize:'.9rem',fontFamily:'inherit',color:'#0d0c0a',background:'#fdfcfa',outline:'none',resize:'none',boxSizing:'border-box'}}
+                        onFocus={e=>e.target.style.borderColor='#b5893a'} onBlur={e=>e.target.style.borderColor='#e4e0d8'}/>
                     </div>
-
                     <div style={{display:'flex',gap:8}}>
                       <button type="button" onClick={()=>setBookStep(2)}
-                        style={{flex:1,padding:'13px',border:'1.5px solid #e4e0d8',borderRadius:12,fontSize:'.88rem',cursor:'pointer',background:'#fff',fontFamily:'inherit',color:'#7a7774',fontWeight:500}}>
-                        ← Back
-                      </button>
+                        style={{flex:1,padding:'13px',border:'1.5px solid #e4e0d8',borderRadius:12,fontSize:'.88rem',cursor:'pointer',background:'#fff',fontFamily:'inherit',color:'#7a7774',fontWeight:500}}>Back</button>
                       <button type="submit" disabled={booking}
-                        style={{flex:2,background:'#1a1814',color:'#fff',border:'none',borderRadius:12,padding:'13px',fontSize:'.9rem',fontWeight:600,cursor:'pointer',fontFamily:'inherit',opacity:booking?0.6:1}}>
-                        {booking?'Sending…':'Confirm booking →'}
+                        style={{flex:2,padding:'13px',background:'#0d0c0a',color:'#fff',border:'none',borderRadius:12,fontSize:'.9rem',fontWeight:600,cursor:'pointer',fontFamily:'inherit',opacity:booking?.55:1}}>
+                        {booking?'Sending…':'Confirm booking'}
                       </button>
                     </div>
-                  </div>
+                  </form>
                 )}
-              </form>
+              </div>
             )}
           </div>
         </div>
