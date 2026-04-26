@@ -2687,12 +2687,102 @@ function ClientPage({ workspace, onSwitchToDash }) {
   const [learnPage,setLearnPage]=useState(null)
   const [bookForm,setBookForm]=useState({name:'',email:'',phone:'',date:'',time:'',notes:''})
   const [bookStep,setBookStep]=useState(1)
+  const [availability,setAvailability]=useState([])
+  const [blockedDates,setBlockedDates]=useState([])
+  const [bookedSlots,setBookedSlots]=useState([])
+  const [loadingSlots,setLoadingSlots]=useState(false)
+  const [selectedDate,setSelectedDate]=useState(null)
+  const [slotsForDate,setSlotsForDate]=useState([])
   const [booking,setBooking]=useState(false)
   const [booked,setBooked]=useState(false)
   const [faqOpen,setFaqOpen]=useState(null)
   const [cpToast,setCpToast]=useState('')
 
   function cpNotify(msg){setCpToast(msg);setTimeout(()=>setCpToast(''),3000)}
+
+  // ── Smart availability logic ──────────────────────────────────────────────
+  useEffect(()=>{
+    if(!workspace?.id) return
+    Promise.all([
+      supabase.from('availability').select('*').eq('workspace_id',workspace.id).order('day_of_week'),
+      supabase.from('blocked_dates').select('*').eq('workspace_id',workspace.id),
+    ]).then(([av,bl])=>{
+      setAvailability(av.data||[])
+      setBlockedDates((bl.data||[]).map(b=>b.blocked_date))
+    })
+  },[workspace])
+
+  async function loadSlotsForDate(dateStr, serviceDuration){
+    if(!dateStr||!workspace?.id) return
+    setLoadingSlots(true)
+    setSlotsForDate([])
+    const d = new Date(dateStr+'T12:00')
+    const dow = d.getDay() // 0=Sun…6=Sat
+    const dayConfig = availability.find(a=>a.day_of_week===dow)
+    if(!dayConfig?.is_open){ setLoadingSlots(false); return }
+    // fetch existing appts for that date
+    const dayStart = dateStr+'T00:00:00.000Z'
+    const dayEnd   = dateStr+'T23:59:59.999Z'
+    const {data:appts} = await supabase
+      .from('appointments')
+      .select('scheduled_at,ends_at,duration_min')
+      .eq('workspace_id',workspace.id)
+      .in('status',['confirmed','pending'])
+      .gte('scheduled_at',dayStart)
+      .lte('scheduled_at',dayEnd)
+    const existing = appts||[]
+    // generate slots
+    const dur = serviceDuration||60
+    const [oh,om] = dayConfig.open_time.split(':').map(Number)
+    const [ch,cm] = dayConfig.close_time.split(':').map(Number)
+    const openMin  = oh*60+om
+    const closeMin = ch*60+cm
+    const slots = []
+    const now = new Date()
+    const isToday = dateStr===now.toISOString().split('T')[0]
+    const nowMin  = isToday ? now.getHours()*60+now.getMinutes()+30 : 0
+    for(let m=openMin; m+dur<=closeMin; m+=30){
+      if(isToday&&m<=nowMin) continue
+      const slotH = Math.floor(m/60)
+      const slotM = m%60
+      const slotStr = `${String(slotH).padStart(2,'0')}:${String(slotM).padStart(2,'0')}`
+      const slotStart = new Date(`${dateStr}T${slotStr}:00`)
+      const slotEnd   = new Date(slotStart.getTime()+dur*60000)
+      // check conflict with existing appts
+      const taken = existing.some(a=>{
+        const aStart = new Date(a.scheduled_at)
+        const aEnd   = a.ends_at ? new Date(a.ends_at) : new Date(aStart.getTime()+(a.duration_min||60)*60000)
+        return slotStart < aEnd && slotEnd > aStart
+      })
+      slots.push({time:slotStr,taken})
+    }
+    setSlotsForDate(slots)
+    setLoadingSlots(false)
+  }
+
+  function fmtSlot(t){
+    const [h,m]=t.split(':').map(Number)
+    const ampm=h>=12?'PM':'AM'
+    const h12=h===0?12:h>12?h-12:h
+    return `${h12}:${String(m).padStart(2,'0')} ${ampm}`
+  }
+
+  function getNextDays(n=21){
+    const days=[]
+    const today=new Date()
+    for(let i=0;i<n;i++){
+      const d=new Date(today)
+      d.setDate(today.getDate()+i)
+      const str=d.toISOString().split('T')[0]
+      const dow=d.getDay()
+      const cfg=availability.find(a=>a.day_of_week===dow)
+      const isBlocked=blockedDates.includes(str)
+      const isOpen=cfg?.is_open&&!isBlocked
+      days.push({str,dow,label:d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}),isOpen})
+    }
+    return days
+  }
+  // ──────────────────────────────────────────────────────────────────────────
 
   useEffect(()=>{
     if(!workspace) return
@@ -2992,7 +3082,7 @@ function ClientPage({ workspace, onSwitchToDash }) {
 
       {/* ═══ BOOKING MODAL ════════════════════════════════════════════════ */}
       {modal&&(
-        <div style={{position:'fixed',inset:0,background:'rgba(26,24,20,.6)',backdropFilter:'blur(6px)',zIndex:100,display:'flex',alignItems:'flex-end',justifyContent:'center'}} onClick={()=>{setModal(null);setBookStep(1);setBooked(false);setBookForm({name:'',email:'',phone:'',date:'',time:'',notes:''})}}>
+        <div style={{position:'fixed',inset:0,background:'rgba(26,24,20,.6)',backdropFilter:'blur(6px)',zIndex:100,display:'flex',alignItems:'flex-end',justifyContent:'center'}} onClick={()=>{setModal(null);setBookStep(1);setBooked(false);setBookForm({name:'',email:'',phone:'',date:'',time:'',notes:''});setSelectedDate(null);setSlotsForDate([])}}>
           <div style={{background:'#fff',width:'100%',maxWidth:520,borderRadius:'20px 20px 0 0',maxHeight:'92vh',overflowY:'auto'}} onClick={e=>e.stopPropagation()}>
 
             {/* drag handle */}
@@ -3011,7 +3101,7 @@ function ClientPage({ workspace, onSwitchToDash }) {
                 <div style={{fontSize:'.82rem',color:'#9a9490',marginBottom:2}}>
                   {bookForm.email?`Confirmation to ${bookForm.email}`:bookForm.phone?`We'll reach you at ${bookForm.phone}`:'The studio will confirm shortly.'}
                 </div>
-                <button onClick={()=>{setModal(null);setBookStep(1);setBooked(false);setBookForm({name:'',email:'',phone:'',date:'',time:'',notes:''})}}
+                <button onClick={()=>{setModal(null);setBookStep(1);setBooked(false);setBookForm({name:'',email:'',phone:'',date:'',time:'',notes:''});setSelectedDate(null);setSlotsForDate([])}}
                   style={{marginTop:28,background:'#1a1814',color:'#fff',border:'none',borderRadius:12,padding:'14px 32px',fontSize:'.88rem',fontWeight:600,cursor:'pointer',fontFamily:'inherit'}}>
                   Done
                 </button>
@@ -3070,38 +3160,90 @@ function ClientPage({ workspace, onSwitchToDash }) {
                   </div>
                 )}
 
-                {/* STEP 2 — Date & time */}
+                {/* STEP 2 — Smart date + slot picker */}
                 {bookStep===2&&(
                   <div>
-                    <div style={{fontSize:'.65rem',fontWeight:700,letterSpacing:'.14em',textTransform:'uppercase',color:'#b5a898',marginBottom:'1.25rem'}}>Step 2 of 3 — Date & time</div>
-                    <div style={{marginBottom:14}}>
-                      <label style={{display:'block',fontSize:'.7rem',letterSpacing:'.1em',textTransform:'uppercase',color:'#9a9490',marginBottom:6}}>Preferred date *</label>
-                      <input autoFocus type="date" value={bookForm.date} onChange={e=>setBookForm(f=>({...f,date:e.target.value}))}
-                        min={new Date().toISOString().split('T')[0]}
-                        style={{width:'100%',border:'1.5px solid #e4e0d8',borderRadius:10,padding:'13px 15px',fontSize:'1rem',fontFamily:'inherit',color:'#1a1814',outline:'none',background:'#fdfcfa',boxSizing:'border-box',transition:'border .15s'}}
-                        onFocus={e=>e.target.style.borderColor='#c5a96a'} onBlur={e=>e.target.style.borderColor='#e4e0d8'}/>
-                    </div>
+                    <div style={{fontSize:'.65rem',fontWeight:700,letterSpacing:'.14em',textTransform:'uppercase',color:'#b5a898',marginBottom:'1.25rem'}}>Step 2 of 3 — Pick a date & time</div>
+
+                    {/* Date strip — next 21 days, open days only */}
                     <div style={{marginBottom:'1.5rem'}}>
-                      <label style={{display:'block',fontSize:'.7rem',letterSpacing:'.1em',textTransform:'uppercase',color:'#9a9490',marginBottom:6}}>Preferred time *</label>
-                      <input type="time" value={bookForm.time} onChange={e=>setBookForm(f=>({...f,time:e.target.value}))}
-                        style={{width:'100%',border:'1.5px solid #e4e0d8',borderRadius:10,padding:'13px 15px',fontSize:'1rem',fontFamily:'inherit',color:'#1a1814',outline:'none',background:'#fdfcfa',boxSizing:'border-box',transition:'border .15s'}}
-                        onFocus={e=>e.target.style.borderColor='#c5a96a'} onBlur={e=>e.target.style.borderColor='#e4e0d8'}/>
+                      <div style={{fontSize:'.7rem',letterSpacing:'.1em',textTransform:'uppercase',color:'#9a9490',marginBottom:8}}>Available dates</div>
+                      <div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:4,WebkitOverflowScrolling:'touch',scrollbarWidth:'none'}}>
+                        {getNextDays(21).filter(d=>d.isOpen).map(day=>{
+                          const sel = selectedDate===day.str
+                          return (
+                            <button key={day.str} type="button"
+                              onClick={()=>{
+                                setSelectedDate(day.str)
+                                setBookForm(f=>({...f,date:day.str,time:''}))
+                                loadSlotsForDate(day.str, modal?.duration_min)
+                              }}
+                              style={{
+                                flexShrink:0,padding:'8px 12px',borderRadius:10,border:sel?'2px solid #1a1814':'1.5px solid #e4e0d8',
+                                background:sel?'#1a1814':'#fff',color:sel?'#fff':'#1a1814',
+                                cursor:'pointer',fontFamily:'inherit',fontSize:'.75rem',fontWeight:sel?600:400,
+                                whiteSpace:'nowrap',transition:'all .15s'
+                              }}>
+                              <div style={{fontWeight:700,fontSize:'.8rem'}}>{new Date(day.str+'T12:00').toLocaleDateString('en-US',{weekday:'short'})}</div>
+                              <div style={{fontSize:'.72rem',opacity:.8}}>{new Date(day.str+'T12:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})}</div>
+                            </button>
+                          )
+                        })}
+                      </div>
                     </div>
-                    <div style={{display:'flex',gap:8}}>
-                      <button type="button" onClick={()=>setBookStep(1)}
-                        style={{flex:1,padding:'13px',border:'1.5px solid #e4e0d8',borderRadius:12,fontSize:'.88rem',cursor:'pointer',background:'#fff',fontFamily:'inherit',color:'#7a7774',fontWeight:500}}>
-                        ← Back
-                      </button>
-                      <button type="button"
-                        onClick={()=>{
-                          if(!bookForm.date){cpNotify('Please pick a date.');return}
-                          if(!bookForm.time){cpNotify('Please pick a time.');return}
-                          setBookStep(3)
-                        }}
-                        style={{flex:2,background:'#1a1814',color:'#fff',border:'none',borderRadius:12,padding:'13px',fontSize:'.9rem',fontWeight:600,cursor:'pointer',fontFamily:'inherit'}}>
-                        Continue →
-                      </button>
-                    </div>
+
+                    {/* Time slots */}
+                    {selectedDate&&(
+                      <div style={{marginBottom:'1.5rem'}}>
+                        <div style={{fontSize:'.7rem',letterSpacing:'.1em',textTransform:'uppercase',color:'#9a9490',marginBottom:8}}>Available times</div>
+                        {loadingSlots?(
+                          <div style={{textAlign:'center',padding:'1.5rem',color:'#b5a898',fontSize:'.85rem'}}>Loading…</div>
+                        ):slotsForDate.length===0?(
+                          <div style={{textAlign:'center',padding:'1.5rem',background:'#faf8f5',borderRadius:10,color:'#b5a898',fontSize:'.85rem'}}>
+                            No available slots for this day.
+                          </div>
+                        ):(
+                          <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8}}>
+                            {slotsForDate.map(slot=>{
+                              const sel = bookForm.time===slot.time
+                              return (
+                                <button key={slot.time} type="button"
+                                  disabled={slot.taken}
+                                  onClick={()=>{
+                                    if(slot.taken) return
+                                    setBookForm(f=>({...f,time:slot.time}))
+                                    // auto-advance after short delay
+                                    setTimeout(()=>setBookStep(3), 220)
+                                  }}
+                                  style={{
+                                    padding:'10px 6px',borderRadius:10,
+                                    border:sel?'2px solid #1a1814':slot.taken?'1.5px solid #f0ece6':'1.5px solid #e4e0d8',
+                                    background:sel?'#1a1814':slot.taken?'#faf8f5':'#fff',
+                                    color:sel?'#fff':slot.taken?'#ccc':'#1a1814',
+                                    cursor:slot.taken?'not-allowed':'pointer',
+                                    fontFamily:'inherit',fontSize:'.82rem',fontWeight:500,
+                                    textDecoration:slot.taken?'line-through':'none',
+                                    transition:'all .15s',position:'relative'
+                                  }}>
+                                  {fmtSlot(slot.time)}
+                                </button>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {!selectedDate&&(
+                      <div style={{textAlign:'center',padding:'2rem 1rem',background:'#faf8f5',borderRadius:12,color:'#b5a898',fontSize:'.85rem',marginBottom:'1.5rem'}}>
+                        ← Select a date to see available times
+                      </div>
+                    )}
+
+                    <button type="button" onClick={()=>setBookStep(1)}
+                      style={{width:'100%',padding:'13px',border:'1.5px solid #e4e0d8',borderRadius:12,fontSize:'.88rem',cursor:'pointer',background:'#fff',fontFamily:'inherit',color:'#7a7774',fontWeight:500}}>
+                      ← Back
+                    </button>
                   </div>
                 )}
 
