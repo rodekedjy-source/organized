@@ -1252,7 +1252,7 @@ function Overview({ workspace, session, ownerData, toast, setPage, refetchWorksp
         {/* FIX 2: only copy link button */}
         <div className="head-actions">
           <button className="btn btn-secondary btn-sm" onClick={()=>{
-            const url=workspace?.slug?`https://beorganized.io/${workspace.slug}`:''
+            const url=workspace?.slug?`https://organized-two.vercel.app/${workspace.slug}`:''
             if(url){navigator.clipboard?.writeText(url);toast('Lien copié !')}
           }}>
             <span style={{width:14,height:14,display:'flex'}}>{I.link}</span>
@@ -1310,7 +1310,7 @@ function Overview({ workspace, session, ownerData, toast, setPage, refetchWorksp
             <div className="empty-icon">{I.cal}</div>
             <div className="empty-title">{t(lang,'day_open')}</div>
             <div className="empty-sub">{t(lang,'share_link')}</div>
-            <button className="btn btn-primary btn-sm" style={{marginTop:'.75rem'}} onClick={()=>{navigator.clipboard?.writeText(`https://beorganized.io/${workspace?.slug||''}`);toast(t(lang,'link_copied'))}}>{t(lang,'copy_booking_link')}</button>
+            <button className="btn btn-primary btn-sm" style={{marginTop:'.75rem'}} onClick={()=>{navigator.clipboard?.writeText(`https://organized-two.vercel.app/${workspace?.slug||''}`);toast(t(lang,'link_copied'))}}>{t(lang,'copy_booking_link')}</button>
           </div>
         ):(
           <div>
@@ -3300,20 +3300,24 @@ export default function Dashboard() {
         </nav>
         <div className="sb-footer">
           {workspace?.slug&&(
-            <div style={{marginBottom:'.65rem',padding:'.75rem .9rem',background:'var(--gold-lt)',border:'1px solid var(--gold-dim)',borderRadius:12,cursor:'pointer'}}
-              onClick={(e)=>{ e.stopPropagation(); window.open(`https://beorganized.io/${workspace.slug}`,'_blank','noopener,noreferrer') }}>
+            <a
+              href={'https://organized-two.vercel.app/'+workspace.slug}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{display:'block',marginBottom:'.65rem',padding:'.75rem .9rem',background:'var(--gold-lt)',border:'1px solid var(--gold-dim)',borderRadius:12,cursor:'pointer',textDecoration:'none'}}
+              onClick={(e)=>e.stopPropagation()}>
               <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:4}}>
                 <div style={{fontSize:'.6rem',fontWeight:700,color:'var(--gold)',textTransform:'uppercase',letterSpacing:'.08em'}}>
                   {subscription?.plan==='pro'?'Pro Plan':subscription?.plan==='studio'?'Studio Plan':subscription?.plan==='starter'?'Starter Plan':'Beta'}
                 </div>
                 <svg viewBox="0 0 12 12" fill="none" stroke="var(--gold)" strokeWidth="1.5" width="10" height="10"><path d="M2 10L10 2M10 2H5M10 2v5"/></svg>
               </div>
-              <div style={{fontSize:'.8rem',color:'var(--ink)',fontWeight:600,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>beorganized.io/{workspace.slug}</div>
+              <div style={{fontSize:'.8rem',color:'var(--ink)',fontWeight:600,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>organized-two.vercel.app/{workspace.slug}</div>
               <div style={{marginTop:6,height:3,background:'rgba(0,0,0,.08)',borderRadius:10,overflow:'hidden'}}>
                 <div style={{height:'100%',width:subscription?.plan?'100%':'35%',background:'linear-gradient(90deg,#a8863d,var(--gold))',borderRadius:10,transition:'width .6s ease'}}/>
               </div>
-              <div style={{fontSize:'.62rem',color:'var(--ink-3)',marginTop:4}}>Ouvre ta page · Clique pour visiter</div>
-            </div>
+              <div style={{fontSize:'.62rem',color:'var(--ink-3)',marginTop:4}}>Your public page — tap to open</div>
+            </a>
           )}
           <button className="sb-signout" onClick={handleSignOut}>{t(lang,'nav_signout')}</button>
         </div>
