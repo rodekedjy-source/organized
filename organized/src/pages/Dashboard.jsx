@@ -8,6 +8,7 @@ const LANG = {
     nav_overview:'Overview',nav_appointments:'Appointments',nav_services:'Services',
     nav_products:'Products',nav_formations:'Formations',nav_clients:'Clients',
     nav_availability:'Availability',nav_settings:'Settings',nav_signout:'Sign out',
+    nav_portfolio:'Portfolio',nav_reviews:'Reviews',
     copy_link:'Copy link',link_copied:'Booking link copied!',
     today_schedule:"Today's schedule",confirmed:'confirmed',
     revenue_week:'Revenue — this week',calendar:'Calendar',tap_date:'Tap a date to view or block',
@@ -62,6 +63,7 @@ const LANG = {
     nav_overview:'Accueil',nav_appointments:'Rendez-vous',nav_services:'Services',
     nav_products:'Produits',nav_formations:'Formations',nav_clients:'Clients',
     nav_availability:'Disponibilités',nav_settings:'Paramètres',nav_signout:'Déconnexion',
+    nav_portfolio:'Portfolio',nav_reviews:'Avis',
     copy_link:'Copier le lien',link_copied:'Lien copié !',
     today_schedule:'Planning du jour',confirmed:'confirmé',
     revenue_week:'Revenus — cette semaine',calendar:'Calendrier',tap_date:'Appuyer sur une date pour voir ou bloquer',
@@ -116,6 +118,7 @@ const LANG = {
     nav_overview:'Inicio',nav_appointments:'Citas',nav_services:'Servicios',
     nav_products:'Productos',nav_formations:'Formaciones',nav_clients:'Clientes',
     nav_availability:'Disponibilidad',nav_settings:'Configuración',nav_signout:'Cerrar sesión',
+    nav_portfolio:'Portfolio',nav_reviews:'Reseñas',
     copy_link:'Copiar enlace',link_copied:'¡Enlace copiado!',
     today_schedule:'Agenda de hoy',confirmed:'confirmada',
     revenue_week:'Ingresos — esta semana',calendar:'Calendario',tap_date:'Toca una fecha para ver o bloquear',
@@ -2624,31 +2627,117 @@ function BookingModal({ service, workspace, onClose }) {
   )
 }
 
-// ── CLIENT PAGE — used both for toggle preview and public page ─────────────────
+// ── SHADER WAVE BACKGROUND ────────────────────────────────────────────────────
+function ShaderWave() {
+  const ref = useRef(null)
+  const raf = useRef(null)
+  useEffect(()=>{
+    const canvas=ref.current; if(!canvas) return
+    const gl=canvas.getContext('webgl')||canvas.getContext('experimental-webgl'); if(!gl) return
+    const vs=`attribute vec2 a;void main(){gl_Position=vec4(a,0,1);}`
+    const fs=`
+      precision mediump float;
+      uniform float t;uniform vec2 r;
+      float h(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+      float n(vec2 p){vec2 i=floor(p),f=fract(p),u=f*f*(3.-2.*f);
+        return mix(mix(h(i),h(i+vec2(1,0)),u.x),mix(h(i+vec2(0,1)),h(i+vec2(1,1)),u.x),u.y);}
+      float fbm(vec2 p){float v=0.,a=.5;mat2 m=mat2(.8,.6,-.6,.8);
+        for(int i=0;i<6;i++){v+=a*n(p);p=m*p*2.+vec2(100.);a*=.5;}return v;}
+      void main(){
+        vec2 uv=gl_FragCoord.xy/r;
+        vec2 q=vec2(fbm(uv+.016*t),fbm(uv+vec2(1.)));
+        vec2 s=vec2(fbm(uv+q+vec2(1.7,9.2)+.11*t),fbm(uv+q+vec2(8.3,2.8)+.09*t));
+        float f=fbm(uv+s);
+        vec3 a=vec3(.82,.72,.58),b=vec3(.62,.50,.36),c=vec3(.38,.30,.20);
+        vec3 col=mix(c,b,clamp(f*f*3.5,0.,1.));
+        col=mix(col,a,clamp(length(q)*.65,0.,1.));
+        col=(f*f*f+.6*f*f+.5*f)*col*1.4;
+        vec2 vig=uv*(1.-uv.yx);col*=pow(clamp(vig.x*vig.y*15.,0.,1.),.12);
+        gl_FragColor=vec4(col,1.);
+      }
+    `
+    function sh(type,src){const s=gl.createShader(type);gl.shaderSource(s,src);gl.compileShader(s);return s}
+    const prog=gl.createProgram()
+    gl.attachShader(prog,sh(gl.VERTEX_SHADER,vs));gl.attachShader(prog,sh(gl.FRAGMENT_SHADER,fs))
+    gl.linkProgram(prog);gl.useProgram(prog)
+    const buf=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buf)
+    gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW)
+    const loc=gl.getAttribLocation(prog,'a');gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,2,gl.FLOAT,false,0,0)
+    const uT=gl.getUniformLocation(prog,'t'),uR=gl.getUniformLocation(prog,'r')
+    function resize(){canvas.width=canvas.offsetWidth;canvas.height=canvas.offsetHeight;gl.viewport(0,0,canvas.width,canvas.height)}
+    resize();window.addEventListener('resize',resize)
+    const t0=performance.now()
+    function draw(){gl.uniform1f(uT,(performance.now()-t0)/1000);gl.uniform2f(uR,canvas.width,canvas.height);gl.drawArrays(gl.TRIANGLE_STRIP,0,4);raf.current=requestAnimationFrame(draw)}
+    draw()
+    return()=>{cancelAnimationFrame(raf.current);window.removeEventListener('resize',resize)}
+  },[])
+  return <canvas ref={ref} style={{position:'absolute',inset:0,width:'100%',height:'100%',display:'block'}}/>
+}
+
+// ── CLIENT PAGE ───────────────────────────────────────────────────────────────
 function ClientPage({ workspace, onSwitchToDash }) {
   const [tab,setTab]=useState('book')
   const [services,setServices]=useState([])
   const [products,setProducts]=useState([])
   const [offerings,setOfferings]=useState([])
+  const [reviews,setReviews]=useState([])
+  const [portfolio,setPortfolio]=useState([])
   const [modal,setModal]=useState(null)
+  const [productPage,setProductPage]=useState(null)
+  const [learnPage,setLearnPage]=useState(null)
+  const [bookForm,setBookForm]=useState({name:'',phone:'',date:'',time:'',notes:''})
+  const [booking,setBooking]=useState(false)
+  const [booked,setBooked]=useState(false)
+  const [faqOpen,setFaqOpen]=useState(null)
+  const [cpToast,setCpToast]=useState('')
+
+  function cpNotify(msg){setCpToast(msg);setTimeout(()=>setCpToast(''),3000)}
+
   useEffect(()=>{
     if(!workspace) return
     Promise.all([
-      supabase.from('services').select('*').eq('workspace_id',workspace.id).eq('is_active',true),
+      supabase.from('services').select('*').eq('workspace_id',workspace.id).eq('is_active',true).order('display_order'),
       supabase.from('products').select('*').eq('workspace_id',workspace.id),
       supabase.from('offerings').select('*').eq('workspace_id',workspace.id),
-    ]).then(([s,p,o])=>{setServices(s.data||[]);setProducts(p.data||[]);setOfferings(o.data||[])})
+      supabase.from('reviews').select('*').eq('workspace_id',workspace.id).eq('is_approved',true).order('created_at',{ascending:false}).limit(9),
+      supabase.from('portfolio_photos').select('*').eq('workspace_id',workspace.id).order('display_order').limit(9),
+    ]).then(([s,p,o,r,ph])=>{setServices(s.data||[]);setProducts(p.data||[]);setOfferings(o.data||[]);setReviews(r.data||[]);setPortfolio(ph.data||[])})
   },[workspace])
+  const G='#c5a96a'
+  const FAQ=[
+    {q:'How do I reschedule or cancel?',a:'Contact the studio directly. Cancellations less than 24 hours before may incur a fee.'},
+    {q:'What should I prepare before arriving?',a:'Arrive with clean, dry hair unless your service requires otherwise. Bring a reference photo if you have one.'},
+    {q:'Are consultations available?',a:'Yes — recommended for first-time clients or complex colour work.'},
+    {q:'What payment methods are accepted?',a:'Cash, debit, and major credit cards. E-transfer may be available — confirm when booking.'},
+    {q:'How far in advance should I book?',a:'Standard services: 1–2 weeks. Colour or bridal: 3–4 weeks minimum.'},
+  ]
+  async function submitBooking(e){
+    e.preventDefault(); if(!modal||!bookForm.date||!bookForm.time) return
+    setBooking(true)
+    await supabase.from('appointments').insert({
+      workspace_id:workspace.id, client_name:bookForm.name, client_phone:bookForm.phone,
+      notes:`Service: ${modal.name}.${bookForm.notes?' '+bookForm.notes:''}`,
+      scheduled_at:new Date(`${bookForm.date}T${bookForm.time}:00`).toISOString(),
+      amount:modal.price, status:'pending',
+    })
+    setBooked(true); setBooking(false)
+  }
   const initial=workspace?.name?.charAt(0)?.toUpperCase()||'?'
-  const clientUrl=workspace?.slug?`https://beorganized.io/${workspace.slug}`:null
   return (
-    <div style={{background:'#faf8f5',minHeight:'100vh'}}>
-      {/* Hero — dark gradient, studio name floats here like the real page */}
-      <div style={{background:'linear-gradient(160deg,#1a1814 0%,#2d2920 100%)',position:'relative'}}>
-        {/* Topbar blended into hero — exactly like real client page */}
-        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'.85rem 1.25rem 0'}}>
-          <div style={{fontFamily:"'Playfair Display',serif",fontSize:'1rem',color:'#fff',fontWeight:500,letterSpacing:'-.01em'}}>
-            {workspace?.name||'Your Studio'}<span style={{color:'var(--gold)'}}>.</span>
+    <div style={{background:'#faf8f5',minHeight:'100vh',fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"}}>
+
+      {/* ═══ HERO — shader wave ══════════════════════════════════════════ */}
+      <div style={{position:'relative',minHeight:440,display:'flex',flexDirection:'column'}}>
+        <ShaderWave/>
+        {/* Overlay for text legibility */}
+        <div style={{position:'absolute',inset:0,pointerEvents:'none',background:'linear-gradient(to bottom,rgba(26,24,20,.5) 0%,rgba(26,24,20,.05) 40%,rgba(26,24,20,.55) 100%)'}}/>
+        {/* Grain */}
+        <div style={{position:'absolute',inset:0,pointerEvents:'none',opacity:.22,backgroundImage:`url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E")`}}/>
+
+        {/* Nav inside hero */}
+        <div style={{position:'relative',zIndex:2,display:'flex',alignItems:'center',justifyContent:'space-between',padding:'.9rem 1.25rem'}}>
+          <div style={{fontFamily:"'Playfair Display',serif",fontSize:'1rem',color:'rgba(255,255,255,.85)',fontWeight:500,letterSpacing:'0.04em'}}>
+            Organized.<span style={{fontWeight:300,fontSize:'.78rem',color:'rgba(255,255,255,.45)',marginLeft:5}}>by {workspace?.name||'Studio'}</span>
           </div>
           <div style={{display:'flex',gap:'.5rem',alignItems:'center'}}>
             {workspace?.instagram&&(
@@ -2669,112 +2758,267 @@ function ClientPage({ workspace, onSwitchToDash }) {
             )}
           </div>
         </div>
-        {/* Hero content */}
-        <div style={{padding:'2rem 1.5rem 2.5rem',textAlign:'center'}}>
-          <div style={{width:72,height:72,borderRadius:'50%',border:'1.5px solid rgba(197,169,106,.5)',background:'rgba(197,169,106,.12)',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:"'Playfair Display',serif",fontSize:'1.6rem',color:'var(--gold)',margin:'0 auto .9rem',fontWeight:500}}>
+        {/* Hero content — centered, left-aligned on mobile */}
+        <div style={{position:'relative',zIndex:2,padding:'2.5rem 1.5rem 3.5rem',flex:1,display:'flex',flexDirection:'column',justifyContent:'flex-end'}}>
+          {/* Avatar */}
+          <div style={{width:64,height:64,borderRadius:'50%',border:'1.5px solid rgba(197,169,106,.5)',background:'rgba(197,169,106,.12)',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:"'Playfair Display',serif",fontSize:'1.5rem',color:G,marginBottom:'1rem',fontWeight:500}}>
             {initial}
           </div>
-          <div style={{fontFamily:"'Playfair Display',serif",fontSize:'1.65rem',color:'#fff',fontWeight:400,marginBottom:'.4rem'}}>{workspace?.name||'Your Studio'}</div>
-          {workspace?.tagline&&<div style={{fontSize:'.85rem',color:'rgba(255,255,255,.5)',lineHeight:1.6,marginBottom:'.25rem'}}>{workspace.tagline}</div>}
-          {workspace?.location&&<div style={{fontSize:'.8rem',color:'rgba(255,255,255,.4)',marginTop:'.2rem'}}>&#128205; {workspace.location}</div>}
-          {(services.length>0||products.length>0||offerings.length>0)&&(
-            <div style={{display:'flex',justifyContent:'center',gap:'2rem',marginTop:'1.5rem',paddingTop:'1.25rem',borderTop:'1px solid rgba(255,255,255,.08)'}}>
-              {[[services.length,'SERVICES'],[products.length,'PRODUCTS'],[offerings.length,'FORMATIONS']].map(([v,l],i)=>(
-                <div key={i} style={{textAlign:'center'}}>
-                  <div style={{fontFamily:"'Playfair Display',serif",fontSize:'1.25rem',color:'#fff',fontWeight:400}}>{v}</div>
-                  <div style={{fontSize:'.6rem',color:'rgba(255,255,255,.35)',textTransform:'uppercase',letterSpacing:'.1em',marginTop:2}}>{l}</div>
-                </div>
-              ))}
-            </div>
-          )}
+          <h1 style={{fontFamily:"'Playfair Display',serif",fontSize:'clamp(2rem,7vw,3.2rem)',fontWeight:500,color:'#fff',lineHeight:1.08,marginBottom:8,textShadow:'0 2px 16px rgba(0,0,0,.3)'}}>
+            {workspace?.name||'Your Studio'}
+          </h1>
+          {workspace?.tagline&&<p style={{fontSize:'.82rem',letterSpacing:'.14em',textTransform:'uppercase',color:'rgba(255,255,255,.5)',marginBottom:20}}>{workspace.tagline}</p>}
+          {(workspace?.bio||workspace?.description)&&<p style={{fontSize:'.9rem',lineHeight:1.75,color:'rgba(255,255,255,.6)',maxWidth:380,marginBottom:24,fontWeight:300}}>{workspace.bio||workspace.description}</p>}
+          {/* Socials */}
+          <div style={{display:'flex',gap:20,alignItems:'center'}}>
+            {workspace?.instagram_url&&<a href={workspace.instagram_url} target="_blank" rel="noopener noreferrer" style={{color:'rgba(255,255,255,.45)',lineHeight:0}}><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg></a>}
+            {workspace?.tiktok_url&&<a href={workspace.tiktok_url} target="_blank" rel="noopener noreferrer" style={{color:'rgba(255,255,255,.45)',lineHeight:0}}><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.27 6.27 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V8.69a8.18 8.18 0 0 0 4.78 1.52V6.75a4.85 4.85 0 0 1-1.01-.06z"/></svg></a>}
+            {workspace?.facebook_url&&<a href={workspace.facebook_url} target="_blank" rel="noopener noreferrer" style={{color:'rgba(255,255,255,.45)',lineHeight:0}}><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg></a>}
+          </div>
         </div>
       </div>
-      {/* Nav tabs */}
-      <div style={{display:'flex',background:'#fff',borderBottom:'1px solid #ece9e4',position:'sticky',top:0,zIndex:10}}>
-        {[['book','Book a service'],['shop','Shop'],['learn','Formations']].map(([k,l])=>(
-          <div key={k} onClick={()=>setTab(k)}
-            style={{flex:1,textAlign:'center',padding:'.85rem .5rem',fontSize:'.82rem',fontWeight:tab===k?700:400,color:tab===k?'#1a1814':'#7a7774',cursor:'pointer',borderBottom:`2px solid ${tab===k?'var(--gold)':'transparent'}`,transition:'all .15s'}}>
+
+      {/* ═══ STICKY TABS ═══════════════════════════════════════════════════ */}
+      <div style={{display:'flex',background:'#fff',borderBottom:'1px solid #ece9e4',position:'sticky',top:0,zIndex:20,boxShadow:'0 1px 12px rgba(0,0,0,.06)'}}>
+        {[['book','Booking'],['shop','Shop'],['learn','Learn']].map(([k,l])=>(
+          <button key={k} onClick={()=>{setTab(k);setProductPage(null);setLearnPage(null)}}
+            style={{flex:1,textAlign:'center',padding:'.85rem .5rem',fontSize:'.78rem',fontWeight:600,letterSpacing:'.08em',textTransform:'uppercase',color:tab===k?'#1a1814':'#9a9490',cursor:'pointer',border:'none',background:'none',borderBottom:`2px solid ${tab===k?G:'transparent'}`,transition:'all .15s',fontFamily:'inherit'}}>
             {l}
-          </div>
+          </button>
         ))}
       </div>
-      {/* Body */}
-      <div style={{padding:'1.5rem 1.25rem',minHeight:300}}>
+
+      {/* ═══ CONTENT ════════════════════════════════════════════════════════ */}
+      <div style={{padding:'1.75rem 1.25rem 5rem',minHeight:300}}>
+
+        {/* ── BOOKING TAB ─────────────────────────────────────────────── */}
         {tab==='book'&&(
-          <>
-            <div style={{fontFamily:"'Playfair Display',serif",fontSize:'1.15rem',color:'#1a1814',marginBottom:'1rem'}}>Services</div>
-            {services.length===0
-              ?<div style={{color:'#7a7774',fontSize:'.85rem'}}>No services added yet.</div>
-              :<div style={{display:'flex',flexDirection:'column',gap:'.65rem'}}>
-                {services.map((s,i)=>(
-                  <div key={i} onClick={()=>setModal(s)}
-                    style={{display:'flex',alignItems:'center',gap:'1rem',background:'#fff',border:'1px solid #ece9e4',borderRadius:14,padding:'1rem 1.1rem',cursor:'pointer',transition:'box-shadow .15s'}}
-                    onMouseEnter={e=>e.currentTarget.style.boxShadow='0 4px 16px rgba(0,0,0,.08)'}
-                    onMouseLeave={e=>e.currentTarget.style.boxShadow='none'}>
-                    <div style={{width:3,height:36,background:'linear-gradient(to bottom,var(--gold),rgba(197,169,106,.35))',borderRadius:2,flexShrink:0}}/>
-                    <div style={{flex:1}}>
-                      <div style={{fontWeight:600,fontSize:'.9rem',color:'#1a1814'}}>{s.name}</div>
-                      {s.duration_min&&<div style={{fontSize:'.72rem',color:'#7a7774',marginTop:2}}>{s.duration_min} min</div>}
+          <div style={{display:'flex',flexDirection:'column',gap:'2.5rem'}}>
+
+            {/* Portfolio */}
+            {portfolio.length>0&&(
+              <section>
+                <div style={{fontSize:'.68rem',letterSpacing:'.16em',textTransform:'uppercase',color:G,marginBottom:10}}>Portfolio</div>
+                <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:6}}>
+                  {portfolio.map((ph,i)=>(
+                    <div key={ph.id||i} style={{aspectRatio:'1',borderRadius:8,overflow:'hidden',background:'#f0ece4'}}>
+                      <img src={ph.url} alt="" style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>
                     </div>
-                    <div style={{fontFamily:"'Playfair Display',serif",fontSize:'1rem',color:'#1a1814',flexShrink:0}}>{fmtFree(s.price)}</div>
-                    <button style={{background:'#1a1814',color:'#fff',border:'none',borderRadius:9,padding:'.45rem .95rem',fontSize:'.78rem',fontWeight:600,cursor:'pointer',fontFamily:'inherit',flexShrink:0}}>Book</button>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* Services */}
+            <section>
+              <div style={{fontSize:'.68rem',letterSpacing:'.16em',textTransform:'uppercase',color:G,marginBottom:10}}>What We Offer</div>
+              <div style={{fontFamily:"'Playfair Display',serif",fontSize:'1.3rem',color:'#1a1814',marginBottom:'1rem'}}>Services</div>
+              {services.length===0
+                ?<p style={{color:'#9a9490',fontSize:'.85rem'}}>No services listed yet.</p>
+                :<div style={{display:'flex',flexDirection:'column',gap:'.65rem'}}>
+                  {services.map((s,i)=>(
+                    <div key={i} onClick={()=>{setModal(s);setBooked(false);setBookForm({name:'',phone:'',date:'',time:'',notes:''})}}
+                      style={{display:'flex',alignItems:'center',gap:'1rem',background:'#fff',border:'1px solid #ece9e4',borderRadius:14,padding:'1rem 1.1rem',cursor:'pointer',transition:'box-shadow .15s'}}
+                      onMouseEnter={e=>e.currentTarget.style.boxShadow='0 4px 16px rgba(0,0,0,.08)'}
+                      onMouseLeave={e=>e.currentTarget.style.boxShadow='none'}>
+                      <div style={{width:3,height:36,background:`linear-gradient(to bottom,${G},rgba(197,169,106,.3))`,borderRadius:2,flexShrink:0}}/>
+                      <div style={{flex:1}}>
+                        <div style={{fontWeight:600,fontSize:'.9rem',color:'#1a1814'}}>{s.name}</div>
+                        {s.duration_min&&<div style={{fontSize:'.72rem',color:'#9a9490',marginTop:2}}>{s.duration_min} min</div>}
+                      </div>
+                      <div style={{fontFamily:"'Playfair Display',serif",fontSize:'1rem',color:'#1a1814',flexShrink:0}}>{fmtFree(s.price)}</div>
+                      <button style={{background:'#1a1814',color:'#fff',border:'none',borderRadius:9,padding:'.45rem .95rem',fontSize:'.78rem',fontWeight:600,cursor:'pointer',fontFamily:'inherit',flexShrink:0}}>Book</button>
+                    </div>
+                  ))}
+                </div>
+              }
+            </section>
+
+            {/* Reviews */}
+            <section>
+              <div style={{fontSize:'.68rem',letterSpacing:'.16em',textTransform:'uppercase',color:G,marginBottom:10}}>Client Love</div>
+              <div style={{fontFamily:"'Playfair Display',serif",fontSize:'1.3rem',color:'#1a1814',marginBottom:'1rem'}}>What they <em style={{fontStyle:'italic',color:G}}>say</em></div>
+              {reviews.length===0
+                ?<div style={{padding:'2rem',border:'1px solid #ece9e4',borderRadius:14,textAlign:'center',color:'#9a9490',fontSize:'.82rem',lineHeight:1.8}}>
+                    Reviews appear here after clients complete their appointments.
+                  </div>
+                :<div style={{display:'flex',flexDirection:'column',gap:'.75rem'}}>
+                  {reviews.map((rv,i)=>(
+                    <div key={rv.id||i} style={{background:'#fff',border:'1px solid #ece9e4',borderRadius:14,padding:'1.25rem'}}>
+                      <div style={{fontFamily:"'Playfair Display',serif",fontSize:'2rem',color:'rgba(197,169,106,.25)',lineHeight:1,marginBottom:8}}>&ldquo;</div>
+                      <p style={{fontSize:'.85rem',lineHeight:1.75,color:'#3d3a35',marginBottom:14}}>{rv.body||rv.text||rv.comment}</p>
+                      <div style={{display:'flex',alignItems:'center',gap:8}}>
+                        <div style={{width:30,height:30,borderRadius:'50%',background:`rgba(197,169,106,.12)`,border:`1px solid rgba(197,169,106,.3)`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,color:G,fontWeight:600}}>
+                          {(rv.client_name||rv.reviewer_name||'?')[0].toUpperCase()}
+                        </div>
+                        <div>
+                          <div style={{fontSize:'.78rem',fontWeight:600,color:'#1a1814'}}>{rv.client_name||rv.reviewer_name}</div>
+                          <div style={{fontSize:10,color:G,letterSpacing:1}}>{'★'.repeat(rv.rating||5)}</div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              }
+            </section>
+
+            {/* FAQ */}
+            <section>
+              <div style={{fontSize:'.68rem',letterSpacing:'.16em',textTransform:'uppercase',color:G,marginBottom:10}}>Good to Know</div>
+              <div style={{fontFamily:"'Playfair Display',serif",fontSize:'1.3rem',color:'#1a1814',marginBottom:'1rem'}}>FAQ</div>
+              <div style={{borderTop:'1px solid #ece9e4'}}>
+                {FAQ.map((item,i)=>(
+                  <div key={i} style={{borderBottom:'1px solid #ece9e4'}} onClick={()=>setFaqOpen(faqOpen===i?null:i)}>
+                    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'1rem 4px',cursor:'pointer',gap:12}}>
+                      <div style={{fontSize:'.88rem',fontWeight:500,color:'#1a1814',lineHeight:1.4}}>{item.q}</div>
+                      <div style={{fontSize:'1.25rem',color:G,flexShrink:0,fontWeight:300,transform:faqOpen===i?'rotate(45deg)':'none',transition:'transform .2s'}}>+</div>
+                    </div>
+                    {faqOpen===i&&<div style={{paddingBottom:'1rem',paddingRight:'1.5rem',fontSize:'.82rem',lineHeight:1.8,color:'#7a7774'}}>{item.a}</div>}
                   </div>
                 ))}
               </div>
-            }
-          </>
+            </section>
+          </div>
         )}
+
+        {/* ── SHOP TAB ────────────────────────────────────────────────── */}
         {tab==='shop'&&(
           <>
-            <div style={{fontFamily:"'Playfair Display',serif",fontSize:'1.15rem',color:'#1a1814',marginBottom:'1rem'}}>Products</div>
-            {products.length===0
-              ?<div style={{color:'#7a7774',fontSize:'.85rem'}}>No products added yet.</div>
-              :<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'.75rem'}}>
-                {products.map(p=>(
-                  <div key={p.id} style={{background:'#fff',border:'1px solid #ece9e4',borderRadius:12,overflow:'hidden'}}>
-                    <div style={{height:120,background:'#f0ece4',display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden'}}>
-                      {(p.images||[])[0]?<img src={p.images[0]} alt={p.name} style={{width:'100%',height:'100%',objectFit:'cover'}}/>
-                        :<span style={{fontSize:'.65rem',color:'#c8c2b8',fontWeight:600,letterSpacing:'.05em'}}>PRODUCT</span>}
-                    </div>
-                    <div style={{padding:'.85rem'}}>
-                      <div style={{fontWeight:600,fontSize:'.85rem',color:'#1a1814',marginBottom:'.3rem'}}>{p.name}</div>
-                      <div style={{fontFamily:"'Playfair Display',serif",fontSize:'.9rem',color:'#1a1814',marginBottom:'.65rem'}}>{fmtRev(p.price)}</div>
-                      <button style={{width:'100%',background:'#1a1814',color:'#fff',border:'none',borderRadius:8,padding:'.45rem',fontSize:'.78rem',fontWeight:600,cursor:'pointer',fontFamily:'inherit'}}>Add to cart</button>
-                    </div>
-                  </div>
-                ))}
+            {productPage ? (
+              <div>
+                <button onClick={()=>setProductPage(null)} style={{display:'flex',alignItems:'center',gap:6,background:'none',border:'none',color:'#9a9490',fontSize:'.75rem',letterSpacing:'.1em',textTransform:'uppercase',cursor:'pointer',fontFamily:'inherit',marginBottom:24,padding:0}}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+                  Back to Shop
+                </button>
+                {productPage.image_url
+                  ?<img src={productPage.image_url} alt={productPage.name} style={{width:'100%',aspectRatio:'1.2',objectFit:'cover',borderRadius:14,display:'block',marginBottom:20}}/>
+                  :<div style={{width:'100%',aspectRatio:'1.2',background:'#f0ece4',borderRadius:14,marginBottom:20,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'.75rem',color:'#c8c2b8',letterSpacing:'.08em',textTransform:'uppercase'}}>No photo</div>
+                }
+                <div style={{fontFamily:"'Playfair Display',serif",fontSize:'1.6rem',fontWeight:500,marginBottom:6,color:'#1a1814'}}>{productPage.name}</div>
+                <div style={{fontFamily:"'Playfair Display',serif",fontSize:'1.4rem',color:G,marginBottom:16}}>${productPage.price}</div>
+                {productPage.description&&<p style={{fontSize:'.88rem',lineHeight:1.8,color:'#5a5650',marginBottom:24}}>{productPage.description}</p>}
+                <button onClick={()=>cpNotify('Contact the studio to order this product.')} style={{width:'100%',background:'#1a1814',color:'#fff',border:'none',borderRadius:12,padding:'1rem',fontSize:'.88rem',fontWeight:600,cursor:'pointer',fontFamily:'inherit',letterSpacing:'.04em'}}>Enquire to Order</button>
               </div>
-            }
+            ) : (
+              <>
+                <div style={{fontFamily:"'Playfair Display',serif",fontSize:'1.3rem',color:'#1a1814',marginBottom:'1.25rem'}}>Products</div>
+                {products.length===0
+                  ?<p style={{color:'#9a9490',fontSize:'.85rem'}}>No products listed yet.</p>
+                  :<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+                    {products.map(p=>(
+                      <div key={p.id} onClick={()=>setProductPage(p)} style={{background:'#fff',border:'1px solid #ece9e4',borderRadius:12,overflow:'hidden',cursor:'pointer'}}>
+                        <div style={{aspectRatio:'1',background:'#f0ece4',display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden'}}>
+                          {p.image_url?<img src={p.image_url} alt={p.name} style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+                            :<span style={{fontSize:'.6rem',color:'#c8c2b8',letterSpacing:'.06em',textTransform:'uppercase'}}>No photo</span>}
+                        </div>
+                        <div style={{padding:'.85rem'}}>
+                          <div style={{fontWeight:600,fontSize:'.85rem',color:'#1a1814',marginBottom:4}}>{p.name}</div>
+                          {p.description&&<div style={{fontSize:'.72rem',color:'#9a9490',lineHeight:1.5,marginBottom:6}}>{p.description.slice(0,50)}{p.description.length>50?'…':''}</div>}
+                          <div style={{fontFamily:"'Playfair Display',serif",fontSize:'1rem',color:'#1a1814'}}>${p.price}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                }
+              </>
+            )}
           </>
         )}
+
+        {/* ── LEARN TAB ───────────────────────────────────────────────── */}
         {tab==='learn'&&(
           <>
-            <div style={{fontFamily:"'Playfair Display',serif",fontSize:'1.15rem',color:'#1a1814',marginBottom:'1rem'}}>Formations</div>
-            {offerings.length===0
-              ?<div style={{color:'#7a7774',fontSize:'.85rem'}}>No formations added yet.</div>
-              :offerings.map((f,i)=>(
-                <div key={f.id} style={{display:'flex',alignItems:'center',gap:'1rem',background:'#fff',border:'1px solid #ece9e4',borderRadius:14,padding:'1rem 1.1rem',marginBottom:'.65rem'}}>
-                  <div style={{fontFamily:"'Playfair Display',serif",fontSize:'1.2rem',color:'#c8c2b8',width:28,flexShrink:0}}>0{i+1}</div>
-                  <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontWeight:600,fontSize:'.88rem',color:'#1a1814',marginBottom:'.2rem'}}>{f.title}</div>
-                    {f.description&&<div style={{fontSize:'.75rem',color:'#7a7774',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{f.description}</div>}
-                    {f.duration_label&&<div style={{marginTop:'.35rem',display:'inline-flex',background:'#f5f3ef',border:'1px solid #e8e4de',borderRadius:20,padding:'.15rem .6rem',fontSize:'.68rem',color:'#7a7774'}}>{f.duration_label}</div>}
-                  </div>
-                  <div style={{fontFamily:"'Playfair Display',serif",fontSize:'.95rem',color:'#1a1814',flexShrink:0}}>{fmtRev(f.price)}</div>
+            {learnPage ? (
+              <div>
+                <button onClick={()=>setLearnPage(null)} style={{display:'flex',alignItems:'center',gap:6,background:'none',border:'none',color:'#9a9490',fontSize:'.75rem',letterSpacing:'.1em',textTransform:'uppercase',cursor:'pointer',fontFamily:'inherit',marginBottom:24,padding:0}}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+                  Back to Learn
+                </button>
+                {learnPage.image_url
+                  ?<img src={learnPage.image_url} alt={learnPage.name||learnPage.title} style={{width:'100%',aspectRatio:'1.75',objectFit:'cover',borderRadius:14,display:'block',marginBottom:20}}/>
+                  :<div style={{width:'100%',aspectRatio:'1.75',background:'#f0ece4',borderRadius:14,marginBottom:20,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'.75rem',color:'#c8c2b8',letterSpacing:'.08em',textTransform:'uppercase'}}>No photo</div>
+                }
+                <div style={{fontFamily:"'Playfair Display',serif",fontSize:'1.6rem',fontWeight:500,marginBottom:6,color:'#1a1814'}}>{learnPage.name||learnPage.title}</div>
+                <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:16}}>
+                  {learnPage.price>0&&<div style={{fontFamily:"'Playfair Display',serif",fontSize:'1.4rem',color:G}}>${learnPage.price}</div>}
+                  {(learnPage.duration||learnPage.duration_min)&&<div style={{fontSize:'.78rem',color:'#9a9490'}}>{learnPage.duration||`${learnPage.duration_min} min`}</div>}
                 </div>
-              ))
-            }
+                {learnPage.description&&<p style={{fontSize:'.88rem',lineHeight:1.8,color:'#5a5650',marginBottom:24}}>{learnPage.description}</p>}
+                <button onClick={()=>cpNotify('Contact the studio to enroll in this formation.')} style={{width:'100%',background:'#1a1814',color:'#fff',border:'none',borderRadius:12,padding:'1rem',fontSize:'.88rem',fontWeight:600,cursor:'pointer',fontFamily:'inherit',letterSpacing:'.04em'}}>Enquire to Enroll</button>
+              </div>
+            ) : (
+              <>
+                <div style={{fontFamily:"'Playfair Display',serif",fontSize:'1.3rem',color:'#1a1814',marginBottom:'1.25rem'}}>Formations</div>
+                {offerings.length===0
+                  ?<p style={{color:'#9a9490',fontSize:'.85rem'}}>No formations available yet.</p>
+                  :<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+                    {offerings.map(o=>(
+                      <div key={o.id} onClick={()=>setLearnPage(o)} style={{background:'#fff',border:'1px solid #ece9e4',borderRadius:12,overflow:'hidden',cursor:'pointer'}}>
+                        <div style={{aspectRatio:'1.4',background:'#f0ece4',display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden'}}>
+                          {o.image_url?<img src={o.image_url} alt={o.name||o.title} style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+                            :<span style={{fontSize:'.6rem',color:'#c8c2b8',letterSpacing:'.06em',textTransform:'uppercase'}}>No photo</span>}
+                        </div>
+                        <div style={{padding:'.85rem'}}>
+                          <div style={{fontWeight:600,fontSize:'.85rem',color:'#1a1814',marginBottom:4}}>{o.name||o.title}</div>
+                          {o.description&&<div style={{fontSize:'.72rem',color:'#9a9490',lineHeight:1.5,marginBottom:6}}>{o.description.slice(0,50)}{o.description.length>50?'…':''}</div>}
+                          <div style={{display:'flex',gap:8,alignItems:'center'}}>
+                            {o.price>0&&<div style={{fontFamily:"'Playfair Display',serif",fontSize:'1rem',color:'#1a1814'}}>${o.price}</div>}
+                            {(o.duration||o.duration_min)&&<div style={{fontSize:'.72rem',color:'#9a9490'}}>{o.duration||`${o.duration_min} min`}</div>}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                }
+              </>
+            )}
           </>
         )}
       </div>
-      {/* Footer */}
-      <div style={{textAlign:'center',padding:'2rem 1.25rem',fontSize:'.75rem',color:'#b0aba4',background:'#1a1814',marginTop:'2rem'}}>
-        <p>Powered by <strong style={{color:'var(--gold)'}}>Organized.</strong> — beorganized.io</p>
+
+      {/* ═══ FOOTER ═══════════════════════════════════════════════════════ */}
+      <div style={{textAlign:'center',padding:'2rem 1.25rem',fontSize:'.72rem',color:'#b0aba4',background:'#1a1814'}}>
+        Powered by <strong style={{color:G}}>Organized.</strong> — beorganized.io
       </div>
-      {/* Booking modal — creates real pending appointment in Supabase */}
+
+      {/* ═══ BOOKING MODAL ════════════════════════════════════════════════ */}
       {modal&&(
-        <BookingModal service={modal} workspace={workspace} onClose={()=>setModal(null)}/>
+        <div style={{position:'fixed',inset:0,background:'rgba(26,24,20,.55)',backdropFilter:'blur(4px)',zIndex:100,display:'flex',alignItems:'flex-end',justifyContent:'center'}} onClick={()=>setModal(null)}>
+          <div style={{background:'#fff',width:'100%',maxWidth:520,borderRadius:'18px 18px 0 0',padding:'2rem 1.75rem',maxHeight:'92vh',overflowY:'auto'}} onClick={e=>e.stopPropagation()}>
+            <div style={{width:32,height:4,borderRadius:2,background:'#e0dbd4',margin:'-0.5rem auto 1.5rem'}}/>
+            {booked?(
+              <div style={{textAlign:'center',padding:'1.5rem 0 1rem'}}>
+                <div style={{width:52,height:52,borderRadius:'50%',background:'#f0faf5',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 1.25rem'}}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2e7d52" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                </div>
+                <div style={{fontFamily:"'Playfair Display',serif",fontSize:'1.4rem',marginBottom:6}}>Request sent</div>
+                <div style={{fontSize:'.82rem',color:'#7a7774',lineHeight:1.7,maxWidth:260,margin:'0 auto'}}>Your request for <strong>{modal.name}</strong> has been sent. The studio will confirm shortly.</div>
+                <button onClick={()=>setModal(null)} style={{marginTop:24,background:'#1a1814',color:'#fff',border:'none',borderRadius:10,padding:'12px 28px',fontSize:'.85rem',fontWeight:600,cursor:'pointer',fontFamily:'inherit'}}>Done</button>
+              </div>
+            ):(
+              <form onSubmit={submitBooking}>
+                <div style={{fontFamily:"'Playfair Display',serif",fontSize:'1.35rem',marginBottom:4,color:'#1a1814'}}>{modal.name}</div>
+                <div style={{fontSize:'.78rem',color:'#9a9490',marginBottom:20,display:'flex',gap:10}}>
+                  {modal.duration_min&&<span>{modal.duration_min} min</span>}
+                  {modal.price>0&&<span>— ${modal.price}</span>}
+                </div>
+                {[['name','Full name','text',true],['phone','Phone','tel',false],['date','Preferred date','date',true],['time','Preferred time','time',true],['notes','Notes (optional)','text',false]].map(([k,l,t,req])=>(
+                  <div key={k} style={{marginBottom:12}}>
+                    <label style={{display:'block',fontSize:'.7rem',letterSpacing:'.12em',textTransform:'uppercase',color:'#9a9490',marginBottom:5}}>{l}</label>
+                    <input type={t} value={bookForm[k]} onChange={e=>setBookForm(f=>({...f,[k]:e.target.value}))} required={req}
+                      style={{width:'100%',border:'1px solid #e4e0d8',borderRadius:8,padding:'11px 14px',fontSize:'1rem',fontFamily:'inherit',color:'#1a1814',outline:'none',background:'#fdfcfa',boxSizing:'border-box'}}/>
+                  </div>
+                ))}
+                <div style={{display:'flex',gap:8,justifyContent:'flex-end',marginTop:16}}>
+                  <button type="button" onClick={()=>setModal(null)} style={{padding:'11px 18px',border:'1px solid #d8d4cc',borderRadius:8,fontSize:'.82rem',cursor:'pointer',background:'#fff',fontFamily:'inherit',color:'#7a7774'}}>Cancel</button>
+                  <button type="submit" disabled={booking} style={{background:'#1a1814',color:'#fff',border:'none',borderRadius:8,padding:'11px 22px',fontSize:'.82rem',fontWeight:600,cursor:'pointer',fontFamily:'inherit',opacity:booking?.6:1}}>{booking?'Sending…':'Send request →'}</button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
       )}
+      {cpToast&&<div style={{position:'fixed',bottom:24,right:20,background:'#1a1814',color:'#fff',padding:'11px 18px',borderRadius:8,fontSize:'.82rem',zIndex:200,borderLeft:`2px solid ${G}`,boxShadow:'0 4px 20px rgba(0,0,0,.25)',maxWidth:'calc(100vw - 2.5rem)'}}>{cpToast}</div>}
     </div>
   )
 }
@@ -2793,6 +3037,7 @@ export default function Dashboard() {
   const [theme,setThemeState]=useState(()=>localStorage.getItem('org-theme')||'light')
   const [subscription,setSubscription]=useState(null)
   const [lang,setLang]=useState('en')
+  const [pendingReviews,setPendingReviews]=useState(0)
   const [avatarExpanded,setAvatarExpanded]=useState(false)
   const [avatarUploading,setAvatarUploading]=useState(false)
   const navigate = useNavigate()
@@ -2828,6 +3073,11 @@ export default function Dashboard() {
       setSubscription(sub)
     }
     setLoading(false)
+    // Pending reviews badge
+    if(ws?.id){
+      supabase.from('reviews').select('id',{count:'exact'}).eq('workspace_id',ws.id).eq('is_approved',false)
+        .then(({count})=>setPendingReviews(count||0))
+    }
   }
 
   function setTheme(t){
@@ -2860,6 +3110,8 @@ export default function Dashboard() {
     {key:'products',label:'nav_products',icon:I.box},
     {key:'formations',label:'nav_formations',icon:I.grad},
     {key:'clients',label:'nav_clients',icon:I.users},
+    {key:'portfolio',label:'nav_portfolio',icon:I.box},
+    {key:'reviews',label:'nav_reviews',icon:I.home},
     {key:'availability',label:'nav_availability',icon:I.avail},
     {key:'settings',label:'nav_settings',icon:I.gear},
   ]
@@ -2891,6 +3143,8 @@ export default function Dashboard() {
       case 'products':     return <Products {...props}/>
       case 'formations':   return <Formations {...props}/>
       case 'clients':      return <Clients {...props}/>
+      case 'portfolio':    return <Portfolio {...props}/>
+      case 'reviews':      return <Reviews {...props}/>
       case 'availability': return <Availability {...props}/>
       case 'settings':     return <Settings {...props}/>
       default:             return <Overview {...props}/>
@@ -3032,9 +3286,15 @@ export default function Dashboard() {
         </div>
         <nav className="sb-nav">
           {NAV.map(n=>(
-            <div key={n.key} className={`sb-item${page===n.key?' sb-active':''}`} onClick={()=>{navigateTo(n.key)}}>
-              <span className="sb-icon">{n.icon}</span>
-              <span>{t(lang,n.label)}</span>
+            <div key={n.key} className={`sb-item${page===n.key?' sb-active':''}`} onClick={()=>{navigateTo(n.key)}}
+              style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+              <div style={{display:'flex',alignItems:'center',gap:'.9rem'}}>
+                <span className="sb-icon">{n.icon}</span>
+                <span>{t(lang,n.label)}</span>
+              </div>
+              {n.key==='reviews'&&pendingReviews>0&&(
+                <span style={{background:'#f59e0b',color:'#fff',borderRadius:100,padding:'1px 7px',fontSize:'.65rem',fontWeight:700,flexShrink:0}}>{pendingReviews}</span>
+              )}
             </div>
           ))}
         </nav>
@@ -3075,6 +3335,125 @@ export default function Dashboard() {
 }
 
 // ── CSS ───────────────────────────────────────────────────────────────────────
+// ── PORTFOLIO ──────────────────────────────────────────────────────────────────
+function Portfolio({ workspace, toast }) {
+  const [photos,setPhotos]=useState([])
+  const [uploading,setUploading]=useState(false)
+  useEffect(()=>{ if(workspace) load() },[workspace])
+  async function load(){
+    const{data}=await supabase.from('portfolio_photos').select('*').eq('workspace_id',workspace.id).order('display_order')
+    setPhotos(data||[])
+  }
+  async function handleUpload(e){
+    const files=Array.from(e.target.files); if(!files.length) return
+    setUploading(true)
+    for(const file of files){
+      const ext=file.name.split('.').pop()
+      const path=`${workspace.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+      const{error}=await supabase.storage.from('portfolio').upload(path,file,{contentType:file.type})
+      if(error){toast('Upload failed'); continue}
+      const{data:u}=supabase.storage.from('portfolio').getPublicUrl(path)
+      await supabase.from('portfolio_photos').insert({workspace_id:workspace.id,url:u.publicUrl,display_order:photos.length})
+    }
+    toast(`${files.length} photo${files.length>1?'s':''} uploaded.`)
+    setUploading(false); load()
+  }
+  async function remove(ph){
+    const marker='/object/public/portfolio/'
+    const path=ph.url.includes(marker)?ph.url.split(marker)[1]:null
+    if(path) await supabase.storage.from('portfolio').remove([path])
+    await supabase.from('portfolio_photos').delete().eq('id',ph.id)
+    toast('Photo removed.'); load()
+  }
+  return(
+    <div>
+      <div className="page-head">
+        <div><div className="page-title">Portfolio</div><div className="page-sub">Photos shown on your public client page</div></div>
+        <label style={{background:'var(--gold)',color:'var(--ink)',border:'none',borderRadius:10,padding:'.5rem 1rem',fontSize:'.82rem',fontWeight:600,cursor:'pointer',opacity:uploading?.6:1}}>
+          {uploading?'Uploading…':'+ Upload photos'}
+          <input type="file" accept="image/*" multiple style={{display:'none'}} onChange={handleUpload} disabled={uploading}/>
+        </label>
+      </div>
+      {photos.length===0
+        ?<div className="card" style={{textAlign:'center',padding:'3rem'}}><div style={{fontSize:'.85rem',color:'var(--ink-3)'}}>No photos yet. Upload some to showcase your work.</div></div>
+        :<div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(140px,1fr))',gap:10}}>
+          {photos.map(ph=>(
+            <div key={ph.id} style={{position:'relative',borderRadius:10,overflow:'hidden',aspectRatio:'1',background:'var(--bg)'}}>
+              <img src={ph.url} alt="" style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>
+              <button onClick={()=>remove(ph)} style={{position:'absolute',top:6,right:6,width:26,height:26,borderRadius:'50%',background:'rgba(0,0,0,.55)',color:'#fff',border:'none',cursor:'pointer',fontSize:14,display:'flex',alignItems:'center',justifyContent:'center'}}>×</button>
+            </div>
+          ))}
+        </div>
+      }
+    </div>
+  )
+}
+
+// ── REVIEWS ────────────────────────────────────────────────────────────────────
+function Reviews({ workspace, toast }) {
+  const [reviews,setReviews]=useState([])
+  const [filter,setFilter]=useState('pending')
+  const [loading,setLoading]=useState(true)
+  useEffect(()=>{ if(workspace) load() },[workspace])
+  async function load(){
+    const{data}=await supabase.from('reviews').select('*').eq('workspace_id',workspace.id).order('created_at',{ascending:false})
+    setReviews(data||[]); setLoading(false)
+  }
+  async function approve(id){
+    await supabase.from('reviews').update({is_approved:true}).eq('id',id)
+    toast('Review approved — now visible on your client page.'); load()
+  }
+  async function reject(id){
+    await supabase.from('reviews').delete().eq('id',id)
+    toast('Review removed.'); load()
+  }
+  const pending=reviews.filter(r=>!r.is_approved).length
+  const filtered=reviews.filter(r=>filter==='all'?true:filter==='pending'?!r.is_approved:r.is_approved)
+  return(
+    <div>
+      <div className="page-head">
+        <div>
+          <div className="page-title">Reviews {pending>0&&<span style={{background:'#f59e0b',color:'#fff',borderRadius:100,padding:'1px 8px',fontSize:'.7rem',fontWeight:700,marginLeft:8,verticalAlign:'middle'}}>{pending}</span>}</div>
+          <div className="page-sub">Approve reviews before they appear on your client page</div>
+        </div>
+      </div>
+      <div style={{display:'flex',gap:6,marginBottom:'1rem'}}>
+        {[['pending',`Pending${pending>0?` (${pending})`:''}'],['approved','Approved'],['all','All']].map(([k,l])=>(
+          <button key={k} onClick={()=>setFilter(k)}
+            style={{padding:'.4rem .9rem',borderRadius:8,border:`1px solid ${filter===k?'var(--gold)':'var(--border-2)'}`,background:filter===k?'var(--gold-lt)':'transparent',color:filter===k?'var(--ink)':'var(--ink-3)',fontSize:'.78rem',fontWeight:filter===k?600:400,cursor:'pointer',fontFamily:'inherit'}}>
+            {l}
+          </button>
+        ))}
+      </div>
+      {loading?<div style={{padding:'2rem',color:'var(--ink-3)',fontSize:'.85rem'}}>Loading…</div>
+        :filtered.length===0?<div className="card" style={{textAlign:'center',padding:'3rem'}}><div style={{fontSize:'.85rem',color:'var(--ink-3)'}}>{filter==='pending'?'No pending reviews.':'No reviews yet.'}</div></div>
+        :<div style={{display:'flex',flexDirection:'column',gap:'.75rem'}}>
+          {filtered.map(rv=>(
+            <div key={rv.id} className="card" style={{padding:'1.25rem'}}>
+              <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:'1rem'}}>
+                <div style={{flex:1}}>
+                  <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:6,flexWrap:'wrap'}}>
+                    <div style={{fontWeight:600,fontSize:'.88rem'}}>{rv.client_name||rv.reviewer_name||'Anonymous'}</div>
+                    <span style={{fontSize:11,color:'var(--gold)',letterSpacing:1}}>{'★'.repeat(rv.rating||5)}</span>
+                    {rv.service_name&&<span style={{fontSize:'.7rem',color:'var(--ink-3)',background:'var(--bg)',borderRadius:4,padding:'2px 7px'}}>{rv.service_name}</span>}
+                    <span style={{fontSize:'.7rem',fontWeight:600,color:rv.is_approved?'#15803d':'#92400e',background:rv.is_approved?'#f0fdf4':'#fffbeb',borderRadius:4,padding:'2px 7px'}}>{rv.is_approved?'Published':'Pending'}</span>
+                  </div>
+                  <p style={{fontSize:'.83rem',color:'var(--ink-2)',lineHeight:1.7,margin:0}}>{rv.body||'—'}</p>
+                  <div style={{fontSize:'.72rem',color:'var(--ink-3)',marginTop:6}}>{new Date(rv.created_at).toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'})}</div>
+                </div>
+                <div style={{display:'flex',flexDirection:'column',gap:6,flexShrink:0}}>
+                  {!rv.is_approved&&<button onClick={()=>approve(rv.id)} style={{padding:'.4rem .9rem',background:'var(--gold)',border:'none',borderRadius:8,fontSize:'.78rem',fontWeight:600,cursor:'pointer',fontFamily:'inherit',color:'var(--ink)'}}>Approve</button>}
+                  <button onClick={()=>reject(rv.id)} style={{padding:'.4rem .9rem',background:'none',border:'1px solid #fca5a5',borderRadius:8,fontSize:'.78rem',cursor:'pointer',fontFamily:'inherit',color:'#c0392b'}}>Delete</button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      }
+    </div>
+  )
+}
+
 const css = `
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600&display=swap');
 
