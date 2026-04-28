@@ -1,11 +1,11 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { supabase } from './lib/supabase'
-import Landing            from './pages/Landing'
-import Auth               from './pages/Auth'
-import Dashboard          from './pages/Dashboard'
-import ClientBooking      from './pages/ClientBooking'
-import CancelAppointment  from './pages/CancelAppointment'
+import Landing           from './pages/Landing'
+import Auth              from './pages/Auth'
+import Dashboard         from './pages/Dashboard'
+import ClientPage        from './pages/ClientPage'
+import CancelAppointment from './pages/CancelAppointment'
 
 export default function App() {
   const [session, setSession] = useState(null)
@@ -13,37 +13,20 @@ export default function App() {
 
   useEffect(() => {
     supabase.auth.getSession()
-      .then(({ data }) => {
-        setSession(data?.session ?? null)
-      })
-      .catch(() => {
-        setSession(null)
-      })
-      .finally(() => {
-        setReady(true)
-      })
+      .then(({ data }) => setSession(data?.session ?? null))
+      .catch(() => setSession(null))
+      .finally(() => setReady(true))
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => { setSession(session ?? null) }
+      (_event, session) => setSession(session ?? null)
     )
-
     return () => subscription.unsubscribe()
   }, [])
 
   if (!ready) return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      background: '#0a0908',
-    }}>
-      <div style={{
-        fontFamily: "'Playfair Display', serif",
-        fontSize: '1.5rem',
-        color: '#C9A84C',
-      }}>
-        Organized<span style={{ color: '#F0EAE0' }}>.</span>
+    <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', background:'#0a0908' }}>
+      <div style={{ fontFamily:"'Playfair Display', serif", fontSize:'1.5rem', color:'#C9A84C' }}>
+        Organized<span style={{ color:'#F0EAE0' }}>.</span>
       </div>
     </div>
   )
@@ -57,25 +40,17 @@ export default function App() {
       {/* Auth */}
       <Route
         path="/auth"
-        element={
-          session
-            ? <Navigate to="/dashboard" replace />
-            : <Auth onAuth={setSession} />
-        }
+        element={session ? <Navigate to="/dashboard" replace /> : <Auth onAuth={setSession} />}
       />
 
       {/* Dashboard — protected */}
       <Route
         path="/dashboard/*"
-        element={
-          session
-            ? <Dashboard key={session.user.id} session={session} />
-            : <Navigate to="/auth" replace />
-        }
+        element={session ? <Dashboard key={session.user.id} session={session} /> : <Navigate to="/auth" replace />}
       />
 
       {/* Client booking page — public, must be last */}
-      <Route path="/:slug" element={<ClientBooking />} />
+      <Route path="/:slug" element={<ClientPage />} />
     </Routes>
   )
 }
