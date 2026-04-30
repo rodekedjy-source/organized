@@ -820,6 +820,99 @@ function RevenuePanel({ appts, onClose }) {
 }
 
 // ── COACH SLIDER (FIX 5 — active days) ───────────────────────────────────────
+// ── DAILY INSPIRATION DATA ────────────────────────────────────────────────────
+const INSPIRATION_QUOTES=[
+  {icon:'✨',text:'The secret of getting ahead is getting started.',author:'Mark Twain'},
+  {icon:'💎',text:'Quality is not an act, it is a habit.',author:'Aristotle'},
+  {icon:'🌟',text:'Success is the sum of small efforts, repeated day in and day out.',author:'Robert Collier'},
+  {icon:'🔥',text:'The only way to do great work is to love what you do.',author:'Steve Jobs'},
+  {icon:'🌸',text:'Beauty begins the moment you decide to be yourself.',author:'Coco Chanel'},
+  {icon:'⭐',text:'Hard work beats talent when talent doesn\'t work hard.',author:'Tim Notke'},
+  {icon:'🎯',text:'The future belongs to those who believe in the beauty of their dreams.',author:'Eleanor Roosevelt'},
+  {icon:'💡',text:'Your most unhappy customers are your greatest source of learning.',author:'Bill Gates'},
+  {icon:'🌈',text:'Chase the vision, not the money; the money will end up following you.',author:'Tony Hsieh'},
+  {icon:'🦋',text:'Small steps in the right direction can turn out to be the biggest step of your life.',author:'Unknown'},
+  {icon:'🎨',text:'Creativity is intelligence having fun.',author:'Albert Einstein'},
+  {icon:'🚀',text:'The best time to plant a tree was 20 years ago. The second best time is now.',author:'Chinese Proverb'},
+  {icon:'💼',text:'Success usually comes to those who are too busy to be looking for it.',author:'Henry David Thoreau'},
+  {icon:'🌙',text:'Each morning we are born again. What we do today is what matters most.',author:'Buddha'},
+  {icon:'🏆',text:'Don\'t be afraid to give up the good to go for the great.',author:'John D. Rockefeller'},
+  {icon:'🌺',text:'The woman who does not require validation from anyone is the most feared individual.',author:'Mohadesa Najumi'},
+  {icon:'✊',text:'She believed she could, so she did.',author:'Unknown'},
+  {icon:'🌱',text:'Plant seeds of happiness, hope, success, and love; it will all come back to you in abundance.',author:'Steve Maraboli'},
+  {icon:'🎵',text:'Start where you are. Use what you have. Do what you can.',author:'Arthur Ashe'},
+  {icon:'🌊',text:'The secret to your success is found in your daily routine.',author:'John C. Maxwell'},
+  {icon:'⚡',text:'Believe you can and you\'re halfway there.',author:'Theodore Roosevelt'},
+  {icon:'🌻',text:'Keep your face always toward the sunshine, and shadows will fall behind you.',author:'Walt Whitman'},
+  {icon:'🎯',text:'A year from now you may wish you had started today.',author:'Karen Lamb'},
+  {icon:'💪',text:'It always seems impossible until it\'s done.',author:'Nelson Mandela'},
+  {icon:'🌟',text:'Strive not to be a success, but rather to be of value.',author:'Albert Einstein'},
+  {icon:'💫',text:'Your talent is God\'s gift to you. What you do with it is your gift back.',author:'Leo Buscaglia'},
+  {icon:'🌿',text:'Every day is a fresh start. Every morning we wake up is the first day of our new life.',author:'Unknown'},
+  {icon:'💛',text:'What you do makes a difference, and you have to decide what kind of difference you want to make.',author:'Jane Goodall'},
+  {icon:'💪',text:'Don\'t watch the clock; do what it does. Keep going.',author:'Sam Levenson'},
+  {icon:'🧠',text:'The more that you read, the more things you will know. The more that you learn, the more places you\'ll go.',author:'Dr. Seuss'},
+]
+const BIBLE_VERSES=[
+  {icon:'✝️',text:'I can do all things through Christ who strengthens me.',ref:'Philippians 4:13'},
+  {icon:'📖',text:'Commit your work to the Lord, and your plans will be established.',ref:'Proverbs 16:3'},
+  {icon:'✝️',text:'And whatever you do, do it heartily, as to the Lord and not to men.',ref:'Colossians 3:23'},
+  {icon:'📖',text:'For I know the plans I have for you, declares the Lord, plans to prosper you and not to harm you.',ref:'Jeremiah 29:11'},
+  {icon:'✝️',text:'She is clothed with strength and dignity, and she laughs without fear of the future.',ref:'Proverbs 31:25'},
+  {icon:'📖',text:'In all your ways acknowledge him, and he will make straight your paths.',ref:'Proverbs 3:6'},
+  {icon:'✝️',text:'Do not be anxious about anything, but in every situation, present your requests to God.',ref:'Philippians 4:6'},
+  {icon:'📖',text:'Whoever sows generously will also reap generously.',ref:'2 Corinthians 9:6'},
+  {icon:'✝️',text:'Let your light shine before others, that they may see your good deeds.',ref:'Matthew 5:16'},
+  {icon:'📖',text:'The Lord is my shepherd, I lack nothing.',ref:'Psalm 23:1'},
+  {icon:'✝️',text:'Trust in the Lord with all your heart and lean not on your own understanding.',ref:'Proverbs 3:5'},
+  {icon:'📖',text:'Be strong and courageous. Do not be afraid; do not be discouraged.',ref:'Joshua 1:9'},
+  {icon:'✝️',text:'She watches over the affairs of her household and does not eat the bread of idleness.',ref:'Proverbs 31:27'},
+  {icon:'📖',text:'Let us not become weary in doing good, for at the proper time we will reap a harvest.',ref:'Galatians 6:9'},
+  {icon:'✝️',text:'Seek first his kingdom and his righteousness, and all these things will be given to you.',ref:'Matthew 6:33'},
+  {icon:'📖',text:'Now to him who is able to do immeasurably more than all we ask or imagine.',ref:'Ephesians 3:20'},
+  {icon:'✝️',text:'The plans of the diligent lead to profit as surely as haste leads to poverty.',ref:'Proverbs 21:5'},
+  {icon:'📖',text:'With man this is impossible, but with God all things are possible.',ref:'Matthew 19:26'},
+  {icon:'✝️',text:'The Lord your God is with you, the Mighty Warrior who saves.',ref:'Zephaniah 3:17'},
+  {icon:'📖',text:'Delight yourself in the Lord, and he will give you the desires of your heart.',ref:'Psalm 37:4'},
+  {icon:'✝️',text:'God has not given us a spirit of fear, but of power and of love and of a sound mind.',ref:'2 Timothy 1:7'},
+  {icon:'📖',text:'She is worth far more than rubies.',ref:'Proverbs 31:10'},
+  {icon:'✝️',text:'Ask and it will be given to you; seek and you will find; knock and the door will be opened.',ref:'Matthew 7:7'},
+  {icon:'📖',text:'I have learned, in whatever state I am, to be content.',ref:'Philippians 4:11'},
+  {icon:'✝️',text:'The Lord bless you and keep you; the Lord make his face shine on you and be gracious to you.',ref:'Numbers 6:24-25'},
+  {icon:'📖',text:'Cast all your anxiety on him because he cares for you.',ref:'1 Peter 5:7'},
+  {icon:'✝️',text:'Whatever is true, whatever is noble, whatever is right — think about such things.',ref:'Philippians 4:8'},
+  {icon:'📖',text:'The Lord will open to you his good treasury to give rain to your land in its season.',ref:'Deuteronomy 28:12'},
+  {icon:'✝️',text:'She is clothed in strength and dignity.',ref:'Proverbs 31:25'},
+  {icon:'📖',text:'Commit to the Lord whatever you do, and he will establish your plans.',ref:'Proverbs 16:3'},
+]
+function getDailyEntry(arr){
+  const now=new Date()
+  const start=new Date(now.getFullYear(),0,0)
+  const day=Math.floor((now-start)/86400000)
+  return arr[day%arr.length]
+}
+function DailyInspirationCard({ session }){
+  const uid=session?.user?.id||'guest'
+  const faithEnabled=localStorage.getItem(`org_faith_${uid}`)===`true`
+  const arr=faithEnabled?BIBLE_VERSES:INSPIRATION_QUOTES
+  const entry=getDailyEntry(arr)
+  return (
+    <div className="coach-slider" style={{marginBottom:'1.25rem'}}>
+      <div className="coach-slider-label">Daily Inspiration</div>
+      <div className="coach-slider-body" style={{flexDirection:'column',gap:'.4rem'}}>
+        <div style={{display:'flex',alignItems:'flex-start',gap:'.75rem'}}>
+          <span className="coach-slider-icon">{entry.icon}</span>
+          <span className="coach-slider-text" style={{fontStyle:'italic'}}>"{entry.text}"</span>
+        </div>
+        <div style={{fontSize:'.72rem',color:'var(--gold)',fontWeight:600,paddingLeft:'1.8rem'}}>
+          — {faithEnabled?entry.ref:entry.author}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── COACH SLIDER ───────────────────────────────────────────────────────────────
 function CoachSlider({ appts, stats, workspace }) {
   const now=new Date()
   const tips=[]
@@ -1276,6 +1369,7 @@ function Overview({ workspace, session, ownerData, toast, setPage, refetchWorksp
           </div>
         </div>
       )}
+      <DailyInspirationCard session={session}/>
       <CoachSlider appts={allAppts} stats={stats} workspace={workspace}/>
       <div className="stats-scroll">
         {cards.map((s,i)=>(
@@ -2327,6 +2421,10 @@ function Availability({ workspace, toast, lang='en' }) {
 // ── SETTINGS (FIX 11: cancel subscription button in profile) ─────────────────
 function Settings({ workspace, toast, refetch, theme, setTheme, session, ownerData, lang='en' }) {
   const [section,setSection]=useState(null)
+  const [appTab,setAppTab]=useState('dashboard')
+  const uid=session?.user?.id||'guest'
+  const [faithPref,setFaithPref]=useState(()=>localStorage.getItem(`org_faith_${uid}`)==='true')
+  function toggleFaith(val){setFaithPref(val);localStorage.setItem(`org_faith_${uid}`,val)}
   const BackBtn=()=>(
     <button className="settings-back-btn" onClick={()=>setSection(null)}>
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" width="13" height="13"><path d="M10 3L5 8l5 5"/></svg> Settings
@@ -2365,26 +2463,101 @@ function Settings({ workspace, toast, refetch, theme, setTheme, session, ownerDa
   if(section==='appearance') return (
     <div>
       <div className="page-head"><div><BackBtn/><div className="page-title" style={{marginTop:'.4rem'}}>{t(lang,'appearance')}</div></div></div>
-      <div className="card">
-        <div className="card-head"><div className="card-title">Theme</div></div>
-        <div className="card-body">
-          <div style={{fontSize:'.78rem',color:'var(--ink-3)',marginBottom:'1rem'}}>Choose how Organized appears for you.</div>
-          <div className="theme-options">
-            <div className={`theme-option${theme!=='dark'?' selected':''}`} onClick={()=>setTheme('light')}>
-              <div className="theme-preview"><div className="tp-ls"/><div className="tp-lm"><div className="tp-lb"/><div className="tp-lb"/></div></div>
-              <div className="theme-label">Light {theme!=='dark'&&<div className="theme-check">{I.check}</div>}</div>
-            </div>
-            <div className={`theme-option${theme==='dark'?' selected':''}`} onClick={()=>setTheme('dark')}>
-              <div className="theme-preview"><div className="tp-ds"/><div className="tp-dm"><div className="tp-db"/><div className="tp-db"/></div></div>
-              <div className="theme-label">Dark {theme==='dark'&&<div className="theme-check">{I.check}</div>}</div>
+      {/* Tab switcher */}
+      <div style={{display:'flex',background:'var(--surface)',borderRadius:10,padding:3,marginBottom:'1.25rem',border:'1px solid var(--border)'}}>
+        {[['dashboard','Dashboard'],['business','Business Page']].map(([key,label])=>(
+          <button key={key} onClick={()=>setAppTab(key)}
+            style={{flex:1,padding:'.55rem',border:'none',borderRadius:8,cursor:'pointer',fontFamily:'inherit',fontSize:'.82rem',fontWeight:600,transition:'all .15s',
+              background:appTab===key?'var(--ink)':'transparent',
+              color:appTab===key?'#fff':'var(--ink-3)'}}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── DASHBOARD TAB ── */}
+      {appTab==='dashboard'&&(
+        <>
+          <div className="card" style={{marginBottom:'1.25rem'}}>
+            <div className="card-head"><div className="card-title">Theme</div></div>
+            <div className="card-body">
+              <div style={{fontSize:'.78rem',color:'var(--ink-3)',marginBottom:'1rem'}}>Choose how Organized appears for you.</div>
+              <div className="theme-options">
+                <div className={`theme-option${theme!=='dark'?' selected':''}`} onClick={()=>setTheme('light')}>
+                  <div className="theme-preview"><div className="tp-ls"/><div className="tp-lm"><div className="tp-lb"/><div className="tp-lb"/></div></div>
+                  <div className="theme-label">Light {theme!=='dark'&&<div className="theme-check">{I.check}</div>}</div>
+                </div>
+                <div className={`theme-option${theme==='dark'?' selected':''}`} onClick={()=>setTheme('dark')}>
+                  <div className="theme-preview"><div className="tp-ds"/><div className="tp-dm"><div className="tp-db"/><div className="tp-db"/></div></div>
+                  <div className="theme-label">Dark {theme==='dark'&&<div className="theme-check">{I.check}</div>}</div>
+                </div>
+              </div>
+              <div className="settings-row" style={{marginTop:'1rem'}}>
+                <div className="settings-row-label">Dark mode</div>
+                <label className="toggle-wrap"><input type="checkbox" checked={theme==='dark'} onChange={e=>setTheme(e.target.checked?'dark':'light')}/><div className="toggle-track"/><div className="toggle-thumb"/></label>
+              </div>
             </div>
           </div>
-          <div className="settings-row" style={{marginTop:'1rem'}}>
-            <div className="settings-row-label">Dark mode</div>
-            <label className="toggle-wrap"><input type="checkbox" checked={theme==='dark'} onChange={e=>setTheme(e.target.checked?'dark':'light')}/><div className="toggle-track"/><div className="toggle-thumb"/></label>
+          <div className="card">
+            <div className="card-head">
+              <div>
+                <div className="card-title">Daily Inspiration</div>
+                <div className="card-sub">Shown on your Overview each day</div>
+              </div>
+            </div>
+            <div className="card-body" style={{display:'flex',flexDirection:'column',gap:0}}>
+              <div className="settings-row">
+                <div>
+                  <div className="settings-row-label">Faith-based content (Bible)</div>
+                  <div style={{fontSize:'.73rem',color:'var(--ink-3)',marginTop:2}}>Replace daily quotes with a Bible verse</div>
+                </div>
+                <label className="toggle-wrap">
+                  <input type="checkbox" checked={faithPref} onChange={e=>toggleFaith(e.target.checked)}/>
+                  <div className="toggle-track"/><div className="toggle-thumb"/>
+                </label>
+              </div>
+              {/* Preview */}
+              <div style={{marginTop:'1rem',padding:'1rem',background:'var(--bg)',borderRadius:10,border:'1px solid var(--border)'}}>
+                <div style={{fontSize:'.62rem',fontWeight:700,textTransform:'uppercase',letterSpacing:'.12em',color:'var(--gold)',marginBottom:'.5rem'}}>Preview — Today's card</div>
+                {(()=>{
+                  const arr=faithPref?BIBLE_VERSES:INSPIRATION_QUOTES
+                  const entry=getDailyEntry(arr)
+                  return (
+                    <div style={{display:'flex',flexDirection:'column',gap:'.35rem'}}>
+                      <div style={{display:'flex',alignItems:'flex-start',gap:'.65rem'}}>
+                        <span style={{fontSize:'1rem'}}>{entry.icon}</span>
+                        <span style={{fontSize:'.82rem',color:'var(--ink-2)',lineHeight:1.6,fontStyle:'italic'}}>"{entry.text}"</span>
+                      </div>
+                      <div style={{fontSize:'.7rem',color:'var(--gold)',fontWeight:600,paddingLeft:'1.65rem'}}>
+                        — {faithPref?entry.ref:entry.author}
+                      </div>
+                    </div>
+                  )
+                })()}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ── BUSINESS PAGE TAB ── */}
+      {appTab==='business'&&(
+        <div className="card">
+          <div className="card-head">
+            <div>
+              <div className="card-title">Business Page Appearance</div>
+              <div className="card-sub">How your public profile looks to clients</div>
+            </div>
+          </div>
+          <div className="card-body">
+            <div style={{padding:'1.5rem',textAlign:'center',background:'var(--bg)',borderRadius:10,border:'1px dashed var(--border-2)'}}>
+              <div style={{fontSize:'1.5rem',marginBottom:'.5rem'}}>🎨</div>
+              <div style={{fontWeight:600,fontSize:'.88rem',color:'var(--ink)',marginBottom:'.3rem'}}>Coming soon</div>
+              <div style={{fontSize:'.78rem',color:'var(--ink-3)',lineHeight:1.6}}>Business page appearance customization — accent colors, hero style, and section visibility — is being built now.</div>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   )
   if(section==='language') return (
@@ -2479,30 +2652,103 @@ function SettingsPasswordForm({ session, toast, lang='en' }) {
   )
 }
 function SettingsBusinessForm({ workspace, toast, refetch, lang='en' }) {
-  const [form,setForm]=useState({name:workspace?.name||'',tagline:workspace?.tagline||'',bio:workspace?.bio||'',location:workspace?.location||'',email:workspace?.email||'',phone:workspace?.phone||'',instagram:workspace?.instagram||'',tiktok:workspace?.tiktok||''})
-  useEffect(()=>{if(workspace)setForm({name:workspace.name||'',tagline:workspace.tagline||'',bio:workspace.bio||'',location:workspace.location||'',email:workspace.email||'',phone:workspace.phone||'',instagram:workspace.instagram||'',tiktok:workspace.tiktok||''})},[workspace?.id])
-  const [loading,setLoading]=useState(false),[saved,setSaved]=useState(false)
+  const blankForm=(ws)=>({
+    name:ws?.name||'',tagline:ws?.tagline||'',bio:ws?.bio||'',
+    address_street:ws?.address_street||'',address_city:ws?.address_city||'',
+    address_province:ws?.address_province||'',address_postal:ws?.address_postal||'',
+    address_country:ws?.address_country||'CA',
+    show_address_on_page:ws?.show_address_on_page||false,
+    address_in_confirmations:ws?.address_in_confirmations!==false,
+    email:ws?.email||'',phone:ws?.phone||'',instagram:ws?.instagram||'',tiktok:ws?.tiktok||''
+  })
+  const [form,setForm]=useState(()=>blankForm(workspace))
+  useEffect(()=>{if(workspace)setForm(blankForm(workspace))},[workspace?.id])
+  const [loading,setLoading]=useState(false),[saved,setSaved]=useState(false),[addrError,setAddrError]=useState('')
+  const hasAnyAddr=form.address_street||form.address_city||form.address_postal
+  const addrComplete=!hasAnyAddr||(form.address_street&&form.address_city&&form.address_postal)
   async function save(e){
-    e.preventDefault();if(!workspace?.id){toast('Workspace not loaded.');return};setLoading(true);setSaved(false)
-    const{error}=await supabase.from('workspaces').update({name:form.name,tagline:form.tagline,bio:form.bio,location:form.location,email:form.email,phone:form.phone,instagram:form.instagram,tiktok:form.tiktok}).eq('id',workspace.id)
-    if(error)toast(`Error: ${error.message}`);else{setSaved(true);toast('Business profile saved.');await refetch()};setLoading(false)
+    e.preventDefault()
+    if(!addrComplete){setAddrError('Please complete the address — street, city, and postal code are required.');return}
+    setAddrError('')
+    if(!workspace?.id){toast('Workspace not loaded.');return}
+    setLoading(true);setSaved(false)
+    const{error}=await supabase.from('workspaces').update({
+      name:form.name,tagline:form.tagline,bio:form.bio,
+      address_street:form.address_street||null,address_city:form.address_city||null,
+      address_province:form.address_province||null,address_postal:form.address_postal||null,
+      address_country:form.address_country||'CA',
+      show_address_on_page:form.show_address_on_page,
+      address_in_confirmations:form.address_in_confirmations,
+      email:form.email,phone:form.phone,instagram:form.instagram,tiktok:form.tiktok
+    }).eq('id',workspace.id)
+    if(error)toast(`Error: ${error.message}`);else{setSaved(true);toast('Business profile saved.');await refetch()}
+    setLoading(false)
   }
+  const iS={border:'1px solid var(--border-2)',borderRadius:8,padding:'.55rem .85rem',fontSize:'.88rem',fontFamily:'inherit',color:'var(--ink)',background:'var(--surface)',outline:'none',transition:'border .15s',width:'100%'}
+  const foc=(e)=>e.target.style.borderColor='var(--gold)'
+  const blu=(e)=>e.target.style.borderColor='var(--border-2)'
   return (
     <div className="card">
       <div className="card-head"><div className="card-title">Business profile</div></div>
       <form onSubmit={save} className="card-body" style={{display:'flex',flexDirection:'column',gap:'1rem'}}>
-        <div className="field"><label>Business name</label><input value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} required/></div>
-        <div className="field"><label>Tagline</label><input value={form.tagline} onChange={e=>setForm(f=>({...f,tagline:e.target.value}))} placeholder="e.g. Natural Hair Specialist · Montreal, QC"/></div>
-        <div className="field"><label>Bio</label><textarea value={form.bio} onChange={e=>setForm(f=>({...f,bio:e.target.value}))} rows={3} placeholder="Tell your clients about your work..." style={{padding:'.6rem .9rem',border:'1px solid var(--border-2)',borderRadius:8,fontFamily:'inherit',fontSize:'.88rem',resize:'vertical',outline:'none',color:'var(--ink)',background:'var(--surface)'}}/></div>
-        <div className="field"><label>Location</label><input value={form.location} onChange={e=>setForm(f=>({...f,location:e.target.value}))}/></div>
+        <div className="field"><label>Business name</label><input style={iS} value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} onFocus={foc} onBlur={blu} required/></div>
+        <div className="field"><label>Tagline</label><input style={iS} value={form.tagline} onChange={e=>setForm(f=>({...f,tagline:e.target.value}))} onFocus={foc} onBlur={blu} placeholder="e.g. Natural Hair Specialist · Montreal, QC"/></div>
+        <div className="field"><label>Bio</label><textarea value={form.bio} onChange={e=>setForm(f=>({...f,bio:e.target.value}))} rows={3} placeholder="Tell your clients about your work..." style={{...iS,resize:'vertical'}}/></div>
+
+        {/* ── ADDRESS ── */}
+        <div style={{height:1,background:'var(--border)',margin:'.15rem 0'}}/>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:'.25rem'}}>
+          <div style={{fontSize:'.68rem',fontWeight:600,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'.08em'}}>Business Address</div>
+          <div style={{fontSize:'.68rem',color:'var(--ink-3)'}}>Sent in every booking confirmation</div>
+        </div>
+        <div className="field"><label>Street address</label><input style={iS} value={form.address_street} onChange={e=>setForm(f=>({...f,address_street:e.target.value}))} onFocus={foc} onBlur={blu} placeholder="123 Rue Saint-Denis"/></div>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'.65rem'}}>
+          <div className="field"><label>City</label><input style={iS} value={form.address_city} onChange={e=>setForm(f=>({...f,address_city:e.target.value}))} onFocus={foc} onBlur={blu} placeholder="Montreal"/></div>
+          <div className="field"><label>Province / State</label><input style={iS} value={form.address_province} onChange={e=>setForm(f=>({...f,address_province:e.target.value}))} onFocus={foc} onBlur={blu} placeholder="QC"/></div>
+        </div>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'.65rem'}}>
+          <div className="field"><label>Postal / ZIP</label><input style={iS} value={form.address_postal} onChange={e=>setForm(f=>({...f,address_postal:e.target.value}))} onFocus={foc} onBlur={blu} placeholder="H2X 1Y8"/></div>
+          <div className="field"><label>Country</label>
+            <select style={{...iS,cursor:'pointer'}} value={form.address_country} onChange={e=>setForm(f=>({...f,address_country:e.target.value}))} onFocus={foc} onBlur={blu}>
+              <option value="CA">Canada</option><option value="US">United States</option>
+              <option value="FR">France</option><option value="BE">Belgium</option>
+              <option value="CH">Switzerland</option><option value="GB">United Kingdom</option>
+              <option value="MA">Morocco</option><option value="SN">Senegal</option>
+              <option value="CI">Côte d'Ivoire</option><option value="HT">Haiti</option>
+            </select>
+          </div>
+        </div>
+        {addrError&&<div style={{fontSize:'.78rem',color:'var(--red)',background:'rgba(192,57,43,.06)',border:'1px solid rgba(192,57,43,.15)',borderRadius:8,padding:'.55rem .85rem'}}>{addrError}</div>}
+        {hasAnyAddr&&(
+          <div style={{background:'var(--bg)',borderRadius:10,border:'1px solid var(--border)',overflow:'hidden'}}>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'.85rem 1rem',borderBottom:'1px solid var(--border)'}}>
+              <div>
+                <div className="settings-row-label">Show on Business Page</div>
+                <div style={{fontSize:'.72rem',color:'var(--ink-3)',marginTop:2}}>Visible to anyone visiting your public profile</div>
+              </div>
+              <label className="toggle-wrap"><input type="checkbox" checked={form.show_address_on_page} onChange={e=>setForm(f=>({...f,show_address_on_page:e.target.checked}))}/><div className="toggle-track"/><div className="toggle-thumb"/></label>
+            </div>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'.85rem 1rem'}}>
+              <div>
+                <div className="settings-row-label">Include in confirmation messages</div>
+                <div style={{fontSize:'.72rem',color:'var(--ink-3)',marginTop:2}}>Sent to clients after booking — helps them find you</div>
+              </div>
+              <label className="toggle-wrap"><input type="checkbox" checked={form.address_in_confirmations} onChange={e=>setForm(f=>({...f,address_in_confirmations:e.target.checked}))}/><div className="toggle-track"/><div className="toggle-thumb"/></label>
+            </div>
+          </div>
+        )}
+
+        {/* ── CONTACT ── */}
         <div style={{height:1,background:'var(--border)',margin:'.15rem 0'}}/>
         <div style={{fontSize:'.68rem',fontWeight:600,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'.08em'}}>Contact</div>
-        <div className="field"><label>Business email</label><input type="email" value={form.email} onChange={e=>setForm(f=>({...f,email:e.target.value}))}/></div>
-        <div className="field"><label>Phone</label><input value={form.phone} onChange={e=>setForm(f=>({...f,phone:e.target.value}))}/></div>
+        <div className="field"><label>Business email</label><input type="email" style={iS} value={form.email} onChange={e=>setForm(f=>({...f,email:e.target.value}))} onFocus={foc} onBlur={blu}/></div>
+        <div className="field"><label>Phone</label><input style={iS} value={form.phone} onChange={e=>setForm(f=>({...f,phone:e.target.value}))} onFocus={foc} onBlur={blu}/></div>
+
+        {/* ── SOCIAL ── */}
         <div style={{height:1,background:'var(--border)',margin:'.15rem 0'}}/>
         <div style={{fontSize:'.68rem',fontWeight:600,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'.08em'}}>Social</div>
-        <div className="field"><label>Instagram</label><input value={form.instagram} onChange={e=>setForm(f=>({...f,instagram:e.target.value}))} placeholder="@yourstudio"/></div>
-        <div className="field"><label>TikTok</label><input value={form.tiktok} onChange={e=>setForm(f=>({...f,tiktok:e.target.value}))} placeholder="@yourstudio"/></div>
+        <div className="field"><label>Instagram</label><input style={iS} value={form.instagram} onChange={e=>setForm(f=>({...f,instagram:e.target.value}))} onFocus={foc} onBlur={blu} placeholder="@yourstudio"/></div>
+        <div className="field"><label>TikTok</label><input style={iS} value={form.tiktok} onChange={e=>setForm(f=>({...f,tiktok:e.target.value}))} onFocus={foc} onBlur={blu} placeholder="@yourstudio"/></div>
         <button type="submit" className="btn btn-primary" style={{justifyContent:'center',padding:'.75rem'}} disabled={loading}>{loading?t(lang,'saving'):saved?t(lang,'saved'):t(lang,'save')}</button>
       </form>
     </div>
@@ -2837,6 +3083,25 @@ function ClientPage({ workspace, onSwitchToDash }) {
                 </div>
               }
             </section>
+
+            {/* Address — shown only if toggled on */}
+            {workspace?.show_address_on_page&&(workspace?.address_street||workspace?.address_city)&&(
+              <section>
+                <div style={{fontSize:'.68rem',letterSpacing:'.16em',textTransform:'uppercase',color:G,marginBottom:10}}>Find Us</div>
+                <div style={{background:'#fff',border:'1px solid #ece9e4',borderRadius:14,padding:'1.1rem 1.25rem',display:'flex',gap:'1rem',alignItems:'flex-start'}}>
+                  <div style={{width:36,height:36,borderRadius:'50%',background:`rgba(197,169,106,.1)`,border:`1px solid rgba(197,169,106,.2)`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'1rem',flexShrink:0}}>📍</div>
+                  <div>
+                    {workspace.address_street&&<div style={{fontWeight:600,fontSize:'.9rem',color:'#1a1814'}}>{workspace.address_street}</div>}
+                    <div style={{fontSize:'.82rem',color:'#7a7774',marginTop:3}}>
+                      {[workspace.address_city,workspace.address_province,workspace.address_postal].filter(Boolean).join(', ')}
+                    </div>
+                    {workspace.address_country&&workspace.address_country!=='CA'&&workspace.address_country!=='US'&&(
+                      <div style={{fontSize:'.75rem',color:'#9a9490',marginTop:2}}>{workspace.address_country}</div>
+                    )}
+                  </div>
+                </div>
+              </section>
+            )}
 
             {/* Reviews */}
             <section>
