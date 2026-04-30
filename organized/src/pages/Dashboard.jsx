@@ -2424,6 +2424,7 @@ function Settings({ workspace, toast, refetch, theme, setTheme, session, ownerDa
     {key:'business',label:t(lang,'business'),sub:t(lang,'business_sub')},
     {key:'appearance',label:t(lang,'appearance'),sub:t(lang,'appearance_sub')},
     {key:'coach',label:'Coach',sub:'Daily inspiration and faith preferences'},
+    {key:'automations',label:'Automations',sub:'Review requests and smart follow-ups'},
     {key:'language',label:t(lang,'language'),sub:t(lang,'language_sub')},
   ]
   if(section==='profile') return (
@@ -2529,6 +2530,15 @@ function Settings({ workspace, toast, refetch, theme, setTheme, session, ownerDa
           </div>
         </div>
       </div>
+    </div>
+  )
+  if(section==='automations') return (
+    <div>
+      <div className="page-head"><div><BackBtn/><div className="page-title" style={{marginTop:'.4rem'}}>Automations</div></div></div>
+
+      {/* ── REVIEW REQUESTS ── */}
+      <div style={{fontSize:'.68rem',fontWeight:700,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'.1em',marginBottom:'.65rem'}}>Review Requests</div>
+      <SettingsAutomationsForm workspace={workspace} toast={toast} refetch={refetch} lang={lang}/>
     </div>
   )
   if(section==='language') return (
@@ -2725,6 +2735,108 @@ function SettingsBusinessForm({ workspace, toast, refetch, lang='en' }) {
     </div>
   )
 }
+function SettingsAutomationsForm({ workspace, toast, refetch, lang='en' }) {
+  const [form,setForm]=useState({
+    review_requests_enabled: workspace?.review_requests_enabled!==false,
+    google_review_url: workspace?.google_review_url||'',
+    review_delay_hours: workspace?.review_delay_hours||2,
+  })
+  useEffect(()=>{
+    if(workspace) setForm({
+      review_requests_enabled: workspace.review_requests_enabled!==false,
+      google_review_url: workspace.google_review_url||'',
+      review_delay_hours: workspace.review_delay_hours||2,
+    })
+  },[workspace?.id])
+  const [loading,setLoading]=useState(false),[saved,setSaved]=useState(false)
+  async function save(){
+    if(!workspace?.id) return
+    setLoading(true);setSaved(false)
+    const{error}=await supabase.from('workspaces').update({
+      review_requests_enabled:form.review_requests_enabled,
+      google_review_url:form.google_review_url.trim()||null,
+      review_delay_hours:Number(form.review_delay_hours),
+    }).eq('id',workspace.id)
+    if(error) toast(`Error: ${error.message}`)
+    else{setSaved(true);toast('Automations saved.');if(refetch) await refetch()}
+    setLoading(false)
+  }
+  const iS={border:'1px solid var(--border-2)',borderRadius:8,padding:'.55rem .85rem',fontSize:'.88rem',fontFamily:'inherit',color:'var(--ink)',background:'var(--surface)',outline:'none',transition:'border .15s',width:'100%'}
+  const foc=(e:any)=>e.target.style.borderColor='var(--gold)'
+  const blu=(e:any)=>e.target.style.borderColor='var(--border-2)'
+  const delayOptions=[{v:1,label:'1 hour after'},{v:2,label:'2 hours after'},{v:24,label:'24 hours after (next day)'}]
+  return (
+    <div className="card">
+      <div className="card-body" style={{display:'flex',flexDirection:'column',gap:'1.1rem'}}>
+        {/* Enable toggle */}
+        <div className="settings-row">
+          <div>
+            <div className="settings-row-label">Automatically request reviews</div>
+            <div style={{fontSize:'.73rem',color:'var(--ink-3)',marginTop:2}}>Send a review request email to clients after their appointment</div>
+          </div>
+          <label className="toggle-wrap">
+            <input type="checkbox" checked={form.review_requests_enabled} onChange={e=>setForm(f=>({...f,review_requests_enabled:e.target.checked}))}/>
+            <div className="toggle-track"/><div className="toggle-thumb"/>
+          </label>
+        </div>
+
+        {form.review_requests_enabled&&(
+          <>
+            <div style={{height:1,background:'var(--border)'}}/>
+
+            {/* Google Review URL */}
+            <div className="field">
+              <label style={{fontSize:'.72rem',fontWeight:600,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'.08em',display:'block',marginBottom:'.4rem'}}>Google Review Link</label>
+              <input style={iS} value={form.google_review_url}
+                onChange={e=>setForm(f=>({...f,google_review_url:e.target.value}))}
+                onFocus={foc} onBlur={blu}
+                placeholder="https://g.page/r/your-business/review"/>
+              <div style={{fontSize:'.72rem',color:'var(--ink-3)',marginTop:'.4rem'}}>
+                Find it in Google Business Profile → Get more reviews → Copy link
+              </div>
+            </div>
+
+            {/* Delay */}
+            <div className="field">
+              <label style={{fontSize:'.72rem',fontWeight:600,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'.08em',display:'block',marginBottom:'.4rem'}}>Send review request</label>
+              <div style={{display:'flex',gap:'.5rem',flexWrap:'wrap'}}>
+                {delayOptions.map(o=>(
+                  <button key={o.v} onClick={()=>setForm(f=>({...f,review_delay_hours:o.v}))}
+                    style={{padding:'.5rem 1rem',border:`1.5px solid ${form.review_delay_hours===o.v?'var(--gold)':'var(--border-2)'}`,borderRadius:8,
+                      background:form.review_delay_hours===o.v?'rgba(197,169,106,.08)':'var(--surface)',
+                      color:form.review_delay_hours===o.v?'var(--gold)':'var(--ink-3)',
+                      fontWeight:form.review_delay_hours===o.v?600:400,
+                      fontSize:'.82rem',cursor:'pointer',fontFamily:'inherit',transition:'all .15s'}}>
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Preview */}
+            {form.google_review_url&&(
+              <div style={{background:'var(--bg)',borderRadius:10,border:'1px solid var(--border)',padding:'1rem'}}>
+                <div style={{fontSize:'.62rem',fontWeight:700,textTransform:'uppercase',letterSpacing:'.12em',color:'var(--gold)',marginBottom:'.65rem'}}>What clients will receive</div>
+                <div style={{display:'flex',alignItems:'flex-start',gap:'.75rem'}}>
+                  <div style={{fontSize:'1.4rem'}}>⭐</div>
+                  <div>
+                    <div style={{fontWeight:600,fontSize:'.85rem',color:'var(--ink)',marginBottom:'.2rem'}}>How was your visit at {workspace?.name||'Your Studio'}?</div>
+                    <div style={{fontSize:'.76rem',color:'var(--ink-3)',lineHeight:1.55}}>A short email with your Google Review link — sent {delayOptions.find(o=>o.v===form.review_delay_hours)?.label?.toLowerCase()} the appointment.</div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        <button className="btn btn-primary" style={{justifyContent:'center',padding:'.75rem'}} onClick={save} disabled={loading}>
+          {loading?'Saving…':saved?'Saved ✓':'Save'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function SettingsLanguageForm({ ownerData, toast, refetch, lang='en' }) {
   const [selectedLang,setSelectedLang]=useState(ownerData?.language||'en')
   const [saved,setSaved]=useState(false),[loading,setLoading]=useState(false)
