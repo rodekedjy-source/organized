@@ -2906,7 +2906,7 @@ function ClientPage({ workspace, onSwitchToDash }) {
   const [modal,setModal]=useState(null)
   const [productPage,setProductPage]=useState(null)
   const [learnPage,setLearnPage]=useState(null)
-  const [bookForm,setBookForm]=useState({name:'',phone:'',date:'',time:'',notes:''})
+  const [bookForm,setBookForm]=useState({name:'',email:'',phone:'',date:'',time:'',notes:''})
   const [booking,setBooking]=useState(false)
   const [booked,setBooked]=useState(false)
   const [faqOpen,setFaqOpen]=useState(null)
@@ -2936,7 +2936,8 @@ function ClientPage({ workspace, onSwitchToDash }) {
     e.preventDefault(); if(!modal||!bookForm.date||!bookForm.time) return
     setBooking(true)
     await supabase.from('appointments').insert({
-      workspace_id:workspace.id, client_name:bookForm.name, client_phone:bookForm.phone,
+      workspace_id:workspace.id, client_name:bookForm.name, client_phone:bookForm.phone||null,
+      client_email:bookForm.email.trim()||null,
       notes:`Service: ${modal.name}.${bookForm.notes?' '+bookForm.notes:''}`,
       scheduled_at:new Date(`${bookForm.date}T${bookForm.time}:00`).toISOString(),
       amount:modal.price, status:'pending',
@@ -3038,7 +3039,7 @@ function ClientPage({ workspace, onSwitchToDash }) {
                 ?<p style={{color:'#9a9490',fontSize:'.85rem'}}>No services listed yet.</p>
                 :<div style={{display:'flex',flexDirection:'column',gap:'.65rem'}}>
                   {services.map((s,i)=>(
-                    <div key={i} onClick={()=>{setModal(s);setBooked(false);setBookForm({name:'',phone:'',date:'',time:'',notes:''})}}
+                    <div key={i} onClick={()=>{setModal(s);setBooked(false);setBookForm({name:'',email:'',phone:'',date:'',time:'',notes:''})}}
                       style={{display:'flex',alignItems:'center',gap:'1rem',background:'#fff',border:'1px solid #ece9e4',borderRadius:14,padding:'1rem 1.1rem',cursor:'pointer',transition:'box-shadow .15s'}}
                       onMouseEnter={e=>e.currentTarget.style.boxShadow='0 4px 16px rgba(0,0,0,.08)'}
                       onMouseLeave={e=>e.currentTarget.style.boxShadow='none'}>
@@ -3242,7 +3243,7 @@ function ClientPage({ workspace, onSwitchToDash }) {
                   {modal.duration_min&&<span>{modal.duration_min} min</span>}
                   {modal.price>0&&<span>— ${modal.price}</span>}
                 </div>
-                {[['name','Full name','text',true],['phone','Phone','tel',false],['date','Preferred date','date',true],['time','Preferred time','time',true],['notes','Notes (optional)','text',false]].map(([k,l,t,req])=>(
+                {[['name','Full name','text',true],['email','Email','email',false],['phone','Phone','tel',false],['date','Preferred date','date',true],['time','Preferred time','time',true],['notes','Notes (optional)','text',false]].map(([k,l,t,req])=>(
                   <div key={k} style={{marginBottom:12}}>
                     <label style={{display:'block',fontSize:'.7rem',letterSpacing:'.12em',textTransform:'uppercase',color:'#9a9490',marginBottom:5}}>{l}</label>
                     <input type={t} value={bookForm[k]} onChange={e=>setBookForm(f=>({...f,[k]:e.target.value}))} required={req}
