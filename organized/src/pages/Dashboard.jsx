@@ -891,31 +891,19 @@ function getDailyEntry(arr){
   const day=Math.floor((now-start)/86400000)
   return arr[day%arr.length]
 }
-function DailyInspirationCard({ session }){
-  const uid=session?.user?.id||'guest'
-  const faithEnabled=localStorage.getItem(`org_faith_${uid}`)===`true`
-  const arr=faithEnabled?BIBLE_VERSES:INSPIRATION_QUOTES
-  const entry=getDailyEntry(arr)
-  return (
-    <div className="coach-slider" style={{marginBottom:'1.25rem'}}>
-      <div className="coach-slider-label">Daily Inspiration</div>
-      <div className="coach-slider-body" style={{flexDirection:'column',gap:'.4rem'}}>
-        <div style={{display:'flex',alignItems:'flex-start',gap:'.75rem'}}>
-          <span className="coach-slider-icon">{entry.icon}</span>
-          <span className="coach-slider-text" style={{fontStyle:'italic'}}>"{entry.text}"</span>
-        </div>
-        <div style={{fontSize:'.72rem',color:'var(--gold)',fontWeight:600,paddingLeft:'1.8rem'}}>
-          — {faithEnabled?entry.ref:entry.author}
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // ── COACH SLIDER ───────────────────────────────────────────────────────────────
-function CoachSlider({ appts, stats, workspace }) {
+function CoachSlider({ appts, stats, workspace, session }) {
   const now=new Date()
-  const tips=[]
+  const uid=session?.user?.id||'guest'
+  const faithEnabled=localStorage.getItem(`org_faith_${uid}`)==='true'
+  const dailyArr=faithEnabled?BIBLE_VERSES:INSPIRATION_QUOTES
+  const dailyEntry=getDailyEntry(dailyArr)
+  const tips=[{
+    icon:dailyEntry.icon,
+    text:`"${dailyEntry.text}"`,
+    sub:`— ${faithEnabled?dailyEntry.ref:dailyEntry.author}`,
+    isInspiration:true
+  }]
   const monthAppts=appts.filter(a=>{const tt=new Date(a.scheduled_at);return tt.getFullYear()===now.getFullYear()&&tt.getMonth()===now.getMonth()})
   const confirmedCount=monthAppts.filter(a=>a.status==='confirmed').length
   const mRev=monthRevenue(appts)
@@ -971,7 +959,10 @@ function CoachSlider({ appts, stats, workspace }) {
       <div className="coach-slider-label">Coach</div>
       <div className={`coach-slider-body${visible?'':' coach-fade-out'}`}>
         <span className="coach-slider-icon">{tip.icon}</span>
-        <span className="coach-slider-text">{tip.text}</span>
+        <div style={{flex:1}}>
+          <span className="coach-slider-text" style={tip.isInspiration?{fontStyle:'italic'}:{}}>{tip.text}</span>
+          {tip.sub&&<div style={{fontSize:'.72rem',color:'var(--gold)',fontWeight:600,marginTop:'.35rem'}}>{tip.sub}</div>}
+        </div>
       </div>
       {tips.length>1&&(
         <div className="coach-slider-footer">
@@ -1369,8 +1360,7 @@ function Overview({ workspace, session, ownerData, toast, setPage, refetchWorksp
           </div>
         </div>
       )}
-      <DailyInspirationCard session={session}/>
-      <CoachSlider appts={allAppts} stats={stats} workspace={workspace}/>
+      <CoachSlider appts={allAppts} stats={stats} workspace={workspace} session={session}/>
       <div className="stats-scroll">
         {cards.map((s,i)=>(
           <button key={i} className="stat-card stat-card-btn" onClick={()=>s.page==='revenue'?setShowRevenue(true):setPage(s.page)}>
@@ -2421,7 +2411,6 @@ function Availability({ workspace, toast, lang='en' }) {
 // ── SETTINGS (FIX 11: cancel subscription button in profile) ─────────────────
 function Settings({ workspace, toast, refetch, theme, setTheme, session, ownerData, lang='en' }) {
   const [section,setSection]=useState(null)
-  const [appTab,setAppTab]=useState('dashboard')
   const uid=session?.user?.id||'guest'
   const [faithPref,setFaithPref]=useState(()=>localStorage.getItem(`org_faith_${uid}`)==='true')
   function toggleFaith(val){setFaithPref(val);localStorage.setItem(`org_faith_${uid}`,val)}
@@ -2434,6 +2423,7 @@ function Settings({ workspace, toast, refetch, theme, setTheme, session, ownerDa
     {key:'profile',label:t(lang,'profile'),sub:t(lang,'profile_sub')},
     {key:'business',label:t(lang,'business'),sub:t(lang,'business_sub')},
     {key:'appearance',label:t(lang,'appearance'),sub:t(lang,'appearance_sub')},
+    {key:'coach',label:'Coach',sub:'Daily inspiration and faith preferences'},
     {key:'language',label:t(lang,'language'),sub:t(lang,'language_sub')},
   ]
   if(section==='profile') return (
@@ -2463,101 +2453,82 @@ function Settings({ workspace, toast, refetch, theme, setTheme, session, ownerDa
   if(section==='appearance') return (
     <div>
       <div className="page-head"><div><BackBtn/><div className="page-title" style={{marginTop:'.4rem'}}>{t(lang,'appearance')}</div></div></div>
-      {/* Tab switcher */}
-      <div style={{display:'flex',background:'var(--surface)',borderRadius:10,padding:3,marginBottom:'1.25rem',border:'1px solid var(--border)'}}>
-        {[['dashboard','Dashboard'],['business','Business Page']].map(([key,label])=>(
-          <button key={key} onClick={()=>setAppTab(key)}
-            style={{flex:1,padding:'.55rem',border:'none',borderRadius:8,cursor:'pointer',fontFamily:'inherit',fontSize:'.82rem',fontWeight:600,transition:'all .15s',
-              background:appTab===key?'var(--ink)':'transparent',
-              color:appTab===key?'#fff':'var(--ink-3)'}}>
-            {label}
-          </button>
-        ))}
-      </div>
 
-      {/* ── DASHBOARD TAB ── */}
-      {appTab==='dashboard'&&(
-        <>
-          <div className="card" style={{marginBottom:'1.25rem'}}>
-            <div className="card-head"><div className="card-title">Theme</div></div>
-            <div className="card-body">
-              <div style={{fontSize:'.78rem',color:'var(--ink-3)',marginBottom:'1rem'}}>Choose how Organized appears for you.</div>
-              <div className="theme-options">
-                <div className={`theme-option${theme!=='dark'?' selected':''}`} onClick={()=>setTheme('light')}>
-                  <div className="theme-preview"><div className="tp-ls"/><div className="tp-lm"><div className="tp-lb"/><div className="tp-lb"/></div></div>
-                  <div className="theme-label">Light {theme!=='dark'&&<div className="theme-check">{I.check}</div>}</div>
-                </div>
-                <div className={`theme-option${theme==='dark'?' selected':''}`} onClick={()=>setTheme('dark')}>
-                  <div className="theme-preview"><div className="tp-ds"/><div className="tp-dm"><div className="tp-db"/><div className="tp-db"/></div></div>
-                  <div className="theme-label">Dark {theme==='dark'&&<div className="theme-check">{I.check}</div>}</div>
-                </div>
-              </div>
-              <div className="settings-row" style={{marginTop:'1rem'}}>
-                <div className="settings-row-label">Dark mode</div>
-                <label className="toggle-wrap"><input type="checkbox" checked={theme==='dark'} onChange={e=>setTheme(e.target.checked?'dark':'light')}/><div className="toggle-track"/><div className="toggle-thumb"/></label>
-              </div>
+      {/* ── DASHBOARD THEME ── */}
+      <div style={{fontSize:'.68rem',fontWeight:700,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'.1em',marginBottom:'.65rem'}}>Dashboard Theme</div>
+      <div className="card" style={{marginBottom:'1.75rem'}}>
+        <div className="card-body">
+          <div style={{fontSize:'.8rem',color:'var(--ink-3)',marginBottom:'1rem',lineHeight:1.55}}>Controls how <strong style={{color:'var(--ink)'}}>your dashboard</strong> looks. Only you see this.</div>
+          <div className="theme-options">
+            <div className={`theme-option${theme!=='dark'?' selected':''}`} onClick={()=>setTheme('light')}>
+              <div className="theme-preview"><div className="tp-ls"/><div className="tp-lm"><div className="tp-lb"/><div className="tp-lb"/></div></div>
+              <div className="theme-label">Light {theme!=='dark'&&<div className="theme-check">{I.check}</div>}</div>
+            </div>
+            <div className={`theme-option${theme==='dark'?' selected':''}`} onClick={()=>setTheme('dark')}>
+              <div className="theme-preview"><div className="tp-ds"/><div className="tp-dm"><div className="tp-db"/><div className="tp-db"/></div></div>
+              <div className="theme-label">Dark {theme==='dark'&&<div className="theme-check">{I.check}</div>}</div>
             </div>
           </div>
-          <div className="card">
-            <div className="card-head">
-              <div>
-                <div className="card-title">Daily Inspiration</div>
-                <div className="card-sub">Shown on your Overview each day</div>
-              </div>
-            </div>
-            <div className="card-body" style={{display:'flex',flexDirection:'column',gap:0}}>
-              <div className="settings-row">
-                <div>
-                  <div className="settings-row-label">Faith-based content (Bible)</div>
-                  <div style={{fontSize:'.73rem',color:'var(--ink-3)',marginTop:2}}>Replace daily quotes with a Bible verse</div>
-                </div>
-                <label className="toggle-wrap">
-                  <input type="checkbox" checked={faithPref} onChange={e=>toggleFaith(e.target.checked)}/>
-                  <div className="toggle-track"/><div className="toggle-thumb"/>
-                </label>
-              </div>
-              {/* Preview */}
-              <div style={{marginTop:'1rem',padding:'1rem',background:'var(--bg)',borderRadius:10,border:'1px solid var(--border)'}}>
-                <div style={{fontSize:'.62rem',fontWeight:700,textTransform:'uppercase',letterSpacing:'.12em',color:'var(--gold)',marginBottom:'.5rem'}}>Preview — Today's card</div>
-                {(()=>{
-                  const arr=faithPref?BIBLE_VERSES:INSPIRATION_QUOTES
-                  const entry=getDailyEntry(arr)
-                  return (
-                    <div style={{display:'flex',flexDirection:'column',gap:'.35rem'}}>
-                      <div style={{display:'flex',alignItems:'flex-start',gap:'.65rem'}}>
-                        <span style={{fontSize:'1rem'}}>{entry.icon}</span>
-                        <span style={{fontSize:'.82rem',color:'var(--ink-2)',lineHeight:1.6,fontStyle:'italic'}}>"{entry.text}"</span>
-                      </div>
-                      <div style={{fontSize:'.7rem',color:'var(--gold)',fontWeight:600,paddingLeft:'1.65rem'}}>
-                        — {faithPref?entry.ref:entry.author}
-                      </div>
-                    </div>
-                  )
-                })()}
-              </div>
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* ── BUSINESS PAGE TAB ── */}
-      {appTab==='business'&&(
-        <div className="card">
-          <div className="card-head">
-            <div>
-              <div className="card-title">Business Page Appearance</div>
-              <div className="card-sub">How your public profile looks to clients</div>
-            </div>
-          </div>
-          <div className="card-body">
-            <div style={{padding:'1.5rem',textAlign:'center',background:'var(--bg)',borderRadius:10,border:'1px dashed var(--border-2)'}}>
-              <div style={{fontSize:'1.5rem',marginBottom:'.5rem'}}>🎨</div>
-              <div style={{fontWeight:600,fontSize:'.88rem',color:'var(--ink)',marginBottom:'.3rem'}}>Coming soon</div>
-              <div style={{fontSize:'.78rem',color:'var(--ink-3)',lineHeight:1.6}}>Business page appearance customization — accent colors, hero style, and section visibility — is being built now.</div>
-            </div>
+          <div className="settings-row" style={{marginTop:'1rem'}}>
+            <div className="settings-row-label">Dark mode</div>
+            <label className="toggle-wrap"><input type="checkbox" checked={theme==='dark'} onChange={e=>setTheme(e.target.checked?'dark':'light')}/><div className="toggle-track"/><div className="toggle-thumb"/></label>
           </div>
         </div>
-      )}
+      </div>
+
+      {/* ── BUSINESS PAGE THEME ── */}
+      <div style={{fontSize:'.68rem',fontWeight:700,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'.1em',marginBottom:'.65rem'}}>Business Page Theme</div>
+      <div className="card">
+        <div className="card-body">
+          <div style={{fontSize:'.8rem',color:'var(--ink-3)',marginBottom:'1rem',lineHeight:1.55}}>Controls how <strong style={{color:'var(--ink)'}}>your public client page</strong> looks. Clients see this when they book.</div>
+          <div style={{padding:'1.5rem',textAlign:'center',background:'var(--bg)',borderRadius:10,border:'1px dashed var(--border-2)'}}>
+            <div style={{fontSize:'1.4rem',marginBottom:'.5rem'}}>🎨</div>
+            <div style={{fontWeight:600,fontSize:'.85rem',color:'var(--ink)',marginBottom:'.3rem'}}>Coming soon</div>
+            <div style={{fontSize:'.76rem',color:'var(--ink-3)',lineHeight:1.6}}>Accent color, hero style, and section layout customization is on the roadmap.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+  if(section==='coach') return (
+    <div>
+      <div className="page-head"><div><BackBtn/><div className="page-title" style={{marginTop:'.4rem'}}>Coach</div></div></div>
+      <div className="card">
+        <div className="card-head">
+          <div>
+            <div className="card-title">Daily Inspiration</div>
+            <div className="card-sub">First slide of your Coach feed — refreshes every day</div>
+          </div>
+        </div>
+        <div className="card-body" style={{display:'flex',flexDirection:'column',gap:0}}>
+          <div className="settings-row">
+            <div>
+              <div className="settings-row-label">Faith-based content (Bible)</div>
+              <div style={{fontSize:'.73rem',color:'var(--ink-3)',marginTop:2}}>Replace motivational quotes with a daily Bible verse</div>
+            </div>
+            <label className="toggle-wrap">
+              <input type="checkbox" checked={faithPref} onChange={e=>toggleFaith(e.target.checked)}/>
+              <div className="toggle-track"/><div className="toggle-thumb"/>
+            </label>
+          </div>
+          <div style={{marginTop:'1rem',padding:'1rem',background:'var(--bg)',borderRadius:10,border:'1px solid var(--border)'}}>
+            <div style={{fontSize:'.62rem',fontWeight:700,textTransform:'uppercase',letterSpacing:'.12em',color:'var(--gold)',marginBottom:'.65rem'}}>Today's slide preview</div>
+            {(()=>{
+              const arr=faithPref?BIBLE_VERSES:INSPIRATION_QUOTES
+              const entry=getDailyEntry(arr)
+              return (
+                <div style={{display:'flex',flexDirection:'column',gap:'.35rem'}}>
+                  <div style={{display:'flex',alignItems:'flex-start',gap:'.65rem'}}>
+                    <span style={{fontSize:'1rem'}}>{entry.icon}</span>
+                    <span style={{fontSize:'.82rem',color:'var(--ink-2)',lineHeight:1.6,fontStyle:'italic'}}>"{entry.text}"</span>
+                  </div>
+                  <div style={{fontSize:'.7rem',color:'var(--gold)',fontWeight:600,paddingLeft:'1.65rem'}}>— {faithPref?entry.ref:entry.author}</div>
+                </div>
+              )
+            })()}
+          </div>
+        </div>
+      </div>
     </div>
   )
   if(section==='language') return (
