@@ -2652,7 +2652,7 @@ function SettingsBusinessForm({ workspace, toast, refetch, lang='en' }) {
       address_in_confirmations:form.address_in_confirmations,
       email:form.email,phone:form.phone,instagram:form.instagram,tiktok:form.tiktok
     }).eq('id',workspace.id)
-    if(error)toast(`Error: ${error.message}`);else{setSaved(true);toast('Business profile saved.');await refetch()}
+    if(error)toast(`Error: ${error.message}`);else{setSaved(true);toast('Business profile saved.');if(refetch) await refetch()}
     setLoading(false)
   }
   const iS={border:'1px solid var(--border-2)',borderRadius:8,padding:'.55rem .85rem',fontSize:'.88rem',fontFamily:'inherit',color:'var(--ink)',background:'var(--surface)',outline:'none',transition:'border .15s',width:'100%'}
@@ -3375,7 +3375,7 @@ export default function Dashboard() {
   )
 
   function renderPage(){
-    const props={workspace,toast,lang,session,ownerData,refetchWorkspace:fetchWorkspace,theme,setTheme,setPage:navigateTo}
+    const props={workspace,toast,lang,session,ownerData,refetchWorkspace:fetchWorkspace,refetch:fetchWorkspace,theme,setTheme,setPage:navigateTo}
     switch(page){
       case 'overview':     return <Overview {...props}/>
       case 'appointments': return <Appointments {...props}/>
