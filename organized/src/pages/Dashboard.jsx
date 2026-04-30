@@ -2762,8 +2762,8 @@ function SettingsAutomationsForm({ workspace, toast, refetch, lang='en' }) {
     setLoading(false)
   }
   const iS={border:'1px solid var(--border-2)',borderRadius:8,padding:'.55rem .85rem',fontSize:'.88rem',fontFamily:'inherit',color:'var(--ink)',background:'var(--surface)',outline:'none',transition:'border .15s',width:'100%'}
-  const foc=(e:any)=>e.target.style.borderColor='var(--gold)'
-  const blu=(e:any)=>e.target.style.borderColor='var(--border-2)'
+  const foc=(e)=>e.target.style.borderColor='var(--gold)'
+  const blu=(e)=>e.target.style.borderColor='var(--border-2)'
   const delayOptions=[{v:1,label:'1 hour after'},{v:2,label:'2 hours after'},{v:24,label:'24 hours after (next day)'}]
   return (
     <div className="card">
