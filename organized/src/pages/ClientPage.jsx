@@ -197,7 +197,7 @@ export default function ClientPage() {
       setLoading(true); setNotFound(false)
       try {
         const { data: ws } = await supabase.from('workspaces')
-          .select('id,name,slug,tagline,bio,avatar_url,instagram,tiktok,phone,email,location,timezone,currency,is_published,theme,offers_domicile,domicile_fee,domicile_radius_km,domicile_notes,address_visibility,neighborhood,address_street,address_city,address_province,address_postal,share_address,faq_settings,featured_product_id,featured_product_note,working_hours')
+          .select('id,name,slug,tagline,bio,avatar_url,instagram,tiktok,phone,email,location,timezone,currency,is_published,theme,offers_domicile,domicile_fee,domicile_radius_km,domicile_notes,address_visibility,neighborhood,address_street,address_city,address_province,address_postal,address_country,share_address,show_address_on_page,faq_settings,featured_product_id,featured_product_note,working_hours')
           .eq('slug', slug).eq('is_published', true).maybeSingle()
         if (!ws) { if (!cancelled) { setNotFound(true); setLoading(false) }; return }
         if (!cancelled) setWorkspace(ws)
@@ -457,7 +457,7 @@ export default function ClientPage() {
         </section>}
 
         {/* Location */}
-        {workspace.address_street&&workspace.address_visibility!=='hidden'&&<section className="cb-section">
+        {workspace.address_street&&(workspace.show_address_on_page||workspace.address_visibility!=='hidden')&&<section className="cb-section">
           <div className="cb-inner">
             <div className="cb-eyebrow">Find Us</div>
             <h2 className="cb-heading">The <em>Studio</em></h2>
@@ -471,14 +471,14 @@ export default function ClientPage() {
                   <div className="cb-loc-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg></div>
                   <div>
                     <div className="cb-loc-label">Address</div>
-                    <div className="cb-loc-val">{workspace.address_visibility==='full'?`${workspace.address_street}, ${workspace.address_city}`:`${workspace.neighborhood||workspace.address_city} — full address in confirmation email`}</div>
+                    <div className="cb-loc-val">{(workspace.show_address_on_page||workspace.address_visibility==='full')?`${workspace.address_street}, ${workspace.address_city}${workspace.address_province?', '+workspace.address_province:''}${workspace.address_postal?' '+workspace.address_postal:''}`:` ${workspace.neighborhood||workspace.address_city} — full address in confirmation email`}</div>
                   </div>
                 </div>
                 {workspace.working_hours&&<div className="cb-loc-row">
                   <div className="cb-loc-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
                   <div><div className="cb-loc-label">Hours</div><div className="cb-loc-val" style={{whiteSpace:'pre-line'}}>{workspace.working_hours}</div></div>
                 </div>}
-                {workspace.address_visibility==='full'&&<a className="cb-directions-btn" href={mapsUrl} target="_blank" rel="noreferrer">Get Directions →</a>}
+                {(workspace.show_address_on_page||workspace.address_visibility==='full')&&<a className="cb-directions-btn" href={mapsUrl} target="_blank" rel="noreferrer">Get Directions →</a>}
               </div>
             </div>
           </div>
