@@ -430,12 +430,19 @@ export default function ClientPage() {
             <div className="cb-services-grid" style={{marginTop:32}}>
               {services.map(svc=>(
                 <div key={svc.id} className="cb-svc-card" onClick={()=>openBooking(svc)}>
-                  <div className="cb-svc-cat">{svc.category||'Service'}</div>
-                  <div className="cb-svc-name">{svc.name}</div>
-                  <div className="cb-svc-dur">{svc.duration_min} min</div>
-                  <div className="cb-svc-footer">
-                    <div className="cb-svc-price">{svc.is_free?'Free':`$${Number(svc.price).toFixed(0)}`}</div>
-                    <button className="cb-svc-book">Book →</button>
+                  {svc.image_url&&(
+                    <div style={{width:'100%',aspectRatio:'16/9',overflow:'hidden',borderRadius:'10px 10px 0 0',marginBottom:0,flexShrink:0}}>
+                      <img src={svc.image_url} alt={svc.name} style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>
+                    </div>
+                  )}
+                  <div style={{padding:svc.image_url?'14px 16px 16px':'16px',flex:1,display:'flex',flexDirection:'column'}}>
+                    <div className="cb-svc-cat">{svc.category||'Service'}</div>
+                    <div className="cb-svc-name">{svc.name}</div>
+                    <div className="cb-svc-dur">{svc.duration_min} min</div>
+                    <div className="cb-svc-footer">
+                      <div className="cb-svc-price">{svc.is_free?'Free':`$${Number(svc.price).toFixed(0)}`}</div>
+                      <button className="cb-svc-book">Book →</button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -552,7 +559,7 @@ export default function ClientPage() {
 
       {/* ═══════════ PRODUCT DETAIL OVERLAY ═══════════ */}
       {selectedProduct&&(
-        <div style={{position:'fixed',inset:0,zIndex:200,background:'#0d0b09',overflowY:'auto',display:'flex',flexDirection:'column',fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"}}>
+        <div style={{position:'fixed',inset:0,zIndex:750,background:'#0d0b09',overflowY:'auto',display:'flex',flexDirection:'column',fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"}}>
 
           {/* Sticky header */}
           <div style={{position:'sticky',top:0,zIndex:10,background:'rgba(13,11,9,.96)',backdropFilter:'blur(20px)',borderBottom:'1px solid rgba(201,168,76,.1)',padding:'0 1.25rem',height:56,display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0}}>
@@ -635,10 +642,6 @@ export default function ClientPage() {
         <footer className="cb-footer"><div className="cb-footer-inner"><div className="cb-footer-brand">{workspace.name}<span>Powered by <a href="https://beorganized.io" target="_blank" rel="noreferrer">Organized.</a></span></div></div></footer>
       </div>}
 
-      {/* ═══════════ PRODUCT DETAIL OVERLAY ═══════════ */}
-      {selectedProduct&&(
-        <div style={{position:'fixed',inset:0,zIndex:200,background:'var(--dark-1,#0d0b09)',overflowY:'auto',display:'flex',flexDirection:'column'}}>
-          {/* Header */}
           <div style={{position:'sticky',top:0,zIndex:10,background:'var(--dark-2,#1a1814)',borderBottom:'1px solid var(--dark-4,rgba(255,255,255,.07))',padding:'1rem 1.25rem',display:'flex',alignItems:'center',gap:'1rem'}}>
             <button onClick={()=>setSelectedProduct(null)} style={{display:'flex',alignItems:'center',gap:'.5rem',background:'none',border:'none',color:'var(--gold,#c9a84c)',cursor:'pointer',fontFamily:'inherit',fontSize:'.85rem',fontWeight:600,padding:0,WebkitTapHighlightColor:'transparent'}}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
@@ -894,13 +897,13 @@ export default function ClientPage() {
       </div>
 
       {/* FLOAT */}
-      <div style={{position:'fixed',bottom:24,right:24,zIndex:450,display:'flex',flexDirection:'column',alignItems:'flex-end',gap:8}}>
+      {!selectedProduct&&<div style={{position:'fixed',bottom:24,right:24,zIndex:450,display:'flex',flexDirection:'column',alignItems:'flex-end',gap:8}}>
         {floatOpen&&<div style={{display:'flex',flexDirection:'column',gap:8,alignItems:'flex-end'}}>
           {workspace.phone&&<div style={{display:'flex',alignItems:'center',gap:10}}><span style={{background:'var(--dark-3)',border:'1px solid var(--dark-4)',padding:'6px 12px',borderRadius:1,fontSize:11,color:'var(--text-soft)',whiteSpace:'nowrap'}}>Call</span><a href={`tel:${workspace.phone}`} style={{width:40,height:40,background:'var(--dark-3)',border:'1px solid var(--dark-5)',display:'flex',alignItems:'center',justifyContent:'center',textDecoration:'none',fontSize:16,borderRadius:2}}>📞</a></div>}
           {workspace.instagram&&<div style={{display:'flex',alignItems:'center',gap:10}}><span style={{background:'var(--dark-3)',border:'1px solid var(--dark-4)',padding:'6px 12px',borderRadius:1,fontSize:11,color:'var(--text-soft)',whiteSpace:'nowrap'}}>Instagram</span><a href={`https://instagram.com/${workspace.instagram.replace('@','')}`} target="_blank" rel="noreferrer" style={{width:40,height:40,background:'var(--dark-3)',border:'1px solid var(--dark-5)',display:'flex',alignItems:'center',justifyContent:'center',textDecoration:'none',fontSize:16,borderRadius:2}}>✦</a></div>}
         </div>}
         <button onClick={()=>setFloatOpen(f=>!f)} style={{width:48,height:48,borderRadius:2,background:'var(--gold)',color:'#141210',border:'none',cursor:'pointer',fontSize:18,display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 4px 20px rgba(201,168,76,.28)',transition:'all .25s'}}>{floatOpen?'✕':'✦'}</button>
-      </div>
+      </div>}
     </>
   )
 }
@@ -946,7 +949,7 @@ const CSS = `
 .cb-btn-ghost{background:transparent;color:rgba(250,246,241,.7);border:1px solid rgba(250,246,241,.25);padding:14px 28px;font-family:'DM Sans',sans-serif;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;border-radius:1px;transition:all .25s}
 .cb-btn-ghost:hover{border-color:rgba(250,246,241,.5);color:rgba(250,246,241,.9)}
 
-.cb-tabs{position:sticky;top:64px;z-index:400;background:rgba(10,5,2,0.98);border-bottom:1px solid rgba(201,168,76,.1);backdrop-filter:blur(20px);display:flex;padding:0 20px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.cb-tabs{position:sticky;position:-webkit-sticky;top:64px;z-index:400;background:rgba(10,5,2,0.98);border-bottom:1px solid rgba(201,168,76,.1);backdrop-filter:blur(20px);display:flex;padding:0 20px;overflow-x:auto;-webkit-overflow-scrolling:touch}
 [data-theme="light"] .cb-tabs{background:rgba(14,7,2,0.98)!important}
 .cb-tab{background:transparent;border:none;color:rgba(201,168,76,.5);font-family:'DM Sans',sans-serif;font-size:10px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;padding:18px 18px;cursor:pointer;display:flex;align-items:center;gap:7px;position:relative;white-space:nowrap;transition:color .25s}
 .cb-tab::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;background:var(--gold);transform:scaleX(0);transition:transform .3s var(--ease)}
@@ -963,7 +966,7 @@ const CSS = `
 .cb-sub{font-size:13px;color:var(--text-muted);font-weight:300;line-height:1.75;margin-top:10px}
 
 .cb-services-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1px;background:var(--dark-4);border:1px solid var(--dark-4)}
-.cb-svc-card{background:var(--dark-2);padding:32px 28px;cursor:pointer;transition:background .3s;position:relative;overflow:hidden}
+.cb-svc-card{background:var(--dark-2);cursor:pointer;transition:background .3s;position:relative;overflow:hidden;display:flex;flex-direction:column}
 .cb-svc-card::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(to right,transparent,var(--gold),transparent);transform:scaleX(0);transform-origin:left;transition:transform .4s var(--ease)}
 .cb-svc-card:hover{background:var(--dark-3)}.cb-svc-card:hover::after{transform:scaleX(1)}
 .cb-svc-cat{font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--text-muted);margin-bottom:16px}
