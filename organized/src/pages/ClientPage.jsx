@@ -65,6 +65,10 @@ function getBlobs(theme) {
   }
 }
 
+function getProductImg(p) {
+  return p.image_url || (Array.isArray(p.images) && p.images.length > 0 ? p.images[0] : null)
+}
+
 function useCanvas(canvas, theme) {
   useEffect(() => {
     if (!canvas) return
@@ -173,6 +177,7 @@ export default function ClientPage() {
   const [openFAQ,        setOpenFAQ]        = useState(null)
   const [floatOpen,      setFloatOpen]      = useState(false)
   const [shopFilter,     setShopFilter]     = useState('all')
+  const [selectedProduct, setSelectedProduct] = useState(null)
 
   // ── Booking state ─────────────────────────────────────────────────────────
   const [bkOpen,         setBkOpen]         = useState(false)
@@ -515,8 +520,8 @@ export default function ClientPage() {
           <div><div className="cb-eyebrow">The Edit</div><h2 className="cb-heading">Shop <em>Picks</em></h2><p className="cb-sub">Products personally tested and recommended. Studio pickup or delivery.</p></div>
           <div className="cb-shop-filters">{['all','hair-care','styling','treatment'].map(f=><button key={f} className={`cb-filter-tab${shopFilter===f?' active':''}`} onClick={()=>setShopFilter(f)}>{f==='all'?'All':f.replace('-',' ').replace(/\b\w/g,l=>l.toUpperCase())}</button>)}</div>
         </div>
-        {featuredProduct&&<div className="cb-featured">
-          <div className="cb-featured-img">{featuredProduct.image_url?<img src={featuredProduct.image_url} alt={featuredProduct.name} style={{width:'100%',height:'100%',objectFit:'cover'}}/>:<div className="cb-ph">✦</div>}</div>
+        {featuredProduct&&<div className="cb-featured" onClick={()=>setSelectedProduct(featuredProduct)} style={{cursor:"pointer"}}>
+          <div className="cb-featured-img">{getProductImg(featuredProduct)?<img src={getProductImg(featuredProduct)} alt={featuredProduct.name} style={{width:'100%',height:'100%',objectFit:'cover'}}/>:<div className="cb-ph">✦</div>}</div>
           <div className="cb-featured-info">
             <div className="cb-featured-badge">Recommended Pick</div>
             <div className="cb-featured-name">{featuredProduct.name}</div>
@@ -530,21 +535,92 @@ export default function ClientPage() {
         </div>}
         <div className="cb-products-grid">
           {otherProducts.map(p=>(
-            <div key={p.id} className={`cb-product-card${p.stock===0?' sold-out':''}`}>
-              <div className="cb-product-img">{p.image_url?<img src={p.image_url} alt={p.name} style={{width:'100%',height:'100%',objectFit:'cover'}}/>:<div className="cb-ph">✦</div>}
+            <div key={p.id} className={`cb-product-card${p.stock===0?' sold-out':''}`} onClick={()=>setSelectedProduct(p)}>
+              <div className="cb-product-img">{getProductImg(p)?<img src={getProductImg(p)} alt={p.name} style={{width:'100%',height:'100%',objectFit:'cover'}}/>:<div className="cb-ph">✦</div>}
                 {p.stock===0&&<div className="cb-badge cb-badge-so">Sold Out</div>}
                 {p.stock>0&&p.stock<=3&&<div className="cb-badge cb-badge-lim">Only {p.stock} left</div>}
               </div>
               <div className="cb-product-info">
                 <div className="cb-product-name">{p.name}</div>
-                <p className="cb-product-desc">{p.description}</p>
-                <div className="cb-product-footer"><div className="cb-product-price">${Number(p.price).toFixed(0)}</div><button className="cb-add-bag" disabled={p.stock===0} onClick={()=>addToCart(p)}>{p.stock===0?'Sold Out':'Add to Bag'}</button></div>
+                <div className="cb-product-price" style={{marginTop:6}}>${Number(p.price).toFixed(0)}</div>
               </div>
             </div>
           ))}
         </div>
         <footer className="cb-footer"><div className="cb-footer-inner"><div className="cb-footer-brand">{workspace.name}<span>Powered by <a href="https://beorganized.io" target="_blank" rel="noreferrer">Organized.</a></span></div></div></footer>
       </div>}
+
+      {/* ═══════════ PRODUCT DETAIL OVERLAY ═══════════ */}
+      {selectedProduct&&(
+        <div style={{position:'fixed',inset:0,zIndex:200,background:'var(--dark-1,#0d0b09)',overflowY:'auto',display:'flex',flexDirection:'column'}}>
+          {/* Header */}
+          <div style={{position:'sticky',top:0,zIndex:10,background:'var(--dark-2,#1a1814)',borderBottom:'1px solid var(--dark-4,rgba(255,255,255,.07))',padding:'1rem 1.25rem',display:'flex',alignItems:'center',gap:'1rem'}}>
+            <button onClick={()=>setSelectedProduct(null)} style={{display:'flex',alignItems:'center',gap:'.5rem',background:'none',border:'none',color:'var(--gold,#c9a84c)',cursor:'pointer',fontFamily:'inherit',fontSize:'.85rem',fontWeight:600,padding:0,WebkitTapHighlightColor:'transparent'}}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+              Back to Shop
+            </button>
+          </div>
+
+          {/* Product image */}
+          <div style={{width:'100%',aspectRatio:'1/1',background:'var(--dark-3,#252218)',overflow:'hidden',flexShrink:0}}>
+            {getProductImg(selectedProduct)
+              ? <img src={getProductImg(selectedProduct)} alt={selectedProduct.name} style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+              : <div style={{width:'100%',height:'100%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'3rem',color:'var(--gold,#c9a84c)'}}>✦</div>
+            }
+          </div>
+
+          {/* Product details */}
+          <div style={{padding:'1.75rem 1.25rem',flex:1}}>
+            {/* Stock badge */}
+            {selectedProduct.stock===0&&<div style={{display:'inline-block',fontSize:'.72rem',letterSpacing:'.12em',textTransform:'uppercase',color:'#e74c3c',background:'rgba(231,76,60,.1)',border:'1px solid rgba(231,76,60,.2)',padding:'4px 12px',borderRadius:100,marginBottom:'1rem'}}>Sold Out</div>}
+            {selectedProduct.stock>0&&selectedProduct.stock<=3&&<div style={{display:'inline-block',fontSize:'.72rem',letterSpacing:'.12em',textTransform:'uppercase',color:'var(--gold,#c9a84c)',background:'rgba(201,168,76,.1)',border:'1px solid rgba(201,168,76,.2)',padding:'4px 12px',borderRadius:100,marginBottom:'1rem'}}>Only {selectedProduct.stock} left</div>}
+
+            {/* Name */}
+            <div style={{fontFamily:"'Playfair Display',serif",fontSize:'1.65rem',color:'var(--text,#f0ece4)',lineHeight:1.2,marginBottom:'.75rem'}}>{selectedProduct.name}</div>
+
+            {/* Price */}
+            <div style={{fontSize:'1.35rem',fontWeight:700,color:'var(--gold,#c9a84c)',marginBottom:'1.25rem'}}>${Number(selectedProduct.price).toFixed(2)}</div>
+
+            {/* Divider */}
+            <div style={{height:1,background:'var(--dark-4,rgba(255,255,255,.07))',marginBottom:'1.25rem'}}/>
+
+            {/* Description */}
+            {selectedProduct.description&&(
+              <div>
+                <div style={{fontSize:'.65rem',fontWeight:700,letterSpacing:'.14em',textTransform:'uppercase',color:'var(--text-muted,#6b6560)',marginBottom:'.6rem'}}>About this product</div>
+                <p style={{fontSize:'.95rem',color:'var(--text-soft,#a09890)',lineHeight:1.75,margin:0}}>{selectedProduct.description}</p>
+              </div>
+            )}
+
+            {/* Multiple images */}
+            {Array.isArray(selectedProduct.images)&&selectedProduct.images.length>1&&(
+              <div style={{marginTop:'1.5rem'}}>
+                <div style={{fontSize:'.65rem',fontWeight:700,letterSpacing:'.14em',textTransform:'uppercase',color:'var(--text-muted,#6b6560)',marginBottom:'.75rem'}}>More photos</div>
+                <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:6}}>
+                  {selectedProduct.images.slice(1).map((img,i)=>(
+                    <div key={i} style={{aspectRatio:'1/1',borderRadius:8,overflow:'hidden',background:'var(--dark-3,#252218)'}}>
+                      <img src={img} alt={`${selectedProduct.name} ${i+2}`} style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Sticky bottom CTA */}
+          <div style={{position:'sticky',bottom:0,background:'var(--dark-2,#1a1814)',borderTop:'1px solid var(--dark-4,rgba(255,255,255,.07))',padding:'1rem 1.25rem',display:'flex',gap:12}}>
+            <button onClick={()=>setSelectedProduct(null)} style={{flex:'0 0 auto',padding:'13px 20px',background:'transparent',border:'1px solid var(--dark-4,rgba(255,255,255,.12))',borderRadius:10,color:'var(--text-soft,#a09890)',cursor:'pointer',fontFamily:'inherit',fontSize:'.88rem',WebkitTapHighlightColor:'transparent'}}>
+              Back
+            </button>
+            <button
+              disabled={selectedProduct.stock===0}
+              onClick={()=>{addToCart(selectedProduct);setSelectedProduct(null)}}
+              style={{flex:1,padding:'13px',background:selectedProduct.stock===0?'var(--dark-4,rgba(255,255,255,.06))':'var(--gold,#c9a84c)',color:selectedProduct.stock===0?'var(--text-muted,#6b6560)':'#0d0b09',border:'none',borderRadius:10,fontSize:'.95rem',fontWeight:700,cursor:selectedProduct.stock===0?'not-allowed':'pointer',fontFamily:'inherit',letterSpacing:'.02em',WebkitTapHighlightColor:'transparent'}}>
+              {selectedProduct.stock===0?'Sold Out':'Add to Bag'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ═══════════ LEARN PANEL ═══════════ */}
       {activeTab==='learn'&&<div className="cb-panel">
@@ -562,6 +638,78 @@ export default function ClientPage() {
         </div>
         <footer className="cb-footer"><div className="cb-footer-inner"><div className="cb-footer-brand">{workspace.name}<span>Powered by <a href="https://beorganized.io" target="_blank" rel="noreferrer">Organized.</a></span></div></div></footer>
       </div>}
+
+      {/* ═══════════ PRODUCT DETAIL OVERLAY ═══════════ */}
+      {selectedProduct&&(
+        <div style={{position:'fixed',inset:0,zIndex:200,background:'var(--dark-1,#0d0b09)',overflowY:'auto',display:'flex',flexDirection:'column'}}>
+          {/* Header */}
+          <div style={{position:'sticky',top:0,zIndex:10,background:'var(--dark-2,#1a1814)',borderBottom:'1px solid var(--dark-4,rgba(255,255,255,.07))',padding:'1rem 1.25rem',display:'flex',alignItems:'center',gap:'1rem'}}>
+            <button onClick={()=>setSelectedProduct(null)} style={{display:'flex',alignItems:'center',gap:'.5rem',background:'none',border:'none',color:'var(--gold,#c9a84c)',cursor:'pointer',fontFamily:'inherit',fontSize:'.85rem',fontWeight:600,padding:0,WebkitTapHighlightColor:'transparent'}}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+              Back to Shop
+            </button>
+          </div>
+
+          {/* Product image */}
+          <div style={{width:'100%',aspectRatio:'1/1',background:'var(--dark-3,#252218)',overflow:'hidden',flexShrink:0}}>
+            {getProductImg(selectedProduct)
+              ? <img src={getProductImg(selectedProduct)} alt={selectedProduct.name} style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+              : <div style={{width:'100%',height:'100%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'3rem',color:'var(--gold,#c9a84c)'}}>✦</div>
+            }
+          </div>
+
+          {/* Product details */}
+          <div style={{padding:'1.75rem 1.25rem',flex:1}}>
+            {/* Stock badge */}
+            {selectedProduct.stock===0&&<div style={{display:'inline-block',fontSize:'.72rem',letterSpacing:'.12em',textTransform:'uppercase',color:'#e74c3c',background:'rgba(231,76,60,.1)',border:'1px solid rgba(231,76,60,.2)',padding:'4px 12px',borderRadius:100,marginBottom:'1rem'}}>Sold Out</div>}
+            {selectedProduct.stock>0&&selectedProduct.stock<=3&&<div style={{display:'inline-block',fontSize:'.72rem',letterSpacing:'.12em',textTransform:'uppercase',color:'var(--gold,#c9a84c)',background:'rgba(201,168,76,.1)',border:'1px solid rgba(201,168,76,.2)',padding:'4px 12px',borderRadius:100,marginBottom:'1rem'}}>Only {selectedProduct.stock} left</div>}
+
+            {/* Name */}
+            <div style={{fontFamily:"'Playfair Display',serif",fontSize:'1.65rem',color:'var(--text,#f0ece4)',lineHeight:1.2,marginBottom:'.75rem'}}>{selectedProduct.name}</div>
+
+            {/* Price */}
+            <div style={{fontSize:'1.35rem',fontWeight:700,color:'var(--gold,#c9a84c)',marginBottom:'1.25rem'}}>${Number(selectedProduct.price).toFixed(2)}</div>
+
+            {/* Divider */}
+            <div style={{height:1,background:'var(--dark-4,rgba(255,255,255,.07))',marginBottom:'1.25rem'}}/>
+
+            {/* Description */}
+            {selectedProduct.description&&(
+              <div>
+                <div style={{fontSize:'.65rem',fontWeight:700,letterSpacing:'.14em',textTransform:'uppercase',color:'var(--text-muted,#6b6560)',marginBottom:'.6rem'}}>About this product</div>
+                <p style={{fontSize:'.95rem',color:'var(--text-soft,#a09890)',lineHeight:1.75,margin:0}}>{selectedProduct.description}</p>
+              </div>
+            )}
+
+            {/* Multiple images */}
+            {Array.isArray(selectedProduct.images)&&selectedProduct.images.length>1&&(
+              <div style={{marginTop:'1.5rem'}}>
+                <div style={{fontSize:'.65rem',fontWeight:700,letterSpacing:'.14em',textTransform:'uppercase',color:'var(--text-muted,#6b6560)',marginBottom:'.75rem'}}>More photos</div>
+                <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:6}}>
+                  {selectedProduct.images.slice(1).map((img,i)=>(
+                    <div key={i} style={{aspectRatio:'1/1',borderRadius:8,overflow:'hidden',background:'var(--dark-3,#252218)'}}>
+                      <img src={img} alt={`${selectedProduct.name} ${i+2}`} style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Sticky bottom CTA */}
+          <div style={{position:'sticky',bottom:0,background:'var(--dark-2,#1a1814)',borderTop:'1px solid var(--dark-4,rgba(255,255,255,.07))',padding:'1rem 1.25rem',display:'flex',gap:12}}>
+            <button onClick={()=>setSelectedProduct(null)} style={{flex:'0 0 auto',padding:'13px 20px',background:'transparent',border:'1px solid var(--dark-4,rgba(255,255,255,.12))',borderRadius:10,color:'var(--text-soft,#a09890)',cursor:'pointer',fontFamily:'inherit',fontSize:'.88rem',WebkitTapHighlightColor:'transparent'}}>
+              Back
+            </button>
+            <button
+              disabled={selectedProduct.stock===0}
+              onClick={()=>{addToCart(selectedProduct);setSelectedProduct(null)}}
+              style={{flex:1,padding:'13px',background:selectedProduct.stock===0?'var(--dark-4,rgba(255,255,255,.06))':'var(--gold,#c9a84c)',color:selectedProduct.stock===0?'var(--text-muted,#6b6560)':'#0d0b09',border:'none',borderRadius:10,fontSize:'.95rem',fontWeight:700,cursor:selectedProduct.stock===0?'not-allowed':'pointer',fontFamily:'inherit',letterSpacing:'.02em',WebkitTapHighlightColor:'transparent'}}>
+              {selectedProduct.stock===0?'Sold Out':'Add to Bag'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ═══════════ BOOKING OVERLAY ═══════════ */}
       <div className={`cb-overlay${bkOpen?' open':''}`}>
@@ -887,7 +1035,7 @@ const CSS = `
 .cb-featured-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:16px;border-top:1px solid var(--dark-4);margin-top:12px}
 
 .cb-products-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1px;background:var(--dark-4);border:1px solid var(--dark-4);border-top:none}
-@media(max-width:480px){.cb-products-grid{grid-template-columns:1fr}}
+/* products always 2 columns */
 .cb-product-card{background:var(--dark-2);transition:background .3s}
 .cb-product-card:not(.sold-out){cursor:pointer}.cb-product-card:not(.sold-out):hover{background:var(--dark-3)}
 .cb-product-card.sold-out{opacity:.55}
