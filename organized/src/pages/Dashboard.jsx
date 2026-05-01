@@ -2784,18 +2784,6 @@ function SettingsAutomationsForm({ workspace, toast, refetch, lang='en' }) {
           <>
             <div style={{height:1,background:'var(--border)'}}/>
 
-            {/* Google Review URL */}
-            <div className="field">
-              <label style={{fontSize:'.72rem',fontWeight:600,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'.08em',display:'block',marginBottom:'.4rem'}}>Google Review Link</label>
-              <input style={iS} value={form.google_review_url}
-                onChange={e=>setForm(f=>({...f,google_review_url:e.target.value}))}
-                onFocus={foc} onBlur={blu}
-                placeholder="https://g.page/r/your-business/review"/>
-              <div style={{fontSize:'.72rem',color:'var(--ink-3)',marginTop:'.4rem'}}>
-                Find it in Google Business Profile → Get more reviews → Copy link
-              </div>
-            </div>
-
             {/* Delay */}
             <div className="field">
               <label style={{fontSize:'.72rem',fontWeight:600,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'.08em',display:'block',marginBottom:'.4rem'}}>Send review request</label>
@@ -2813,19 +2801,29 @@ function SettingsAutomationsForm({ workspace, toast, refetch, lang='en' }) {
               </div>
             </div>
 
-            {/* Preview */}
-            {form.google_review_url&&(
-              <div style={{background:'var(--bg)',borderRadius:10,border:'1px solid var(--border)',padding:'1rem'}}>
-                <div style={{fontSize:'.62rem',fontWeight:700,textTransform:'uppercase',letterSpacing:'.12em',color:'var(--gold)',marginBottom:'.65rem'}}>What clients will receive</div>
-                <div style={{display:'flex',alignItems:'flex-start',gap:'.75rem'}}>
-                  <div style={{fontSize:'1.4rem'}}>⭐</div>
-                  <div>
-                    <div style={{fontWeight:600,fontSize:'.85rem',color:'var(--ink)',marginBottom:'.2rem'}}>How was your visit at {workspace?.name||'Your Studio'}?</div>
-                    <div style={{fontSize:'.76rem',color:'var(--ink-3)',lineHeight:1.55}}>A short email with your Google Review link — sent {delayOptions.find(o=>o.v===form.review_delay_hours)?.label?.toLowerCase()} the appointment.</div>
+            {/* How it works */}
+            <div style={{background:'var(--bg)',borderRadius:10,border:'1px solid var(--border)',padding:'1rem'}}>
+              <div style={{fontSize:'.62rem',fontWeight:700,textTransform:'uppercase',letterSpacing:'.12em',color:'var(--gold)',marginBottom:'.65rem'}}>How it works</div>
+              <div style={{display:'flex',flexDirection:'column',gap:'.5rem'}}>
+                {['Client books and attends appointment','Email is sent automatically after the delay you choose','Client rates their visit on your Organized. page','You approve it → it appears on your public profile'].map((step,i)=>(
+                  <div key={i} style={{display:'flex',gap:'.65rem',alignItems:'flex-start'}}>
+                    <div style={{width:18,height:18,borderRadius:'50%',background:'var(--gold)',color:'#1a1814',fontSize:'.62rem',fontWeight:700,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,marginTop:1}}>{i+1}</div>
+                    <div style={{fontSize:'.78rem',color:'var(--ink-2)',lineHeight:1.5}}>{step}</div>
                   </div>
-                </div>
+                ))}
               </div>
-            )}
+            </div>
+
+            {/* Optional Google URL */}
+            <div style={{height:1,background:'var(--border)'}}/>
+            <div>
+              <div style={{fontSize:'.72rem',fontWeight:600,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'.3rem'}}>Google Reviews <span style={{fontWeight:400,textTransform:'none',letterSpacing:0,fontSize:'.72rem'}}>(optional)</span></div>
+              <div style={{fontSize:'.75rem',color:'var(--ink-3)',lineHeight:1.55,marginBottom:'.65rem'}}>If you have a Google Business page, paste your review link here. Clients who rate 5 stars will see an option to also post on Google.</div>
+              <input style={iS} value={form.google_review_url}
+                onChange={e=>setForm(f=>({...f,google_review_url:e.target.value}))}
+                onFocus={foc} onBlur={blu}
+                placeholder="https://g.page/r/your-business/review (optional)"/>
+            </div>
           </>
         )}
 
