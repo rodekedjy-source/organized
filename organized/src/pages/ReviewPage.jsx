@@ -127,6 +127,8 @@ export default function ReviewPage() {
       service_name: appt.service_name || null,
       rating,
       body: comment.trim() || null,
+      entity_type: 'appointment',
+      reviewer_name: appt.client_name || 'Anonymous',
       is_approved: false,
     })
     if (error) { setSubmitError('Something went wrong. Please try again.'); setSubmitting(false); return }
