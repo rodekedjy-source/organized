@@ -2482,10 +2482,18 @@ function Settings({ workspace, toast, refetch, theme, setTheme, session, ownerDa
       <div className="card">
         <div className="card-body">
           <div style={{fontSize:'.8rem',color:'var(--ink-3)',marginBottom:'1rem',lineHeight:1.55}}>Controls how <strong style={{color:'var(--ink)'}}>your public client page</strong> looks. Clients see this when they book.</div>
-          <div style={{padding:'1.5rem',textAlign:'center',background:'var(--bg)',borderRadius:10,border:'1px dashed var(--border-2)'}}>
-            <div style={{fontSize:'1.4rem',marginBottom:'.5rem'}}>🎨</div>
-            <div style={{fontWeight:600,fontSize:'.85rem',color:'var(--ink)',marginBottom:'.3rem'}}>Coming soon</div>
-            <div style={{fontSize:'.76rem',color:'var(--ink-3)',lineHeight:1.6}}>Accent color, hero style, and section layout customization is on the roadmap.</div>
+          <div className="theme-options">
+            <div className={`theme-option${workspace?.theme!=='dark'?' selected':''}`} onClick={async()=>{await supabase.from('workspaces').update({theme:'light'}).eq('id',workspace.id);if(refetch)await refetch();toast('Business page set to Light.')}}>
+              <div className="theme-preview"><div className="tp-ls"/><div className="tp-lm"><div className="tp-lb"/><div className="tp-lb"/></div></div>
+              <div className="theme-label">Light {workspace?.theme!=='dark'&&<div className="theme-check">{I.check}</div>}</div>
+            </div>
+            <div className={`theme-option${workspace?.theme==='dark'?' selected':''}`} onClick={async()=>{await supabase.from('workspaces').update({theme:'dark'}).eq('id',workspace.id);if(refetch)await refetch();toast('Business page set to Dark.')}}>
+              <div className="theme-preview"><div className="tp-ds"/><div className="tp-dm"><div className="tp-db"/><div className="tp-db"/></div></div>
+              <div className="theme-label">Dark {workspace?.theme==='dark'&&<div className="theme-check">{I.check}</div>}</div>
+            </div>
+          </div>
+          <div style={{fontSize:'.73rem',color:'var(--ink-3)',marginTop:'1rem',lineHeight:1.55}}>
+            Changes apply immediately to your public page — no save needed.
           </div>
         </div>
       </div>
