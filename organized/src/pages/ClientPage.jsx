@@ -552,70 +552,66 @@ export default function ClientPage() {
 
       {/* ═══════════ PRODUCT DETAIL OVERLAY ═══════════ */}
       {selectedProduct&&(
-        <div style={{position:'fixed',inset:0,zIndex:200,background:'var(--dark-1,#0d0b09)',overflowY:'auto',display:'flex',flexDirection:'column'}}>
-          {/* Header */}
-          <div style={{position:'sticky',top:0,zIndex:10,background:'var(--dark-2,#1a1814)',borderBottom:'1px solid var(--dark-4,rgba(255,255,255,.07))',padding:'1rem 1.25rem',display:'flex',alignItems:'center',gap:'1rem'}}>
-            <button onClick={()=>setSelectedProduct(null)} style={{display:'flex',alignItems:'center',gap:'.5rem',background:'none',border:'none',color:'var(--gold,#c9a84c)',cursor:'pointer',fontFamily:'inherit',fontSize:'.85rem',fontWeight:600,padding:0,WebkitTapHighlightColor:'transparent'}}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
-              Back to Shop
+        <div style={{position:'fixed',inset:0,zIndex:200,background:'#0d0b09',overflowY:'auto',display:'flex',flexDirection:'column',fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"}}>
+
+          {/* Sticky header */}
+          <div style={{position:'sticky',top:0,zIndex:10,background:'rgba(13,11,9,.96)',backdropFilter:'blur(20px)',borderBottom:'1px solid rgba(201,168,76,.1)',padding:'0 1.25rem',height:56,display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0}}>
+            <button onClick={()=>setSelectedProduct(null)} style={{display:'flex',alignItems:'center',gap:8,background:'rgba(255,255,255,.06)',border:'1px solid rgba(255,255,255,.1)',borderRadius:100,padding:'6px 14px 6px 10px',color:'#f0ece4',cursor:'pointer',fontFamily:'inherit',fontSize:'.82rem',fontWeight:500,WebkitTapHighlightColor:'transparent'}}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+              Shop
             </button>
+            <div style={{fontFamily:"'Playfair Display',serif",fontSize:'.85rem',color:'#c9a84c',letterSpacing:'.04em'}}>Organized.</div>
           </div>
 
-          {/* Product image */}
-          <div style={{width:'100%',aspectRatio:'1/1',background:'var(--dark-3,#252218)',overflow:'hidden',flexShrink:0}}>
+          {/* Main image */}
+          <div style={{width:'100%',aspectRatio:'1/1',background:'#1a1612',overflow:'hidden',flexShrink:0,position:'relative'}}>
             {getProductImg(selectedProduct)
               ? <img src={getProductImg(selectedProduct)} alt={selectedProduct.name} style={{width:'100%',height:'100%',objectFit:'cover'}}/>
-              : <div style={{width:'100%',height:'100%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'3rem',color:'var(--gold,#c9a84c)'}}>✦</div>
+              : <div style={{width:'100%',height:'100%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'3.5rem',color:'#c9a84c',opacity:.4}}>✦</div>
             }
+            {selectedProduct.stock===0&&<div style={{position:'absolute',top:16,left:16,background:'rgba(0,0,0,.7)',color:'#fff',fontSize:'.72rem',letterSpacing:'.1em',textTransform:'uppercase',padding:'5px 12px',borderRadius:100}}>Sold Out</div>}
           </div>
 
-          {/* Product details */}
-          <div style={{padding:'1.75rem 1.25rem',flex:1}}>
-            {/* Stock badge */}
-            {selectedProduct.stock===0&&<div style={{display:'inline-block',fontSize:'.72rem',letterSpacing:'.12em',textTransform:'uppercase',color:'#e74c3c',background:'rgba(231,76,60,.1)',border:'1px solid rgba(231,76,60,.2)',padding:'4px 12px',borderRadius:100,marginBottom:'1rem'}}>Sold Out</div>}
-            {selectedProduct.stock>0&&selectedProduct.stock<=3&&<div style={{display:'inline-block',fontSize:'.72rem',letterSpacing:'.12em',textTransform:'uppercase',color:'var(--gold,#c9a84c)',background:'rgba(201,168,76,.1)',border:'1px solid rgba(201,168,76,.2)',padding:'4px 12px',borderRadius:100,marginBottom:'1rem'}}>Only {selectedProduct.stock} left</div>}
+          {/* Thumbnail strip */}
+          {Array.isArray(selectedProduct.images)&&selectedProduct.images.length>1&&(
+            <div style={{display:'flex',gap:6,padding:'10px 16px',background:'#0d0b09',overflowX:'auto',flexShrink:0}}>
+              {selectedProduct.images.map((img,i)=>(
+                <div key={i} style={{width:60,height:60,borderRadius:8,overflow:'hidden',flexShrink:0,border:`1.5px solid ${i===0?'#c9a84c':'rgba(255,255,255,.08)'}`}}>
+                  <img src={img} alt={`view ${i+1}`} style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+                </div>
+              ))}
+            </div>
+          )}
 
-            {/* Name */}
-            <div style={{fontFamily:"'Playfair Display',serif",fontSize:'1.65rem',color:'var(--text,#f0ece4)',lineHeight:1.2,marginBottom:'.75rem'}}>{selectedProduct.name}</div>
-
-            {/* Price */}
-            <div style={{fontSize:'1.35rem',fontWeight:700,color:'var(--gold,#c9a84c)',marginBottom:'1.25rem'}}>${Number(selectedProduct.price).toFixed(2)}</div>
-
-            {/* Divider */}
-            <div style={{height:1,background:'var(--dark-4,rgba(255,255,255,.07))',marginBottom:'1.25rem'}}/>
-
-            {/* Description */}
+          {/* Content */}
+          <div style={{padding:'1.5rem 1.25rem 2rem',flex:1}}>
+            <div style={{fontFamily:"'Playfair Display',serif",fontSize:'1.55rem',color:'#f0ece4',lineHeight:1.2,marginBottom:'.5rem'}}>{selectedProduct.name}</div>
+            {selectedProduct.stock>0&&selectedProduct.stock<=3&&(
+              <div style={{display:'inline-block',fontSize:'.7rem',letterSpacing:'.1em',textTransform:'uppercase',color:'#c9a84c',background:'rgba(201,168,76,.08)',border:'1px solid rgba(201,168,76,.2)',padding:'3px 10px',borderRadius:100,marginBottom:'.75rem'}}>Only {selectedProduct.stock} left</div>
+            )}
+            <div style={{fontSize:'1.6rem',fontWeight:700,color:'#f0ece4',marginBottom:'1.25rem',letterSpacing:'-.01em'}}>${Number(selectedProduct.price).toFixed(2)}</div>
+            <div style={{height:1,background:'rgba(255,255,255,.07)',marginBottom:'1.25rem'}}/>
             {selectedProduct.description&&(
               <div>
-                <div style={{fontSize:'.65rem',fontWeight:700,letterSpacing:'.14em',textTransform:'uppercase',color:'var(--text-muted,#6b6560)',marginBottom:'.6rem'}}>About this product</div>
-                <p style={{fontSize:'.95rem',color:'var(--text-soft,#a09890)',lineHeight:1.75,margin:0}}>{selectedProduct.description}</p>
+                <div style={{fontSize:'.65rem',fontWeight:700,letterSpacing:'.14em',textTransform:'uppercase',color:'rgba(255,255,255,.3)',marginBottom:'.75rem'}}>Description</div>
+                <p style={{fontSize:'.95rem',color:'rgba(240,236,228,.65)',lineHeight:1.8,margin:0}}>{selectedProduct.description}</p>
               </div>
             )}
-
-            {/* Multiple images */}
-            {Array.isArray(selectedProduct.images)&&selectedProduct.images.length>1&&(
-              <div style={{marginTop:'1.5rem'}}>
-                <div style={{fontSize:'.65rem',fontWeight:700,letterSpacing:'.14em',textTransform:'uppercase',color:'var(--text-muted,#6b6560)',marginBottom:'.75rem'}}>More photos</div>
-                <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:6}}>
-                  {selectedProduct.images.slice(1).map((img,i)=>(
-                    <div key={i} style={{aspectRatio:'1/1',borderRadius:8,overflow:'hidden',background:'var(--dark-3,#252218)'}}>
-                      <img src={img} alt={`${selectedProduct.name} ${i+2}`} style={{width:'100%',height:'100%',objectFit:'cover'}}/>
-                    </div>
-                  ))}
-                </div>
+            <div style={{marginTop:'1.5rem',padding:'1rem',background:'rgba(201,168,76,.04)',border:'1px solid rgba(201,168,76,.1)',borderRadius:12,display:'flex',alignItems:'center',gap:'.75rem'}}>
+              <div style={{width:36,height:36,borderRadius:'50%',background:'rgba(201,168,76,.12)',border:'1px solid rgba(201,168,76,.2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'.85rem',color:'#c9a84c',fontFamily:"'Playfair Display',serif",flexShrink:0}}>{(workspace?.name||'S')[0]}</div>
+              <div>
+                <div style={{fontSize:'.78rem',color:'#f0ece4',fontWeight:600}}>{workspace?.name}</div>
+                <div style={{fontSize:'.7rem',color:'rgba(255,255,255,.35)',marginTop:2}}>Studio-tested &amp; approved</div>
               </div>
-            )}
+            </div>
           </div>
 
           {/* Sticky bottom CTA */}
-          <div style={{position:'sticky',bottom:0,background:'var(--dark-2,#1a1814)',borderTop:'1px solid var(--dark-4,rgba(255,255,255,.07))',padding:'1rem 1.25rem',display:'flex',gap:12}}>
-            <button onClick={()=>setSelectedProduct(null)} style={{flex:'0 0 auto',padding:'13px 20px',background:'transparent',border:'1px solid var(--dark-4,rgba(255,255,255,.12))',borderRadius:10,color:'var(--text-soft,#a09890)',cursor:'pointer',fontFamily:'inherit',fontSize:'.88rem',WebkitTapHighlightColor:'transparent'}}>
-              Back
+          <div style={{position:'sticky',bottom:0,background:'rgba(13,11,9,.97)',backdropFilter:'blur(20px)',borderTop:'1px solid rgba(255,255,255,.06)',padding:'1rem 1.25rem',display:'flex',gap:10,flexShrink:0}}>
+            <button onClick={()=>setSelectedProduct(null)} style={{flex:'0 0 auto',width:48,height:50,background:'rgba(255,255,255,.06)',border:'1px solid rgba(255,255,255,.1)',borderRadius:12,color:'#f0ece4',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',WebkitTapHighlightColor:'transparent'}}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
             </button>
-            <button
-              disabled={selectedProduct.stock===0}
-              onClick={()=>{addToCart(selectedProduct);setSelectedProduct(null)}}
-              style={{flex:1,padding:'13px',background:selectedProduct.stock===0?'var(--dark-4,rgba(255,255,255,.06))':'var(--gold,#c9a84c)',color:selectedProduct.stock===0?'var(--text-muted,#6b6560)':'#0d0b09',border:'none',borderRadius:10,fontSize:'.95rem',fontWeight:700,cursor:selectedProduct.stock===0?'not-allowed':'pointer',fontFamily:'inherit',letterSpacing:'.02em',WebkitTapHighlightColor:'transparent'}}>
+            <button disabled={selectedProduct.stock===0} onClick={()=>{addToCart(selectedProduct);setSelectedProduct(null)}} style={{flex:1,height:50,background:selectedProduct.stock===0?'rgba(255,255,255,.06)':'#c9a84c',color:selectedProduct.stock===0?'rgba(255,255,255,.25)':'#0d0b09',border:'none',borderRadius:12,fontSize:'.95rem',fontWeight:700,cursor:selectedProduct.stock===0?'not-allowed':'pointer',fontFamily:'inherit',letterSpacing:'.03em',WebkitTapHighlightColor:'transparent',touchAction:'manipulation'}}>
               {selectedProduct.stock===0?'Sold Out':'Add to Bag'}
             </button>
           </div>
@@ -929,9 +925,9 @@ const CSS = `
 .cb-icon-btn:hover{border-color:var(--gold);color:var(--gold-light)}
 .cb-cart-badge{position:absolute;top:-6px;right:-6px;background:var(--gold);color:#141210;font-size:9px;font-weight:700;width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center}
 
-.cb-hero{min-height:55vh;padding-top:64px;position:relative;overflow:hidden;display:flex;align-items:center}
+.cb-hero{min-height:100vh;min-height:100dvh;padding-top:64px;position:relative;overflow:hidden;display:flex;align-items:center}
 .cb-hero-bg{position:absolute;inset:0;z-index:0;background:#080706}
-.cb-hero-content{position:relative;z-index:1;padding:60px 24px 80px;max-width:560px}
+.cb-hero-content{position:relative;z-index:1;padding:80px 24px 120px;max-width:560px}
 .cb-avail-tag{display:inline-flex;align-items:center;gap:8px;background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.22);border-radius:100px;padding:5px 16px 5px 10px;font-size:10px;color:rgba(201,168,76,0.9);letter-spacing:.14em;text-transform:uppercase;margin-bottom:24px}
 .cb-tag-dot{width:6px;height:6px;border-radius:50%;background:var(--gold);animation:pulse 2.5s infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.2}}
@@ -939,7 +935,7 @@ const CSS = `
 .cb-hero-eyebrow{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:rgba(250,246,241,.6);margin-bottom:18px}
 .cb-hero-bio{font-size:15px;color:rgba(250,246,241,.72);font-weight:300;line-height:1.8;margin-bottom:36px;max-width:380px}
 .cb-hero-cta{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:36px}
-@media(max-width:480px){.cb-hero{min-height:auto;padding-bottom:48px}.cb-hero-cta{flex-direction:column}.cb-hero-cta button{width:100%;text-align:center}}
+@media(max-width:480px){.cb-hero{min-height:100vh;min-height:100dvh}.cb-hero-cta{flex-direction:column}.cb-hero-cta button{width:100%;text-align:center}}
 .cb-socials{display:flex;align-items:center;gap:16px}
 .cb-socials a{display:flex;align-items:center;gap:6px;font-size:12px;color:rgba(250,246,241,.5);text-decoration:none;transition:color .2s}
 .cb-socials a:hover{color:rgba(250,246,241,.85)}
@@ -950,7 +946,7 @@ const CSS = `
 .cb-btn-ghost{background:transparent;color:rgba(250,246,241,.7);border:1px solid rgba(250,246,241,.25);padding:14px 28px;font-family:'DM Sans',sans-serif;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;border-radius:1px;transition:all .25s}
 .cb-btn-ghost:hover{border-color:rgba(250,246,241,.5);color:rgba(250,246,241,.9)}
 
-.cb-tabs{position:sticky;top:64px;z-index:400;background:rgba(10,5,2,0.98);border-bottom:1px solid rgba(201,168,76,.1);backdrop-filter:blur(20px);display:flex;padding:0 20px;overflow-x:auto}
+.cb-tabs{position:sticky;top:64px;z-index:400;background:rgba(10,5,2,0.98);border-bottom:1px solid rgba(201,168,76,.1);backdrop-filter:blur(20px);display:flex;padding:0 20px;overflow-x:auto;-webkit-overflow-scrolling:touch}
 [data-theme="light"] .cb-tabs{background:rgba(14,7,2,0.98)!important}
 .cb-tab{background:transparent;border:none;color:rgba(201,168,76,.5);font-family:'DM Sans',sans-serif;font-size:10px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;padding:18px 18px;cursor:pointer;display:flex;align-items:center;gap:7px;position:relative;white-space:nowrap;transition:color .25s}
 .cb-tab::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;background:var(--gold);transform:scaleX(0);transition:transform .3s var(--ease)}
