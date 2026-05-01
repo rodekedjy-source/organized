@@ -6,6 +6,7 @@ import Auth              from './pages/Auth'
 import Dashboard         from './pages/Dashboard'
 import ClientPage        from './pages/ClientPage'
 import CancelAppointment from './pages/CancelAppointment'
+import ReviewPage        from './pages/ReviewPage'
 
 export default function App() {
   const [session, setSession] = useState(null)
@@ -36,6 +37,7 @@ export default function App() {
       {/* Public */}
       <Route path="/"              element={<Landing />} />
       <Route path="/cancel/:token" element={<CancelAppointment />} />
+      <Route path="/review/:token" element={<ReviewPage />} />
 
       {/* Auth */}
       <Route
