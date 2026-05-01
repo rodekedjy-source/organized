@@ -141,19 +141,13 @@ export default function ClientPage() {
   const [loading,      setLoading]      = useState(true)
   const [notFound,     setNotFound]     = useState(false)
 
-  // ── Theme ─────────────────────────────────────────────────────────────────
-  const [theme, setTheme] = useState('dark')
+  // ── Theme — controlled by owner in Dashboard Settings → Appearance ──────────
+  const [theme, setTheme] = useState('light')
   useEffect(() => {
     if (!workspace) return
-    const saved = localStorage.getItem('organized_theme')
-    const t = saved || workspace.theme || 'dark'
+    const t = workspace.theme || 'light'
     setTheme(t); document.documentElement.setAttribute('data-theme', t)
   }, [workspace])
-  const toggleTheme = () => {
-    const next = theme === 'dark' ? 'light' : 'dark'
-    setTheme(next); document.documentElement.setAttribute('data-theme', next)
-    localStorage.setItem('organized_theme', next)
-  }
 
   // ── Canvas ────────────────────────────────────────────────────────────────
   const canvasRef = useRef(null)
@@ -361,7 +355,6 @@ export default function ClientPage() {
       <nav className="cb-nav">
         <div className="cb-nav-logo">{workspace.name}<span>via Organized.</span></div>
         <div className="cb-nav-right">
-          <button className="cb-icon-btn" onClick={toggleTheme} title="Toggle theme">{theme==='dark'?'☀':'☾'}</button>
           <button className="cb-icon-btn" onClick={()=>setCartOpen(true)} style={{position:'relative'}}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
             {cartCount>0&&<span className="cb-cart-badge">{cartCount}</span>}
