@@ -65,9 +65,8 @@ function getBlobs(theme) {
   }
 }
 
-function useCanvas(canvasRef, theme) {
+function useCanvas(canvas, theme) {
   useEffect(() => {
-    const canvas = canvasRef.current
     if (!canvas) return
     const ctx = canvas.getContext('2d')
     let raf, t = 0, dpr = window.devicePixelRatio || 1
@@ -108,7 +107,7 @@ function useCanvas(canvasRef, theme) {
     window.addEventListener('resize', onResize)
     document.addEventListener('visibilitychange', onVis)
     return () => { cancelAnimationFrame(raf); window.removeEventListener('resize',onResize); document.removeEventListener('visibilitychange',onVis) }
-  }, [canvasRef, theme])
+  }, [canvas, theme])
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -161,8 +160,9 @@ export default function ClientPage() {
   }, [workspace])
 
   // ── Canvas ────────────────────────────────────────────────────────────────
-  const canvasRef = useRef(null)
-  useCanvas(canvasRef, theme)
+  // Callback ref — triggers re-render when canvas mounts, so useCanvas fires correctly
+  const [canvasEl, setCanvasEl] = useState(null)
+  useCanvas(canvasEl, theme)
 
   // ── UI State ──────────────────────────────────────────────────────────────
   const [activeTab,      setActiveTab]      = useState('book')
@@ -375,7 +375,7 @@ export default function ClientPage() {
 
       {/* HERO */}
       <section className="cb-hero">
-        <div className="cb-hero-bg"><canvas ref={canvasRef} style={{position:'absolute',inset:0,width:'100%',height:'100%',display:'block'}} /></div>
+        <div className="cb-hero-bg"><canvas ref={setCanvasEl} style={{position:'absolute',inset:0,width:'100%',height:'100%',display:'block'}} /></div>
         <div className="cb-hero-content">
           <div className="cb-avail-tag"><span className="cb-tag-dot"/>
             {activeTab==='book'?'Accepting New Clients':activeTab==='shop'?'The Edit — Curated Products':'Knowledge & Formation'}
