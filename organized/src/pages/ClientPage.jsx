@@ -76,14 +76,16 @@ function useCanvas(canvas, theme) {
   useEffect(() => {
     if (!canvas) return
     const ctx = canvas.getContext('2d')
-    let raf, t = 0, dpr = window.devicePixelRatio || 1
+    let raf, retryRaf, t = 0, dpr = window.devicePixelRatio || 1
 
     function resize() {
-      const p = canvas.parentElement; if (!p) return
+      const p = canvas.parentElement; if (!p) return false
       dpr = window.devicePixelRatio || 1
       const r = p.getBoundingClientRect()
+      if (!r.width || !r.height) return false
       canvas.width = Math.round(r.width * dpr); canvas.height = Math.round(r.height * dpr)
       canvas.style.width = r.width + 'px'; canvas.style.height = r.height + 'px'
+      return true
     }
 
     function draw() {
@@ -107,13 +109,29 @@ function useCanvas(canvas, theme) {
       t += 16; raf = requestAnimationFrame(draw)
     }
 
-    function start() { cancelAnimationFrame(raf); resize(); draw() }
-    const onResize = () => resize()
+    function start() {
+      cancelAnimationFrame(raf); cancelAnimationFrame(retryRaf)
+      if (!resize()) { retryRaf = requestAnimationFrame(start); return }
+      draw()
+    }
+
+    let ro = null
+    if (typeof ResizeObserver !== 'undefined' && canvas.parentElement) {
+      ro = new ResizeObserver(() => { if (resize() && !raf) draw() })
+      ro.observe(canvas.parentElement)
+    }
+
+    const onResize = () => { if (resize()) {} }
     const onVis = () => { if (document.hidden) cancelAnimationFrame(raf); else start() }
     start()
     window.addEventListener('resize', onResize)
     document.addEventListener('visibilitychange', onVis)
-    return () => { cancelAnimationFrame(raf); window.removeEventListener('resize',onResize); document.removeEventListener('visibilitychange',onVis) }
+    return () => {
+      cancelAnimationFrame(raf); cancelAnimationFrame(retryRaf)
+      if (ro) ro.disconnect()
+      window.removeEventListener('resize', onResize)
+      document.removeEventListener('visibilitychange', onVis)
+    }
   }, [canvas, theme])
 }
 
