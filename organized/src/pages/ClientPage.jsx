@@ -848,7 +848,7 @@ export default function ClientPage() {
 // ─────────────────────────────────────────────────────────────────────────────
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400;1,500&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap');
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}html,body{overflow-x:hidden}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}html,body{overflow-x:clip}
 :root{--gold:#C9A84C;--gold-light:#E8C97A;--gold-dim:rgba(201,168,76,0.12);--gold-border:rgba(201,168,76,0.25);--dark:#090909;--dark-2:#101010;--dark-3:#181818;--dark-4:#242424;--dark-5:#333;--text:#F0EAE0;--text-muted:#9A8E7E;--text-soft:#CCC0A8;--error:#d0605a;--success:#56bb86;--ease:cubic-bezier(.25,.46,.45,.94)}
 [data-theme="light"]{--gold:#9A6E10;--gold-light:#B88A28;--gold-dim:rgba(154,110,16,0.08);--gold-border:rgba(154,110,16,0.20);--dark:#FFFFFF;--dark-2:#F7F7F7;--dark-3:#F0F0F0;--dark-4:#E4E4E4;--dark-5:#CCC;--text:#141210;--text-muted:#6B6158;--text-soft:#3A342E}
 *,*::before,*::after{transition:background-color .4s ease,color .4s ease,border-color .4s ease}
