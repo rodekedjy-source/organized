@@ -87,7 +87,11 @@ function useCanvas(canvas, theme) {
       dpr = window.devicePixelRatio || 1
       const r = p.getBoundingClientRect()
       if (!r.width || !r.height) return false
-      canvas.width = Math.round(r.width * dpr); canvas.height = Math.round(r.height * dpr)
+      const newW = Math.round(r.width * dpr), newH = Math.round(r.height * dpr)
+      // Skip if dimensions unchanged — prevents iOS scroll bar hide/show from
+      // clearing the canvas and causing a pitch-black flash on every touch
+      if (canvas.width === newW && canvas.height === newH) return true
+      canvas.width = newW; canvas.height = newH
       canvas.style.width = r.width + 'px'; canvas.style.height = r.height + 'px'
       return true
     }
@@ -119,14 +123,17 @@ function useCanvas(canvas, theme) {
       draw()
     }
 
+    // ResizeObserver: update dimensions if truly changed, never restart draw loop
+    // (restarting would cause a 1-frame black flash on every iOS scroll)
     let ro = null
     if (typeof ResizeObserver !== 'undefined' && canvas.parentElement) {
-      ro = new ResizeObserver(() => { if (resize() && !raf) draw() })
+      ro = new ResizeObserver(() => { resize() })
       ro.observe(canvas.parentElement)
     }
 
-    const onResize = () => { if (resize()) {} }
-    const onVis = () => { if (document.hidden) cancelAnimationFrame(raf); else start() }
+    // window resize: only restart if draw loop has stopped
+    const onResize = () => { if (resize() && !raf) start() }
+    const onVis = () => { if (document.hidden) { cancelAnimationFrame(raf); raf = null } else start() }
     start()
     window.addEventListener('resize', onResize)
     document.addEventListener('visibilitychange', onVis)
