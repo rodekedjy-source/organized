@@ -662,7 +662,7 @@ function MonthlyGoal({ appts, workspace, refetchWorkspace }) {
   const confirmedAppts=appts.filter(a=>a.status==='confirmed'&&Number(a.amount)>0)
   const avgAppt=confirmedAppts.length?rev/confirmedAppts.length:0
   const apptNeeded=avgAppt>0?Math.ceil(remaining/avgAppt):null
-  const monthName=new Date().toLocaleDateString('en-US',{month:'long'})
+  const monthName=new Date().toLocaleDateString(lang==='fr'?'fr-FR':lang==='es'?'es-ES':'en-US',{month:'long'})
   const [displayPct,setDisplayPct]=useState(0)
   useEffect(()=>{const tt=setTimeout(()=>setDisplayPct(pctVal),120);return()=>clearTimeout(tt)},[pctVal])
   async function saveGoal(){
@@ -674,8 +674,8 @@ function MonthlyGoal({ appts, workspace, refetchWorkspace }) {
     <div className="card" style={{marginBottom:0}}>
       <div className="card-head">
         <div>
-          <div className="card-title">Revenue Goal — {monthName}</div>
-          {!editing&&<div className="card-sub">{fmtRev(rev)} of {fmtRev(goal)}</div>}
+          <div className="card-title">{lang==='fr'?'Objectif revenus':lang==='es'?'Meta de ingresos':'Revenue Goal'} — {monthName}</div>
+          {!editing&&<div className="card-sub">{fmtRev(rev)} {lang==='fr'?'sur':lang==='es'?'de':'of'} {fmtRev(goal)}</div>}
         </div>
         {editing?(
           <div style={{display:'flex',gap:'.4rem',alignItems:'center'}}>
@@ -894,8 +894,9 @@ function getDailyEntry(arr){
   return arr[day%arr.length]
 }
 // ── COACH SLIDER ───────────────────────────────────────────────────────────────
-function CoachSlider({ appts, stats, workspace, session }) {
+function CoachSlider({ appts, stats, workspace, session, lang='en' }) {
   const now=new Date()
+  const mn=now.toLocaleDateString(lang==='fr'?'fr-FR':lang==='es'?'es-ES':'en-US',{month:'long'})
   const uid=session?.user?.id||'guest'
   const faithEnabled=localStorage.getItem(`org_faith_${uid}`)==='true'
   const dailyArr=faithEnabled?BIBLE_VERSES:INSPIRATION_QUOTES
@@ -909,36 +910,42 @@ function CoachSlider({ appts, stats, workspace, session }) {
   const monthAppts=appts.filter(a=>{const tt=new Date(a.scheduled_at);return tt.getFullYear()===now.getFullYear()&&tt.getMonth()===now.getMonth()})
   const confirmedCount=monthAppts.filter(a=>a.status==='confirmed').length
   const mRev=monthRevenue(appts)
-  // FIX 5: active days
   const activeDays=new Set(appts.filter(a=>{
     const d=new Date(a.scheduled_at)
     return a.status==='confirmed'&&d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth()
   }).map(a=>new Date(a.scheduled_at).toISOString().split('T')[0])).size
-  if(activeDays===0) tips.push({icon:'📅',text:`Aucun jour actif ce mois-ci. Partage ton lien de réservation pour remplir ton agenda.`})
-  else if(activeDays<8) tips.push({icon:'📅',text:`${activeDays} jour${activeDays>1?'s':''} actif${activeDays>1?'s':''} ce mois. Continue à partager ton lien — chaque slot vide est du revenu qui attend.`})
-  else if(activeDays<15) tips.push({icon:'📅',text:`${activeDays} jours actifs ce mois. Ton agenda se remplit bien — maintiens cette dynamique.`})
-  else tips.push({icon:'🔥',text:`${activeDays} jours actifs ce mois. Agenda presque plein — pense à ajuster tes prix si la demande dépasse ta capacité.`})
-  if(confirmedCount>=1&&confirmedCount<3) tips.push({icon:'🎯',text:`First confirmed booking this month — you're building momentum.`})
-  if(confirmedCount>=5) tips.push({icon:'💪',text:`${confirmedCount} bookings confirmed this month. You're on a roll.`})
-  if(confirmedCount>=10) tips.push({icon:'🔥',text:`${confirmedCount} bookings this month. That's a full schedule.`})
-  if(mRev>=500&&mRev<1000) tips.push({icon:'⭐',text:`Over $500 earned this month — strong start.`})
-  if(mRev>=1000) tips.push({icon:'🏆',text:`$1,000+ earned this month. You crossed a milestone.`})
-  if(mRev>=3000) tips.push({icon:'🚀',text:`$3,000+ this month. Exceptional month for your business.`})
-  if(stats.students>=10) tips.push({icon:'🎓',text:`${stats.students} students enrolled in your formations.`})
+  // Active days tips
+  if(activeDays===0) tips.push({icon:'📅',text:lang==='fr'?`Aucun jour actif ce mois-ci. Partage ton lien de réservation pour remplir ton agenda.`:lang==='es'?`Sin días activos este mes. Comparte tu enlace para llenar tu agenda.`:`No active days this month. Share your booking link to fill your calendar.`})
+  else if(activeDays<8) tips.push({icon:'📅',text:lang==='fr'?`${activeDays} jour${activeDays>1?'s':''} actif${activeDays>1?'s':''} ce mois. Continue à partager ton lien — chaque slot vide est du revenu qui attend.`:lang==='es'?`${activeDays} día${activeDays>1?'s':''} activo${activeDays>1?'s':''} este mes. Sigue compartiendo tu enlace.`:`${activeDays} active day${activeDays>1?'s':''} this month. Keep sharing your link — every empty slot is revenue waiting.`})
+  else if(activeDays<15) tips.push({icon:'📅',text:lang==='fr'?`${activeDays} jours actifs ce mois. Ton agenda se remplit bien — maintiens cette dynamique.`:lang==='es'?`${activeDays} días activos este mes. Tu agenda se está llenando bien.`:`${activeDays} active days this month. Your schedule is filling up — keep the momentum.`})
+  else tips.push({icon:'🔥',text:lang==='fr'?`${activeDays} jours actifs ce mois. Agenda presque plein — pense à ajuster tes prix si la demande dépasse ta capacité.`:lang==='es'?`${activeDays} días activos este mes. Agenda casi lleno.`:`${activeDays} active days this month. Almost fully booked — consider adjusting pricing if demand exceeds capacity.`})
+  // Confirmed bookings
+  if(confirmedCount>=1&&confirmedCount<3) tips.push({icon:'🎯',text:lang==='fr'?`Premier rendez-vous confirmé ce mois — tu prends de l'élan.`:lang==='es'?`Primera reserva confirmada este mes — estás tomando impulso.`:`First confirmed booking this month — you're building momentum.`})
+  if(confirmedCount>=5) tips.push({icon:'💪',text:lang==='fr'?`${confirmedCount} réservations confirmées ce mois. Tu es en pleine forme.`:lang==='es'?`${confirmedCount} reservas confirmadas este mes.`:`${confirmedCount} bookings confirmed this month. You're on a roll.`})
+  if(confirmedCount>=10) tips.push({icon:'🔥',text:lang==='fr'?`${confirmedCount} réservations ce mois. Agenda bien rempli.`:lang==='es'?`${confirmedCount} reservas este mes. Agenda completo.`:`${confirmedCount} bookings this month. That's a full schedule.`})
+  // Revenue milestones
+  if(mRev>=500&&mRev<1000) tips.push({icon:'⭐',text:lang==='fr'?`Plus de 500 $ gagnés ce mois — bon départ.`:lang==='es'?`Más de $500 ganados este mes — buen comienzo.`:`Over $500 earned this month — strong start.`})
+  if(mRev>=1000) tips.push({icon:'🏆',text:lang==='fr'?`1 000 $+ gagnés ce mois. Tu as franchi un cap.`:lang==='es'?`$1,000+ ganados este mes. Alcanzaste un hito.`:`$1,000+ earned this month. You crossed a milestone.`})
+  if(mRev>=3000) tips.push({icon:'🚀',text:lang==='fr'?`3 000 $+ ce mois. Mois exceptionnel.`:lang==='es'?`$3,000+ este mes. Mes excepcional.`:`$3,000+ this month. Exceptional month for your business.`})
+  if(stats.students>=10) tips.push({icon:'🎓',text:lang==='fr'?`${stats.students} élèves inscrits à vos formations.`:lang==='es'?`${stats.students} estudiantes matriculados.`:`${stats.students} students enrolled in your formations.`})
+  // Pending
   const pending=appts.filter(a=>a.status==='pending')
-  if(pending.length>0) tips.push({icon:'📋',text:`You have ${pending.length} unconfirmed booking${pending.length>1?'s':''} waiting. Confirming ${pending.length>1?'them':'it'} secures your client's commitment.`})
+  if(pending.length>0) tips.push({icon:'📋',text:lang==='fr'?`${pending.length} réservation${pending.length>1?'s':''} non confirmée${pending.length>1?'s':''}. Les confirmer sécurise l'engagement de tes clients.`:lang==='es'?`Tienes ${pending.length} reserva${pending.length>1?'s':''} sin confirmar.`:`You have ${pending.length} unconfirmed booking${pending.length>1?'s':''} waiting. Confirming ${pending.length>1?'them':'it'} secures your client's commitment.`})
+  // Reminders
   const todayStr=now.toISOString().split('T')[0]
   const noReminder=appts.filter(a=>a.scheduled_at?.startsWith(todayStr)&&a.status==='confirmed'&&!a.reminder_sent_at)
-  if(noReminder.length>0) tips.push({icon:'💬',text:`${noReminder.length} client${noReminder.length>1?'s have':' has'} not received a reminder for today. A quick message reduces no-shows.`})
+  if(noReminder.length>0) tips.push({icon:'💬',text:lang==='fr'?`${noReminder.length} client${noReminder.length>1?'s n\'ont':'  n\'a'} pas reçu de rappel pour aujourd'hui. Un message rapide réduit les no-shows.`:lang==='es'?`${noReminder.length} cliente${noReminder.length>1?'s no han':' no ha'} recibido recordatorio hoy.`:`${noReminder.length} client${noReminder.length>1?'s have':' has'} not received a reminder for today. A quick message reduces no-shows.`})
+  // Goal progress
   const goal=workspace?.monthly_revenue_goal||3000
   const pctG=Math.round((mRev/goal)*100),remaining=Math.max(goal-mRev,0)
   const confirmed=appts.filter(a=>a.status==='confirmed'&&Number(a.amount)>0)
   const avg=confirmed.length?mRev/confirmed.length:0
-  if(pctG<50&&avg>0){const needed=Math.ceil(remaining/avg);tips.push({icon:'📈',text:`You're at ${pctG}% of your ${now.toLocaleDateString('en-US',{month:'long'})} goal. ${needed} more appointment${needed>1?'s':''} at your average would close the gap.`})}
-  else if(pctG>=50&&pctG<90) tips.push({icon:'📈',text:`You're at ${pctG}% of your monthly goal. Strong progress — keep your schedule filled.`})
+  if(pctG<50&&avg>0){const needed=Math.ceil(remaining/avg);tips.push({icon:'📈',text:lang==='fr'?`Tu es à ${pctG}% de ton objectif de ${mn}. ${needed} rendez-vous de plus à ta moyenne comblerait l'écart.`:lang==='es'?`Estás al ${pctG}% de tu meta de ${mn}. ${needed} cita${needed>1?'s':''} más cerrarían la brecha.`:`You're at ${pctG}% of your ${mn} goal. ${needed} more appointment${needed>1?'s':''} at your average would close the gap.`})}
+  else if(pctG>=50&&pctG<90) tips.push({icon:'📈',text:lang==='fr'?`Tu es à ${pctG}% de ton objectif mensuel. Bon rythme — garde ton agenda bien rempli.`:lang==='es'?`Estás al ${pctG}% de tu meta mensual. Buen ritmo.`:`You're at ${pctG}% of your monthly goal. Strong progress — keep your schedule filled.`})
+  // Open slots
   const in3=new Date(now.getTime()+3*24*60*60*1000)
   const upcoming=appts.filter(a=>{const d=new Date(a.scheduled_at);return d>now&&d<=in3&&a.status!=='cancelled'})
-  if(upcoming.length===0) tips.push({icon:'🔗',text:'Your next 3 days are open. Sharing your booking link today could fill those slots before the week ends.'})
+  if(upcoming.length===0) tips.push({icon:'🔗',text:lang==='fr'?`Tes 3 prochains jours sont libres. Partager ton lien aujourd\'hui pourrait remplir ces créneaux avant la fin de la semaine.`:lang==='es'?`Tus próximos 3 días están libres. Compartir tu enlace hoy podría llenar esos espacios.`:`Your next 3 days are open. Sharing your booking link today could fill those slots before the week ends.`})
   const INTERVAL=5000
   const [idx,setIdx]=useState(0)
   const [visible,setVisible]=useState(true)
@@ -1318,14 +1325,17 @@ function Overview({ workspace, session, ownerData, toast, setPage, refetchWorksp
   const todayCount=appts.length
   const mRev=monthRevenue(allAppts,0),lastMRev=monthRevenue(allAppts,-1),mDelta=pct(mRev,lastMRev)
   // FIX 3: monthly comparison, no "All time"
+  const curMonthName = new Date().toLocaleDateString(lang==='fr'?'fr-FR':lang==='es'?'es-ES':'en-US',{month:'long'})
   const cards=[
-    {label:'Revenue — '+new Date().toLocaleDateString('en-US',{month:'long'}),value:fmtRev(mRev),
-      delta:mDelta!==null?`${mDelta>=0?'↑':'↓'} ${Math.abs(mDelta)}% vs last month`:'—',up:mDelta===null||mDelta>=0,page:'revenue'},
-    {label:'Appointments',value:stats.monthAppts,
-      delta:stats.pending>0?`${stats.pending} pending confirmation`:stats.cancelled>0?`${stats.cancelled} cancelled`:stats.confirmed>0?`${stats.confirmed} confirmed`:'—',
-      up:stats.pending===0,page:'appointments'},
-    {label:'Products',value:stats.products,delta:'Listed in your shop',up:true,page:'products'},
-    {label:'Students',value:stats.students,delta:'Total enrollments',up:true,page:'formations'},
+    {label:(lang==='fr'?'Revenus — ':lang==='es'?'Ingresos — ':'Revenue — ')+curMonthName,value:fmtRev(mRev),
+      delta:mDelta!==null?`${mDelta>=0?'↑':'↓'} ${Math.abs(mDelta)}% vs ${lang==='fr'?'mois dernier':lang==='es'?'mes pasado':'last month'}`:'—',up:mDelta===null||mDelta>=0,page:'revenue'},
+    {label:t(lang,'appts_title'),value:stats.monthAppts,
+      delta:stats.pending>0?`${stats.pending} ${lang==='fr'?'en attente':lang==='es'?'pendientes':'pending'}`:
+            stats.cancelled>0?`${stats.cancelled} ${lang==='fr'?'annulé(s)':lang==='es'?'cancelados':'cancelled'}`:
+            stats.confirmed>0?`${stats.confirmed} ${lang==='fr'?'confirmé(s)':lang==='es'?'confirmados':'confirmed'}`:'—',
+      up:stats.pending===0,isCancelled:stats.pending===0&&stats.cancelled>0,page:'appointments'},
+    {label:t(lang,'nav_products')||'Products',value:stats.products,delta:lang==='fr'?'Listés dans votre boutique':lang==='es'?'Listados en tu tienda':'Listed in your shop',up:true,page:'products'},
+    {label:lang==='fr'?'Élèves':lang==='es'?'Estudiantes':'Students',value:stats.students,delta:lang==='fr'?'Total des inscriptions':lang==='es'?'Total de matrículas':'Total enrollments',up:true,page:'formations'},
   ]
   return (
     <div>
@@ -1333,8 +1343,8 @@ function Overview({ workspace, session, ownerData, toast, setPage, refetchWorksp
         <div>
           <div className="page-title">{(()=>{const h=new Date().getHours();return h<12?t(lang,'morning'):h<17?t(lang,'afternoon'):t(lang,'evening')})()}, {ownerData?.full_name?.trim().split(' ')[0]||firstName(workspace,session)}</div>
           <div className="page-sub">
-            {new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'})}
-            {todayCount>0&&<span style={{color:'var(--gold)',fontWeight:500}}> — {todayCount} appointment{todayCount>1?'s':''} today</span>}
+            {new Date().toLocaleDateString(lang==='fr'?'fr-FR':lang==='es'?'es-ES':'en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'})}
+            {todayCount>0&&<span style={{color:'var(--gold)',fontWeight:500}}> — {todayCount} {lang==='fr'?`rendez-vous${todayCount>1?'s':''} aujourd'hui`:lang==='es'?`cita${todayCount>1?'s':''} hoy`:`appointment${todayCount>1?'s':''} today`}</span>}
           </div>
         </div>
         <div className="head-actions">
@@ -1347,7 +1357,7 @@ function Overview({ workspace, session, ownerData, toast, setPage, refetchWorksp
           </button>
           {workspace?.slug&&(
             <button className="btn btn-primary btn-sm" onClick={()=>window.open(`https://beorganized.io/${workspace.slug}`,'_blank')}>
-              {t(lang,'nav_overview')==='Accueil'?'Voir ma page':'View page'} →
+              {lang==='fr'?'Voir ma page':lang==='es'?'Ver mi página':'View page'} →
             </button>
           )}
         </div>
@@ -1357,20 +1367,20 @@ function Overview({ workspace, session, ownerData, toast, setPage, refetchWorksp
         <div style={{background:'var(--ink)',borderRadius:10,padding:'.65rem 1.1rem',marginBottom:'1rem',display:'flex',alignItems:'center',gap:'.75rem',animation:'milestoneIn .35s ease'}}>
           <span style={{fontSize:'.9rem'}}>💬</span>
           <div style={{flex:1}}>
-            <span style={{fontSize:'.75rem',color:'rgba(255,255,255,.5)',fontWeight:600,textTransform:'uppercase',letterSpacing:'.06em'}}>Reminders sent today</span>
+            <span style={{fontSize:'.75rem',color:'rgba(255,255,255,.5)',fontWeight:600,textTransform:'uppercase',letterSpacing:'.06em'}}>{lang==='fr'?'Rappels envoyés aujourd\'hui':lang==='es'?'Recordatorios enviados hoy':'Reminders sent today'}</span>
             <div style={{display:'flex',flexWrap:'wrap',gap:'.35rem',marginTop:'.3rem'}}>
               {remindersSent.map((r,i)=>(<span key={i} style={{background:'rgba(181,137,58,.2)',border:'1px solid rgba(181,137,58,.3)',borderRadius:20,padding:'2px 10px',fontSize:'.72rem',color:'var(--gold)',fontWeight:500}}>✓ {r.name} · {r.time}</span>))}
             </div>
           </div>
         </div>
       )}
-      <CoachSlider appts={allAppts} stats={stats} workspace={workspace} session={session}/>
+      <CoachSlider appts={allAppts} stats={stats} workspace={workspace} session={session} lang={lang}/>
       <div className="stats-scroll">
         {cards.map((s,i)=>(
           <button key={i} className="stat-card stat-card-btn" onClick={()=>s.page==='revenue'?setShowRevenue(true):setPage(s.page)}>
             <div className="stat-label">{s.label}</div>
             <div className="stat-value">{s.value}</div>
-            <div className={`stat-delta ${s.up?'delta-up':'delta-down'}`}>{s.delta}</div>
+            <div className={`stat-delta ${s.isCancelled?'delta-down':s.up?'delta-up':'delta-down'}`}>{s.delta}</div>
             <div className="stat-arrow">&#8594;</div>
           </button>
         ))}
