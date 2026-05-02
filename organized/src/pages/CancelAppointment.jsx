@@ -9,6 +9,7 @@ export default function CancelAppointment() {
   const [status,      setStatus]      = useState('loading') // loading|ready|already|past|cancelled|error
   const [appointment, setAppointment] = useState(null)
   const [confirming,  setConfirming]  = useState(false)
+  const [workspaceSlug, setWorkspaceSlug] = useState('')
 
   useEffect(() => {
     if (!token) { setStatus('error'); return }
@@ -28,6 +29,9 @@ export default function CancelAppointment() {
       if (res.status === 410)     { setAppointment(data.appointment); setStatus('past'); return }
 
       setAppointment(data.appointment)
+      // Extract workspace slug for redirect after cancellation
+      const slug = data.appointment?.workspaces?.slug || ''
+      if (slug) setWorkspaceSlug(slug)
       setStatus('ready')
     } catch {
       setStatus('error')
@@ -44,6 +48,7 @@ export default function CancelAppointment() {
       const data = await res.json()
 
       if (data.cancelled || data.already_cancelled) {
+        if (data.workspace_slug) setWorkspaceSlug(data.workspace_slug)
         setStatus('cancelled')
       } else {
         setStatus('error')
@@ -121,7 +126,7 @@ export default function CancelAppointment() {
               {confirming ? 'Cancelling…' : 'Confirm Cancellation'}
             </button>
 
-            <Link to="/" style={styles.linkBack}>← Keep my appointment</Link>
+            <Link to={workspaceSlug ? `/book/${workspaceSlug}` : "/"} style={styles.linkBack}>← Keep my appointment</Link>
           </>
         )}
 
@@ -154,9 +159,12 @@ export default function CancelAppointment() {
               </div>
             )}
             <p style={{ ...styles.sub, marginTop: 24 }}>
-              We hope to see you again. Book a new appointment any time.
+              We hope to see you again. You can book a new appointment any time.
             </p>
-            <Link to="/" style={styles.btnGhost}>Back to Home</Link>
+            {workspaceSlug && (
+              <Link to={`/book/${workspaceSlug}`} style={styles.btnPrimary}>Book a new appointment</Link>
+            )}
+            <Link to={workspaceSlug ? `/book/${workspaceSlug}` : '/'} style={styles.btnGhost}>Back to Studio</Link>
           </>
         )}
 
@@ -168,7 +176,7 @@ export default function CancelAppointment() {
             <p style={styles.sub}>
               This appointment has already been cancelled. No further action is needed.
             </p>
-            <Link to="/" style={styles.btnGhost}>Back to Home</Link>
+            <Link to={workspaceSlug ? `/book/${workspaceSlug}` : "/"} style={styles.btnGhost}>Back to Studio</Link>
           </>
         )}
 
@@ -180,7 +188,7 @@ export default function CancelAppointment() {
             <p style={styles.sub}>
               This appointment has already taken place and can no longer be cancelled.
             </p>
-            <Link to="/" style={styles.btnGhost}>Back to Home</Link>
+            <Link to={workspaceSlug ? `/book/${workspaceSlug}` : "/"} style={styles.btnGhost}>Back to Studio</Link>
           </>
         )}
 
@@ -192,7 +200,7 @@ export default function CancelAppointment() {
             <p style={styles.sub}>
               This cancellation link is invalid or has expired. Please contact your service provider directly.
             </p>
-            <Link to="/" style={styles.btnGhost}>Back to Home</Link>
+            <Link to={workspaceSlug ? `/book/${workspaceSlug}` : "/"} style={styles.btnGhost}>Back to Studio</Link>
           </>
         )}
 
