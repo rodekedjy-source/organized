@@ -651,7 +651,7 @@ function MilestoneBanner({ appts, stats }) {
 }
 
 // ── MONTHLY GOAL ──────────────────────────────────────────────────────────────
-function MonthlyGoal({ appts, workspace, refetchWorkspace }) {
+function MonthlyGoal({ appts, workspace, refetchWorkspace, lang='en' }) {
   const goal=workspace?.monthly_revenue_goal||3000
   const [editing,setEditing]=useState(false)
   const [draft,setDraft]=useState(goal)
@@ -934,7 +934,7 @@ function CoachSlider({ appts, stats, workspace, session, lang='en' }) {
   // Reminders
   const todayStr=now.toISOString().split('T')[0]
   const noReminder=appts.filter(a=>a.scheduled_at?.startsWith(todayStr)&&a.status==='confirmed'&&!a.reminder_sent_at)
-  if(noReminder.length>0) tips.push({icon:'💬',text:lang==='fr'?`${noReminder.length} client${noReminder.length>1?'s n\'ont':'  n\'a'} pas reçu de rappel pour aujourd'hui. Un message rapide réduit les no-shows.`:lang==='es'?`${noReminder.length} cliente${noReminder.length>1?'s no han':' no ha'} recibido recordatorio hoy.`:`${noReminder.length} client${noReminder.length>1?'s have':' has'} not received a reminder for today. A quick message reduces no-shows.`})
+  if(noReminder.length>0) tips.push({icon:'💬',text:lang==='fr'?`${noReminder.length} client${noReminder.length>1?'s n’ont':' n’a'} pas reçu de rappel pour aujourd'hui. Un message rapide réduit les no-shows.`:lang==='es'?`${noReminder.length} cliente${noReminder.length>1?'s no han':' no ha'} recibido recordatorio hoy.`:`${noReminder.length} client${noReminder.length>1?'s have':' has'} not received a reminder for today. A quick message reduces no-shows.`})
   // Goal progress
   const goal=workspace?.monthly_revenue_goal||3000
   const pctG=Math.round((mRev/goal)*100),remaining=Math.max(goal-mRev,0)
@@ -945,7 +945,7 @@ function CoachSlider({ appts, stats, workspace, session, lang='en' }) {
   // Open slots
   const in3=new Date(now.getTime()+3*24*60*60*1000)
   const upcoming=appts.filter(a=>{const d=new Date(a.scheduled_at);return d>now&&d<=in3&&a.status!=='cancelled'})
-  if(upcoming.length===0) tips.push({icon:'🔗',text:lang==='fr'?`Tes 3 prochains jours sont libres. Partager ton lien aujourd\'hui pourrait remplir ces créneaux avant la fin de la semaine.`:lang==='es'?`Tus próximos 3 días están libres. Compartir tu enlace hoy podría llenar esos espacios.`:`Your next 3 days are open. Sharing your booking link today could fill those slots before the week ends.`})
+  if(upcoming.length===0) tips.push({icon:'🔗',text:lang==='fr'?`Tes 3 prochains jours sont libres. Partager ton lien aujourd’hui pourrait remplir ces créneaux avant la fin de la semaine.`:lang==='es'?`Tus próximos 3 días están libres. Compartir tu enlace hoy podría llenar esos espacios.`:`Your next 3 days are open. Sharing your booking link today could fill those slots before the week ends.`})
   const INTERVAL=5000
   const [idx,setIdx]=useState(0)
   const [visible,setVisible]=useState(true)
@@ -1367,7 +1367,7 @@ function Overview({ workspace, session, ownerData, toast, setPage, refetchWorksp
         <div style={{background:'var(--ink)',borderRadius:10,padding:'.65rem 1.1rem',marginBottom:'1rem',display:'flex',alignItems:'center',gap:'.75rem',animation:'milestoneIn .35s ease'}}>
           <span style={{fontSize:'.9rem'}}>💬</span>
           <div style={{flex:1}}>
-            <span style={{fontSize:'.75rem',color:'rgba(255,255,255,.5)',fontWeight:600,textTransform:'uppercase',letterSpacing:'.06em'}}>{lang==='fr'?'Rappels envoyés aujourd\'hui':lang==='es'?'Recordatorios enviados hoy':'Reminders sent today'}</span>
+            <span style={{fontSize:'.75rem',color:'rgba(255,255,255,.5)',fontWeight:600,textTransform:'uppercase',letterSpacing:'.06em'}}>{lang==='fr'?'Rappels envoyés aujourd’hui':lang==='es'?'Recordatorios enviados hoy':'Reminders sent today'}</span>
             <div style={{display:'flex',flexWrap:'wrap',gap:'.35rem',marginTop:'.3rem'}}>
               {remindersSent.map((r,i)=>(<span key={i} style={{background:'rgba(181,137,58,.2)',border:'1px solid rgba(181,137,58,.3)',borderRadius:20,padding:'2px 10px',fontSize:'.72rem',color:'var(--gold)',fontWeight:500}}>✓ {r.name} · {r.time}</span>))}
             </div>
@@ -1390,7 +1390,7 @@ function Overview({ workspace, session, ownerData, toast, setPage, refetchWorksp
           <div className="card-head"><div className="card-title">{t(lang,'revenue_week')}</div></div>
           <div className="card-body"><WeekChart appts={allAppts}/></div>
         </div>
-        <MonthlyGoal appts={allAppts} workspace={workspace} refetchWorkspace={refetchWorkspace}/>
+        <MonthlyGoal appts={allAppts} workspace={workspace} refetchWorkspace={refetchWorkspace} lang={lang}/>
       </div>
       <div className="grid-2" style={{marginBottom:'1.25rem'}}>
         <TopServiceInsight appts={allAppts}/>
