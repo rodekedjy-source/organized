@@ -12,8 +12,6 @@ if (typeof document !== 'undefined') {
   const _s = document.createElement('style')
   _s.id = 'cb-critical'
   _s.textContent = [
-    '#cb-page-root{opacity:0}',
-    '#cb-page-root.cb-ready{opacity:1;transition:opacity .25s ease}',
     '.cb-overlay{position:fixed;inset:0;z-index:900;transform:translateY(100%);overflow:hidden;pointer-events:none}',
     '.cb-overlay.open{transform:translateY(0);pointer-events:auto}',
     '.cb-portfolio-overlay{position:fixed;inset:0;z-index:1000;transform:translateX(100%)}',
@@ -194,7 +192,6 @@ export default function ClientPage() {
   const [reviews,      setReviews]      = useState([])
   const [portfolio,    setPortfolio]    = useState([])
   const [loading,      setLoading]      = useState(true)
-  const [mounted,      setMounted]      = useState(false)
   const [notFound,     setNotFound]     = useState(false)
 
   // ── Theme — controlled by owner in Dashboard Settings → Appearance ──────────
@@ -213,9 +210,6 @@ export default function ClientPage() {
   // Reveal page after React has mounted and injected all CSS — eliminates FOUC
   useEffect(() => {
     setMounted(true)
-    requestAnimationFrame(() => {
-      document.getElementById('cb-page-root')?.classList.add('cb-ready')
-    })
     // Clean up body styles when navigating away (SPA — styles persist across routes)
     return () => {
       document.documentElement.style.background = ''
@@ -422,9 +416,8 @@ export default function ClientPage() {
 
   // ─────────────────────────────────────────────────────────────────────────
   return (
-    <div id="cb-page-root" style={{animation:'cb-fadein .35s ease both'}}>
+    <>
       <style>{CSS}</style>
-      <style>{`@keyframes cb-fadein{from{opacity:0}to{opacity:1}}`}</style>
 
       {/* NAV */}
       <nav className="cb-nav">
@@ -895,7 +888,7 @@ export default function ClientPage() {
         </div>}
         <button onClick={()=>setFloatOpen(f=>!f)} style={{width:48,height:48,borderRadius:2,background:'var(--gold)',color:'#141210',border:'none',cursor:'pointer',fontSize:18,display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 4px 20px rgba(201,168,76,.28)',transition:'all .25s'}}>{floatOpen?'✕':'✦'}</button>
       </div>}
-    </div>
+    </>
   )
 }
 
