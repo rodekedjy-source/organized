@@ -1130,7 +1130,7 @@ function DayPanel({ dayStr, allAppts, blockedDates, onClose, onBlock, onUnblock,
                     </div>
                   </div>
                 ))}
-                {!isPast&&dayAppts.length>0&&!blocked&&(
+                {!isPast&&dayAppts.filter(a=>a.status!=='cancelled').length>0&&!blocked&&(
                   <div style={{fontSize:'.76rem',color:'var(--ink-3)',padding:'.6rem .8rem',background:'var(--bg)',borderRadius:8,marginTop:'.4rem'}}>
                     This day has bookings. Blocking it will not cancel them — message each client first.
                   </div>
@@ -1192,7 +1192,7 @@ function InteractiveCal({ allAppts, blockedDates, onDayClick }) {
   const daysInMonth=new Date(viewYear,viewMonth+1,0).getDate()
   const monthLabel=new Date(viewYear,viewMonth,1).toLocaleDateString('en-US',{month:'long',year:'numeric'})
   const todayD=now.getDate(),todayM=now.getMonth(),todayY=now.getFullYear()
-  const apptDays=new Set(allAppts.map(a=>{
+  const apptDays=new Set(allAppts.filter(a=>a.status!=='cancelled').map(a=>{
     if(!a.scheduled_at) return null
     const d=new Date(a.scheduled_at)
     if(d.getFullYear()===viewYear&&d.getMonth()===viewMonth) return d.getDate()
@@ -1264,7 +1264,9 @@ function Overview({ workspace, session, ownerData, toast, setPage, refetchWorksp
     }
     fetchData()
     const ch=supabase.channel('ov-rt').on('postgres_changes',{event:'*',schema:'public',table:'appointments',filter:`workspace_id=eq.${workspace.id}`},fetchData).subscribe()
-    return()=>supabase.removeChannel(ch)
+    // Polling fallback — catches any update/delete Realtime might miss
+    const poll=setInterval(fetchData, 8000)
+    return()=>{ supabase.removeChannel(ch); clearInterval(poll) }
   },[workspace])
   async function fetchData(){
     const today=new Date().toISOString().split('T')[0],now=new Date()
@@ -1433,7 +1435,8 @@ function Appointments({ workspace, toast, lang='en' }) {
     if(!workspace) return
     fetchData()
     const ch=supabase.channel('appts-rt').on('postgres_changes',{event:'*',schema:'public',table:'appointments',filter:`workspace_id=eq.${workspace.id}`},fetchData).subscribe()
-    return()=>supabase.removeChannel(ch)
+    const poll=setInterval(fetchData, 8000)
+    return()=>{ supabase.removeChannel(ch); clearInterval(poll) }
   },[workspace])
   async function fetchData(){
     const{data}=await supabase.from('appointments').select('*, services(name)').eq('workspace_id',workspace.id).order('scheduled_at',{ascending:false})
