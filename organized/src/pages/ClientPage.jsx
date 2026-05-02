@@ -195,8 +195,7 @@ export default function ClientPage() {
 
   // Reveal page after React has mounted and injected all CSS — eliminates FOUC
   useEffect(() => {
-    setMounted(true)
-    // Apply dark theme + overlay hiding CSS only while ClientPage is mounted
+  // Apply dark theme + overlay hiding CSS only while ClientPage is mounted
     document.documentElement.style.background = '#080706'
     document.body.style.cssText = 'margin:0;padding:0;background:#080706;'
     const _s = document.createElement('style')
