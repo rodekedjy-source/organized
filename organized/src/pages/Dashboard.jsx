@@ -212,8 +212,10 @@ function svcName(a) { return a.services?.name || a.service_name || '—' }
 function formatNextApptLabel(dateStr, lang='en') {
   if (!dateStr) return ''
   const d = new Date(dateStr)
-  const todayStr = new Date().toISOString().split('T')[0]
-  const apptStr  = d.toISOString().split('T')[0]
+  // Compare local dates, not UTC — avoids "Today" showing when it's still yesterday locally
+  const now = new Date()
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`
+  const apptStr  = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
   const time = d.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' })
   if (apptStr === todayStr) {
     if (lang==='fr') return `aujourd'hui à ${time}`
