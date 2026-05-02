@@ -3,22 +3,8 @@ import { useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
 // Inject critical base styles immediately at module parse time — before React
-// renders anything. This eliminates the FOUC (flash of unstyled white content)
-// that occurs while the JS bundle loads and React hydrates.
-if (typeof document !== 'undefined') {
-  document.documentElement.style.background = '#080706'
-  document.body.style.cssText = 'margin:0;padding:0;background:#080706;'
-  // Hide content until React mounts + injects CSS — prevents FOUC completely
-  const _s = document.createElement('style')
-  _s.id = 'cb-critical'
-  _s.textContent = [
-    '.cb-overlay{position:fixed;inset:0;z-index:900;transform:translateY(100%);overflow:hidden;pointer-events:none}',
-    '.cb-overlay.open{transform:translateY(0);pointer-events:auto}',
-    '.cb-portfolio-overlay{position:fixed;inset:0;z-index:1000;transform:translateX(100%)}',
-    '.cb-cart-drawer{position:fixed;top:0;right:0;height:100vh;z-index:800;transform:translateX(100%)}',
-  ].join('')
-  document.head.appendChild(_s)
-}
+// Module-level DOM manipulation removed — was bleeding into Dashboard route.
+// Dark background + overlay hiding is handled via useEffect (mount/unmount safe).
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONSTANTS
@@ -210,7 +196,19 @@ export default function ClientPage() {
   // Reveal page after React has mounted and injected all CSS — eliminates FOUC
   useEffect(() => {
     setMounted(true)
-    // Clean up body styles when navigating away (SPA — styles persist across routes)
+    // Apply dark theme + overlay hiding CSS only while ClientPage is mounted
+    document.documentElement.style.background = '#080706'
+    document.body.style.cssText = 'margin:0;padding:0;background:#080706;'
+    const _s = document.createElement('style')
+    _s.id = 'cb-critical'
+    _s.textContent = [
+      '.cb-overlay{position:fixed;inset:0;z-index:900;transform:translateY(100%);overflow:hidden;pointer-events:none}',
+      '.cb-overlay.open{transform:translateY(0);pointer-events:auto}',
+      '.cb-portfolio-overlay{position:fixed;inset:0;z-index:1000;transform:translateX(100%)}',
+      '.cb-cart-drawer{position:fixed;top:0;right:0;height:100vh;z-index:800;transform:translateX(100%)}',
+    ].join('')
+    document.head.appendChild(_s)
+    // Clean up everything on unmount — SPA navigation must not bleed into other routes
     return () => {
       document.documentElement.style.background = ''
       document.body.style.cssText = ''
