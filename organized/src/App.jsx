@@ -52,7 +52,8 @@ export default function App() {
       />
 
       {/* Client booking page — public, must be last */}
-      <Route path="/:slug" element={<ClientPage />} />
+      <Route path="/book/:slug" element={<ClientPage />} />
+      <Route path="/:slug"      element={<ClientPage />} />
     </Routes>
   )
 }
