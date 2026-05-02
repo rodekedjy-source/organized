@@ -216,6 +216,13 @@ export default function ClientPage() {
     requestAnimationFrame(() => {
       document.getElementById('cb-page-root')?.classList.add('cb-ready')
     })
+    // Clean up body styles when navigating away (SPA — styles persist across routes)
+    return () => {
+      document.documentElement.style.background = ''
+      document.body.style.cssText = ''
+      const s = document.getElementById('cb-critical')
+      if (s) s.remove()
+    }
   }, [])
 
   // ── UI State ──────────────────────────────────────────────────────────────
