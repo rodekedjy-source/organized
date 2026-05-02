@@ -2769,7 +2769,11 @@ function SettingsBusinessForm({ workspace, toast, refetch, lang='en' }) {
     address_country:ws?.address_country||'CA',
     show_address_on_page:ws?.show_address_on_page||false,
     address_in_confirmations:ws?.address_in_confirmations!==false,
-    email:ws?.email||'',phone:ws?.phone||'',instagram:ws?.instagram||'',tiktok:ws?.tiktok||''
+    email:ws?.email||'',phone:ws?.phone||'',instagram:ws?.instagram||'',tiktok:ws?.tiktok||'',
+    offers_domicile:ws?.offers_domicile||false,
+    domicile_fee:ws?.domicile_fee||'45',
+    domicile_radius_km:ws?.domicile_radius_km||25,
+    domicile_notes:ws?.domicile_notes||''
   })
   const [form,setForm]=useState(()=>blankForm(workspace))
   useEffect(()=>{if(workspace)setForm(blankForm(workspace))},[workspace?.id])
@@ -2789,7 +2793,11 @@ function SettingsBusinessForm({ workspace, toast, refetch, lang='en' }) {
       address_country:form.address_country||'CA',
       show_address_on_page:form.show_address_on_page,
       address_in_confirmations:form.address_in_confirmations,
-      email:form.email,phone:form.phone,instagram:form.instagram,tiktok:form.tiktok
+      email:form.email,phone:form.phone,instagram:form.instagram,tiktok:form.tiktok,
+      offers_domicile:form.offers_domicile,
+      domicile_fee:form.offers_domicile?Number(form.domicile_fee)||45:null,
+      domicile_radius_km:form.offers_domicile?Number(form.domicile_radius_km)||25:null,
+      domicile_notes:form.offers_domicile?(form.domicile_notes||null):null
     }).eq('id',workspace.id)
     if(error)toast(`Error: ${error.message}`);else{setSaved(true);toast('Business profile saved.');if(refetch) await refetch()}
     setLoading(false)
@@ -2859,6 +2867,25 @@ function SettingsBusinessForm({ workspace, toast, refetch, lang='en' }) {
         <div style={{fontSize:'.68rem',fontWeight:600,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'.08em'}}>Social</div>
         <div className="field"><label>Instagram</label><input style={iS} value={form.instagram} onChange={e=>setForm(f=>({...f,instagram:e.target.value}))} onFocus={foc} onBlur={blu} placeholder="@yourstudio"/></div>
         <div className="field"><label>TikTok</label><input style={iS} value={form.tiktok} onChange={e=>setForm(f=>({...f,tiktok:e.target.value}))} onFocus={foc} onBlur={blu} placeholder="@yourstudio"/></div>
+        {/* ── HOME VISITS ── */}
+        <div style={{height:1,background:'var(--border)',margin:'.15rem 0'}}/>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+          <div>
+            <div style={{fontSize:'.68rem',fontWeight:600,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'.08em'}}>Home Visits</div>
+            <div style={{fontSize:'.72rem',color:'var(--ink-3)',marginTop:2}}>Offer at-home appointments to your clients</div>
+          </div>
+          <label className="toggle-wrap"><input type="checkbox" checked={form.offers_domicile} onChange={e=>setForm(f=>({...f,offers_domicile:e.target.checked}))}/><div className="toggle-track"/><div className="toggle-thumb"/></label>
+        </div>
+        {form.offers_domicile&&(
+          <div style={{background:'var(--bg)',borderRadius:10,border:'1px solid var(--border)',padding:'1rem',display:'flex',flexDirection:'column',gap:'.85rem'}}>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'.65rem'}}>
+              <div className="field"><label>Travel fee ($)</label><input style={iS} type="number" min="0" step="1" value={form.domicile_fee} onChange={e=>setForm(f=>({...f,domicile_fee:e.target.value}))} onFocus={foc} onBlur={blu} placeholder="45"/></div>
+              <div className="field"><label>Radius (km)</label><input style={iS} type="number" min="1" step="1" value={form.domicile_radius_km} onChange={e=>setForm(f=>({...f,domicile_radius_km:e.target.value}))} onFocus={foc} onBlur={blu} placeholder="25"/></div>
+            </div>
+            <div className="field"><label>Notes for clients <span style={{fontWeight:300,color:'var(--ink-3)'}}>— optional</span></label><textarea value={form.domicile_notes} onChange={e=>setForm(f=>({...f,domicile_notes:e.target.value}))} rows={2} placeholder="e.g. Clean, well-lit space required. Parking must be available nearby." style={{...iS,resize:'vertical'}}/></div>
+          </div>
+        )}
+
         <button type="submit" className="btn btn-primary" style={{justifyContent:'center',padding:'.75rem'}} disabled={loading}>{loading?t(lang,'saving'):saved?t(lang,'saved'):t(lang,'save')}</button>
       </form>
     </div>
