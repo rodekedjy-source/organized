@@ -2,6 +2,14 @@ import { useRef, useState, useEffect, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
+// Inject critical base styles immediately at module parse time — before React
+// renders anything. This eliminates the FOUC (flash of unstyled white content)
+// that occurs while the JS bundle loads and React hydrates.
+if (typeof document !== 'undefined') {
+  document.documentElement.style.background = '#080706'
+  document.body.style.cssText = 'margin:0;padding:0;background:#080706;'
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // CONSTANTS
 // ─────────────────────────────────────────────────────────────────────────────
@@ -386,8 +394,9 @@ export default function ClientPage() {
 
   // ─────────────────────────────────────────────────────────────────────────
   return (
-    <>
+    <div style={{animation:'cb-fadein .35s ease both'}}>
       <style>{CSS}</style>
+      <style>{`@keyframes cb-fadein{from{opacity:0}to{opacity:1}}`}</style>
 
       {/* NAV */}
       <nav className="cb-nav">
@@ -857,7 +866,7 @@ export default function ClientPage() {
         </div>}
         <button onClick={()=>setFloatOpen(f=>!f)} style={{width:48,height:48,borderRadius:2,background:'var(--gold)',color:'#141210',border:'none',cursor:'pointer',fontSize:18,display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 4px 20px rgba(201,168,76,.28)',transition:'all .25s'}}>{floatOpen?'✕':'✦'}</button>
       </div>}
-    </>
+    </div>
   )
 }
 
