@@ -8,9 +8,12 @@ import { supabase } from '../lib/supabase'
 if (typeof document !== 'undefined') {
   document.documentElement.style.background = '#080706'
   document.body.style.cssText = 'margin:0;padding:0;background:#080706;'
-  // Inject overlay-hiding CSS immediately so booking/policy panels never flash visible
+  // Hide content until React mounts + injects CSS — prevents FOUC completely
   const _s = document.createElement('style')
+  _s.id = 'cb-critical'
   _s.textContent = [
+    '#cb-page-root{opacity:0}',
+    '#cb-page-root.cb-ready{opacity:1;transition:opacity .25s ease}',
     '.cb-overlay{position:fixed;inset:0;z-index:900;transform:translateY(100%);overflow:hidden;pointer-events:none}',
     '.cb-overlay.open{transform:translateY(0);pointer-events:auto}',
     '.cb-portfolio-overlay{position:fixed;inset:0;z-index:1000;transform:translateX(100%)}',
@@ -191,6 +194,7 @@ export default function ClientPage() {
   const [reviews,      setReviews]      = useState([])
   const [portfolio,    setPortfolio]    = useState([])
   const [loading,      setLoading]      = useState(true)
+  const [mounted,      setMounted]      = useState(false)
   const [notFound,     setNotFound]     = useState(false)
 
   // ── Theme — controlled by owner in Dashboard Settings → Appearance ──────────
@@ -205,6 +209,14 @@ export default function ClientPage() {
   // Callback ref — triggers re-render when canvas mounts, so useCanvas fires correctly
   const [canvasEl, setCanvasEl] = useState(null)
   useCanvas(canvasEl, theme)
+
+  // Reveal page after React has mounted and injected all CSS — eliminates FOUC
+  useEffect(() => {
+    setMounted(true)
+    requestAnimationFrame(() => {
+      document.getElementById('cb-page-root')?.classList.add('cb-ready')
+    })
+  }, [])
 
   // ── UI State ──────────────────────────────────────────────────────────────
   const [activeTab,      setActiveTab]      = useState('book')
@@ -403,7 +415,7 @@ export default function ClientPage() {
 
   // ─────────────────────────────────────────────────────────────────────────
   return (
-    <div style={{animation:'cb-fadein .35s ease both'}}>
+    <div id="cb-page-root" style={{animation:'cb-fadein .35s ease both'}}>
       <style>{CSS}</style>
       <style>{`@keyframes cb-fadein{from{opacity:0}to{opacity:1}}`}</style>
 
