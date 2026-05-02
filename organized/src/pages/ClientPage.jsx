@@ -22,10 +22,13 @@ function generateSlots(openTime, closeTime, durationMin, existingAppts) {
   const openMin = toMin(openTime), closeMin = toMin(closeTime), slots = []
   for (let cur = openMin; cur + durationMin <= closeMin; cur += 30) {
     const slotEnd = cur + durationMin
+    const BUFFER = 30 // minutes before and after each appointment
     const isBooked = existingAppts.some((a) => {
       const d = new Date(a.scheduled_at)
-      const s = d.getHours() * 60 + d.getMinutes(), e = s + (a.duration_min || 60)
-      return cur < e && slotEnd > s
+      const s = d.getHours() * 60 + d.getMinutes()
+      const apptStart = s - BUFFER
+      const apptEnd = s + (a.duration_min || 60) + BUFFER
+      return cur < apptEnd && slotEnd > apptStart
     })
     slots.push({ label: toLabel(cur), minutes: cur, available: !isBooked })
   }
@@ -255,7 +258,7 @@ export default function ClientPage() {
     const { data: existing } = await supabase.from('appointments')
       .select('scheduled_at,duration_min').eq('workspace_id', workspace.id)
       .gte('scheduled_at', `${dateStr}T00:00:00+00:00`).lte('scheduled_at', `${dateStr}T23:59:59+00:00`)
-      .not('status','in','("cancelled")').is('deleted_at',null)
+      .neq('status', 'cancelled').is('deleted_at', null)
     setBkSlots(generateSlots(avail.open_time, avail.close_time, svc.duration_min, existing||[]))
     setBkSlotsLoading(false)
   }, [workspace, availability, bkCalY, bkCalM])
@@ -288,8 +291,9 @@ export default function ClientPage() {
     const errs = {}
     if (!bkForm.fname.trim()) errs.fname = true
     if (!bkForm.lname.trim()) errs.lname = true
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(bkForm.email)) errs.email = true
-    if (bkForm.phone.replace(/\D/g,'').length < 7) errs.phone = true
+    const hasValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(bkForm.email)
+    const hasValidPhone = bkForm.phone.replace(/\D/g,'').length >= 7
+    if (!hasValidEmail && !hasValidPhone) { errs.email = true; errs.phone = true }
     setBkErrors(errs)
     if (Object.keys(errs).length || !bkService || !bkDay || !bkTime || !workspace) return
     setBkSubmitting(true); setBkSubmitErr(null)
@@ -752,9 +756,8 @@ export default function ClientPage() {
                   <div><input className={`cb-input${bkErrors.lname?' err':''}`} placeholder="Last name" value={bkForm.lname} onChange={e=>setBkForm(f=>({...f,lname:e.target.value}))} autoComplete="family-name"/>{bkErrors.lname&&<div className="cb-err">Required</div>}</div>
                 </div>
                 <input className={`cb-input${bkErrors.email?' err':''}`} placeholder="Email address" type="email" value={bkForm.email} onChange={e=>setBkForm(f=>({...f,email:e.target.value}))} autoComplete="email"/>
-                {bkErrors.email&&<div className="cb-err">Enter a valid email</div>}
                 <input className={`cb-input${bkErrors.phone?' err':''}`} placeholder="Phone number" type="tel" value={bkForm.phone} onChange={e=>setBkForm(f=>({...f,phone:e.target.value}))} autoComplete="tel"/>
-                {bkErrors.phone&&<div className="cb-err">Enter a valid phone number</div>}
+                {(bkErrors.email||bkErrors.phone)&&<div className="cb-err">A valid email or phone number is required</div>}
                 <select className="cb-input cb-select" value={bkForm.source} onChange={e=>setBkForm(f=>({...f,source:e.target.value}))}>
                   <option value="">How did you find us? (optional)</option>
                   <option value="instagram">Instagram</option><option value="tiktok">TikTok</option>
@@ -781,8 +784,7 @@ export default function ClientPage() {
                   </div>
                 </div>}
                 <div style={{display:'flex',flexDirection:'column',gap:8,width:'100%',maxWidth:320}}>
-                  <button className="cb-btn-primary" style={{width:'100%',padding:14}} onClick={downloadICS}>Add to Calendar</button>
-                  <button className="cb-btn-ghost" style={{width:'100%',padding:14}} onClick={closeBooking}>Back to Studio</button>
+                  <button className="cb-btn-ghost" style={{width:'100%',padding:14}} onClick={closeBooking}>Back to {workspace?.name||'Studio'}</button>
                 </div>
               </div>
             </div>
