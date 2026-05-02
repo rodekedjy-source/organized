@@ -8,6 +8,15 @@ import { supabase } from '../lib/supabase'
 if (typeof document !== 'undefined') {
   document.documentElement.style.background = '#080706'
   document.body.style.cssText = 'margin:0;padding:0;background:#080706;'
+  // Inject overlay-hiding CSS immediately so booking/policy panels never flash visible
+  const _s = document.createElement('style')
+  _s.textContent = [
+    '.cb-overlay{position:fixed;inset:0;z-index:900;transform:translateY(100%);overflow:hidden;pointer-events:none}',
+    '.cb-overlay.open{transform:translateY(0);pointer-events:auto}',
+    '.cb-portfolio-overlay{position:fixed;inset:0;z-index:1000;transform:translateX(100%)}',
+    '.cb-cart-drawer{position:fixed;top:0;right:0;height:100vh;z-index:800;transform:translateX(100%)}',
+  ].join('')
+  document.head.appendChild(_s)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -675,7 +684,7 @@ export default function ClientPage() {
 
 
       {/* ═══════════ BOOKING OVERLAY ═══════════ */}
-      <div className={`cb-overlay${bkOpen?' open':''}`}>
+      {bkOpen && <div className={`cb-overlay${bkOpen?' open':''}`}>
         <div className="cb-ov-header">
           <button className="cb-ov-back" onClick={bkPage===1?closeBooking:()=>setBkPage(p=>p-1)}>{bkPage===1?'✕':'← Back'}</button>
           <div style={{textAlign:'center'}}><div style={{fontFamily:'Playfair Display,serif',fontSize:14,color:'var(--text)'}}>{bkService?.name||''}</div><div style={{fontSize:10,color:'var(--text-muted)',marginTop:2}}>{bkService?(bkService.is_free?'Free':`$${Number(bkService.price).toFixed(0)}`)+'·'+bkService.duration_min+'min':''}</div></div>
@@ -817,10 +826,10 @@ export default function ClientPage() {
             </div>
           </div>
         </div>
-      </div>
+      </div>}
 
       {/* PORTFOLIO OVERLAY */}
-      <div className={`cb-portfolio-overlay${portfolioOpen?' open':''}`}>
+      {portfolioOpen && <div className={`cb-portfolio-overlay${portfolioOpen?' open':''}`}>
         <div className="cb-portfolio-nav"><button className="cb-ov-back" onClick={()=>setPortfolioOpen(false)}>← Back to Studio</button><div style={{fontFamily:'Playfair Display,serif',fontSize:15,color:'var(--gold)'}}>Portfolio</div><div/></div>
         <div style={{padding:'48px 24px 80px',flex:1}}>
           <div className="cb-eyebrow" style={{marginBottom:8}}>The Work</div><h2 className="cb-heading" style={{marginBottom:28}}>Crafted with <em>intention</em></h2>
@@ -828,20 +837,20 @@ export default function ClientPage() {
             {(portfolio.length>0?portfolio:Array(6).fill(null)).map((p,i)=><div key={p?.id||i} style={{aspectRatio:'3/4',background:'var(--dark-3)',overflow:'hidden'}}>{p?.url&&<img src={p.url} alt={p.caption||''} style={{width:'100%',height:'100%',objectFit:'cover'}}/>}</div>)}
           </div>
         </div>
-      </div>
+      </div>}
 
       {/* POLICY OVERLAY */}
-      <div className={`cb-portfolio-overlay${policyOpen?' open':''}`}>
+      {policyOpen && <div className={`cb-portfolio-overlay${policyOpen?' open':''}`}>
         <div className="cb-portfolio-nav"><button className="cb-ov-back" onClick={()=>setPolicyOpen(false)}>← Back to booking</button><div style={{fontFamily:'Playfair Display,serif',fontSize:15,color:'var(--gold)'}}>Home Service Policy</div><div/></div>
         <div style={{padding:'48px 24px 24px',flex:1}}>
           {[['Travel Fee',`A travel fee of $${workspace?.domicile_fee||45} applies to all home visit appointments. Collected at time of service, non-refundable.`],['Service Radius',`Home visits are available within ${workspace?.domicile_radius_km||25} km. Addresses outside this radius cannot be serviced.`],['Space Requirements','You must prepare: a chair at a table with adequate lighting, access to a sink, and sufficient clear space for equipment.'],['Parking & Access','Parking must be available within reasonable distance. Include all access details in your booking notes.'],['Cancellation',`The standard ${workspace?.faq_settings?.cancellation_hours||48}-hour cancellation policy applies. Late cancellations forfeit the travel fee in addition to any deposit.`]].map(([t,b])=><div key={t} style={{marginBottom:24}}><div style={{fontSize:11,letterSpacing:'0.18em',textTransform:'uppercase',color:'var(--gold)',marginBottom:8,paddingBottom:8,borderBottom:'1px solid var(--dark-4)'}}>{t}</div><p style={{fontSize:14,color:'var(--text-soft)',fontWeight:300,lineHeight:1.85}}>{b}</p></div>)}
         </div>
         <div style={{position:'sticky',bottom:0,padding:'16px 24px 28px',background:'rgba(10,5,2,.97)',borderTop:'1px solid var(--dark-4)'}}><button className="cb-btn-primary" style={{width:'100%',padding:14}} onClick={()=>{setBkPolicy(true);setPolicyOpen(false)}}>I have read — Return to booking</button></div>
-      </div>
+      </div>}
 
       {/* CART DRAWER */}
-      {cartOpen&&<div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.7)',zIndex:700}} onClick={()=>setCartOpen(false)}/>}
-      <div className={`cb-cart-drawer${cartOpen?' open':''}`}>
+      {cartOpen&&<><div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.7)',zIndex:700}} onClick={()=>setCartOpen(false)}/>
+      <div className={`cb-cart-drawer open`}>
         <div style={{padding:'18px 20px',borderBottom:'1px solid var(--dark-4)',display:'flex',justifyContent:'space-between',alignItems:'center',flexShrink:0}}>
           <div><div style={{fontSize:9,letterSpacing:'0.22em',textTransform:'uppercase',color:'var(--text-muted)'}}>Shopping Bag</div><div style={{fontFamily:'Playfair Display,serif',fontSize:14,color:'var(--gold-light)',marginTop:4}}>{cartCount} item{cartCount!==1?'s':''}</div></div>
           <button className="cb-ov-back" onClick={()=>setCartOpen(false)}>✕</button>
@@ -856,7 +865,8 @@ export default function ClientPage() {
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}><span style={{fontSize:11,letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--text-muted)'}}>Subtotal</span><span style={{fontFamily:'Playfair Display,serif',fontSize:22,color:'var(--gold)'}}>${cartTotal}</span></div>
           <button className="cb-btn-primary" style={{width:'100%',padding:14}}>Proceed to Checkout →</button>
         </div>}
-      </div>
+      </div></>
+      }
 
       {/* FLOAT */}
       {!selectedProduct&&<div style={{position:'fixed',bottom:24,right:24,zIndex:450,display:'flex',flexDirection:'column',alignItems:'flex-end',gap:8}}>
