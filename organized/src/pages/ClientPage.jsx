@@ -845,7 +845,7 @@ export default function ClientPage() {
           <div style={{textAlign:'center'}}><div style={{fontFamily:'Playfair Display,serif',fontSize:14,color:'var(--text)'}}>{bkService?.name||''}</div><div style={{fontSize:10,color:'var(--text-muted)',marginTop:2}}>{bkService?(bkService.is_free?'Free':`$${Number(bkService.price).toFixed(0)}`)+'·'+bkService.duration_min+'min':''}</div></div>
           <button className="cb-ov-back" style={{textAlign:'right'}} onClick={closeBooking}>✕</button>
         </div>
-        <div className="cb-dots">{(workspace?.payment_mode==='deposit'&&workspace?.stripe_onboarded?[1,2,3,4]:[1,2,3]).map(n=><div key={n} className={`cb-dot${bkPage===n?' active':bkPage>n?' done':''}`}/>)}</div>
+        <div className="cb-dots">{(workspace?.payment_mode==='deposit'?[1,2,3,4]:[1,2,3]).map(n=><div key={n} className={`cb-dot${bkPage===n?' active':bkPage>n?' done':''}`}/>)}</div>
 
         <div className="cb-ov-pages">
           <div className="cb-ov-inner" style={{transform:`translateX(-${(bkPage-1)*100}%)`}}>
@@ -929,7 +929,7 @@ export default function ClientPage() {
             {/* PAGE 3 — Your Info */}
             <div className="cb-ov-page">
               <div className="cb-ov-content">
-                <div className="cb-page-eye">{workspace?.payment_mode==='deposit'&&workspace?.stripe_onboarded ? 'Step 3 of 4' : 'Step 3 of 3'}</div>
+                <div className="cb-page-eye">{workspace?.payment_mode==='deposit' ? 'Step 3 of 4' : 'Step 3 of 3'}</div>
                 <h3 className="cb-page-title">Your details</h3>
                 {/* Recap */}
                 <div className="cb-recap">
@@ -960,7 +960,7 @@ export default function ClientPage() {
                 {bkSubmitErr&&<div style={{fontSize:13,color:'var(--error)',background:'rgba(208,96,90,.08)',border:'1px solid rgba(208,96,90,.2)',padding:'12px 14px',marginTop:10,borderRadius:1}}>{bkSubmitErr}</div>}
               </div>
               <div className="cb-ov-footer">
-                {workspace?.payment_mode==='deposit' && workspace?.stripe_onboarded ? (
+                {workspace?.payment_mode==='deposit' ? (
                   <div style={{display:'flex',flexDirection:'column',gap:10,width:'100%'}}>
                     {/* Choix dépôt ou paiement complet */}
                     <div style={{display:'flex',gap:8}}>
