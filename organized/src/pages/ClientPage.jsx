@@ -428,7 +428,7 @@ export default function ClientPage() {
 
   // ── Proceed to payment (deposit flow) ────────────────────────────────────
   const proceedToPayment = async () => {
-    // Validate form first (same as submitBooking)
+    // Validate form first
     const errs = {}
     if (!bkForm.fname.trim()) errs.fname = true
     if (!bkForm.lname.trim()) errs.lname = true
@@ -438,9 +438,15 @@ export default function ClientPage() {
     setBkErrors(errs)
     if (Object.keys(errs).length || !bkService || !bkDay || !bkTime || !workspace) return
 
+    // Stripe minimum = $0.50 — valider avant d'appeler l'edge function
+    const amount = getPaymentAmount()
+    if (amount < 0.50) {
+      setPaymentError('Minimum deposit amount is $0.50. Please update your deposit settings.')
+      return
+    }
+
     setPaymentLoading(true); setPaymentError(null)
     try {
-      const amount = getPaymentAmount()
       const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
       const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
 
@@ -524,9 +530,23 @@ export default function ClientPage() {
             billing_details: { name: `${bkForm.fname} ${bkForm.lname}`, email: bkForm.email } } }
       )
       if (error) { setPaymentError(error.message); return }
+
       if (paymentIntent.status === 'requires_capture') {
-        // Payment authorized — now create the appointment
-        await submitBooking(paymentIntentId, getPaymentAmount())
+        // ✅ Fonds vérifiés par Stripe — maintenant on crée le rendez-vous
+        const finalAmount = getPaymentAmount()
+        await submitBooking(paymentIntent.id, finalAmount)
+
+        // ✅ Maintenant on sauvegarde dans payments (après confirmation Stripe, pas avant)
+        await supabase.from('payments').insert({
+          workspace_id: workspace.id,
+          stripe_payment_intent_id: paymentIntent.id,
+          amount: finalAmount,
+          currency: workspace.currency?.toLowerCase() || 'cad',
+          status: 'authorized',
+          client_name: `${bkForm.fname.trim()} ${bkForm.lname.trim()}`,
+          client_email: bkForm.email.trim(),
+          description: `${paymentChoice === 'full' ? 'Full payment' : 'Deposit'} — ${bkService?.name}`,
+        })
       }
     } catch (err) {
       setPaymentError('Payment failed. Please try again.')
