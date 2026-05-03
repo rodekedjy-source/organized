@@ -441,7 +441,7 @@ export default function ClientPage() {
     // Stripe minimum = $0.50 — valider avant d'appeler l'edge function
     const amount = getPaymentAmount()
     if (amount < 0.50) {
-      setPaymentError('Minimum deposit amount is $0.50. Please update your deposit settings.')
+      setPaymentError('This booking cannot be processed online at this time. Please contact the studio directly.')
       return
     }
 
