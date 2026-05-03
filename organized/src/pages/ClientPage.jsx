@@ -468,12 +468,24 @@ export default function ClientPage() {
 
       const elements = stripe.elements()
       const cardElement = elements.create('card', {
+        hidePostalCode: true, // retire le champ zip — garde juste numéro + expiry + CVC
         style: {
           base: {
-            fontFamily: 'DM Sans, sans-serif', fontSize: '14px',
-            color: '#faf6f1', '::placeholder': { color: 'rgba(250,246,241,0.35)' },
+            fontFamily: "'DM Sans', sans-serif",
+            fontSize: '15px',
+            fontWeight: '400',
+            color: '#1a1817',           // texte foncé lisible
+            letterSpacing: '0.02em',
+            lineHeight: '24px',
+            '::placeholder': { color: '#9ca3af' },
           },
-          invalid: { color: '#e87071' },
+          invalid: {
+            color: '#dc2626',
+            iconColor: '#dc2626',
+          },
+          complete: {
+            color: '#1a1817',
+          },
         },
       })
       cardElementRef.current = { cardElement, clientSecret: client_secret }
@@ -566,7 +578,7 @@ export default function ClientPage() {
       <nav className="cb-nav">
         <div className="cb-nav-logo">{workspace.name}<span>via Organized.</span></div>
         <div className="cb-nav-right">
-          <button className="cb-icon-btn" onClick={()=>setCartOpen(true)} style={{position:'relative'}}>
+          <button className="cb-icon-btn" onClick={()=>{setCartOpen(true);document.body.style.overflow='hidden'}} style={{position:'relative'}}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
             {cartCount>0&&<span className="cb-cart-badge">{cartCount}</span>}
           </button>
@@ -588,7 +600,7 @@ export default function ClientPage() {
           <div className="cb-hero-cta">
             {activeTab==='book' && <>
               <button className="cb-btn-primary" onClick={()=>document.querySelector('.cb-tabs')?.scrollIntoView({behavior:'smooth'})}>Book your Service</button>
-              <button className="cb-btn-ghost" onClick={()=>setPortfolioOpen(true)}>See our Portfolio</button>
+              <button className="cb-btn-ghost" onClick={()=>{setPortfolioOpen(true);document.body.style.overflow='hidden'}}>See our Portfolio</button>
             </>}
             {activeTab==='shop' && <>
               <button className="cb-btn-primary" onClick={()=>document.querySelector('.cb-tabs')?.scrollIntoView({behavior:'smooth'})}>Shop the Edit</button>
@@ -888,7 +900,7 @@ export default function ClientPage() {
                     <div style={{width:16,height:16,border:`1px solid ${bkPolicy?'var(--gold)':'var(--dark-5)'}`,borderRadius:1,background:bkPolicy?'var(--gold)':'var(--dark-3)',flexShrink:0,marginTop:1,display:'flex',alignItems:'center',justifyContent:'center',transition:'all .2s'}}>
                       {bkPolicy&&<svg width="9" height="6" viewBox="0 0 9 6" fill="none"><polyline points="1,3 3.5,5.5 8,1" stroke="#141210" strokeWidth="1.5" strokeLinecap="round"/></svg>}
                     </div>
-                    <div style={{fontSize:13,color:'var(--text-soft)',fontWeight:300,lineHeight:1.6}}>I have read and agree to the <button style={{background:'none',border:'none',color:'var(--gold)',fontFamily:'inherit',fontSize:'inherit',cursor:'pointer',padding:0,textDecoration:'underline',textDecorationColor:'rgba(201,168,76,.3)'}} onClick={e=>{e.stopPropagation();setPolicyOpen(true)}}>home service policy</button></div>
+                    <div style={{fontSize:13,color:'var(--text-soft)',fontWeight:300,lineHeight:1.6}}>I have read and agree to the <button style={{background:'none',border:'none',color:'var(--gold)',fontFamily:'inherit',fontSize:'inherit',cursor:'pointer',padding:0,textDecoration:'underline',textDecorationColor:'rgba(201,168,76,.3)'}} onClick={e=>{e.stopPropagation();setPolicyOpen(true);document.body.style.overflow='hidden'}}>home service policy</button></div>
                   </div>
                   {bkErrors.policy&&<div className="cb-err">Please confirm you have read the home service policy</div>}
                 </div>}
@@ -1016,14 +1028,16 @@ export default function ClientPage() {
                   </div>
                 </div>
 
-                {/* Card element Stripe */}
+                {/* Card element Stripe — fond blanc pour que le texte soit visible */}
                 <div style={{marginBottom:16}}>
                   <div style={{fontSize:9,letterSpacing:'.2em',textTransform:'uppercase',
                     color:'var(--text-muted)',marginBottom:10}}>Card details</div>
                   <div ref={cardMountRef} style={{
-                    background:'var(--dark-2)',
-                    border:`1px solid ${cardValidErr ? 'rgba(208,96,90,.6)' : cardReady ? 'rgba(86,187,134,.4)' : 'var(--dark-4)'}`,
-                    borderRadius:1,padding:'14px 16px',minHeight:46,
+                    background:'#ffffff',           // fond blanc — texte Stripe toujours sombre et lisible
+                    border:`1.5px solid ${cardValidErr ? '#dc2626' : cardReady ? '#16a34a' : '#d1d5db'}`,
+                    borderRadius:6,
+                    padding:'14px 16px',
+                    minHeight:52,                   // assez haut pour voir numéro + expiry + CVC
                     transition:'border-color .2s',
                   }}/>
                   {/* Erreur Luhn / expiry / CVC en temps réel */}
@@ -1089,7 +1103,7 @@ export default function ClientPage() {
 
       {/* PORTFOLIO OVERLAY */}
       {portfolioOpen && <div className={`cb-portfolio-overlay${portfolioOpen?' open':''}`}>
-        <div className="cb-portfolio-nav"><button className="cb-ov-back" onClick={()=>setPortfolioOpen(false)}>← Back to Studio</button><div style={{fontFamily:'Playfair Display,serif',fontSize:15,color:'var(--gold)'}}>Portfolio</div><div/></div>
+        <div className="cb-portfolio-nav"><button className="cb-ov-back" onClick={()=>{setPortfolioOpen(false);document.body.style.overflow=''}}>← Back to Studio</button><div style={{fontFamily:'Playfair Display,serif',fontSize:15,color:'var(--gold)'}}>Portfolio</div><div/></div>
         <div style={{padding:'48px 24px 80px',flex:1}}>
           <div className="cb-eyebrow" style={{marginBottom:8}}>The Work</div><h2 className="cb-heading" style={{marginBottom:28}}>Crafted with <em>intention</em></h2>
           <div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:4}}>
@@ -1100,19 +1114,19 @@ export default function ClientPage() {
 
       {/* POLICY OVERLAY */}
       {policyOpen && <div className={`cb-portfolio-overlay${policyOpen?' open':''}`}>
-        <div className="cb-portfolio-nav"><button className="cb-ov-back" onClick={()=>setPolicyOpen(false)}>← Back to booking</button><div style={{fontFamily:'Playfair Display,serif',fontSize:15,color:'var(--gold)'}}>Home Service Policy</div><div/></div>
+        <div className="cb-portfolio-nav"><button className="cb-ov-back" onClick={()=>{setPolicyOpen(false);document.body.style.overflow=''}}>← Back to booking</button><div style={{fontFamily:'Playfair Display,serif',fontSize:15,color:'var(--gold)'}}>Home Service Policy</div><div/></div>
         <div style={{padding:'48px 24px 24px',flex:1}}>
           {[['Travel Fee',`A travel fee of $${workspace?.domicile_fee||45} applies to all home visit appointments. Collected at time of service, non-refundable.`],['Service Radius',`Home visits are available within ${workspace?.domicile_radius_km||25} km. Addresses outside this radius cannot be serviced.`],['Space Requirements','You must prepare: a chair at a table with adequate lighting, access to a sink, and sufficient clear space for equipment.'],['Parking & Access','Parking must be available within reasonable distance. Include all access details in your booking notes.'],['Cancellation',`The standard ${workspace?.faq_settings?.cancellation_hours||48}-hour cancellation policy applies. Late cancellations forfeit the travel fee in addition to any deposit.`]].map(([t,b])=><div key={t} style={{marginBottom:24}}><div style={{fontSize:11,letterSpacing:'0.18em',textTransform:'uppercase',color:'var(--gold)',marginBottom:8,paddingBottom:8,borderBottom:'1px solid var(--dark-4)'}}>{t}</div><p style={{fontSize:14,color:'var(--text-soft)',fontWeight:300,lineHeight:1.85}}>{b}</p></div>)}
         </div>
-        <div style={{position:'sticky',bottom:0,padding:'16px 24px 28px',background:'rgba(10,5,2,.97)',borderTop:'1px solid var(--dark-4)'}}><button className="cb-btn-primary" style={{width:'100%',padding:14}} onClick={()=>{setBkPolicy(true);setPolicyOpen(false)}}>I have read — Return to booking</button></div>
+        <div style={{position:'sticky',bottom:0,padding:'16px 24px 28px',background:'rgba(10,5,2,.97)',borderTop:'1px solid var(--dark-4)'}}><button className="cb-btn-primary" style={{width:'100%',padding:14}} onClick={()=>{setBkPolicy(true);setPolicyOpen(false);document.body.style.overflow='hidden'}}>I have read — Return to booking</button></div>
       </div>}
 
       {/* CART DRAWER */}
-      {cartOpen&&<><div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.7)',zIndex:700}} onClick={()=>setCartOpen(false)}/>
+      {cartOpen&&<><div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.7)',zIndex:700}} onClick={()=>{setCartOpen(false);document.body.style.overflow=''}}/>
       <div className={`cb-cart-drawer open`}>
         <div style={{padding:'18px 20px',borderBottom:'1px solid var(--dark-4)',display:'flex',justifyContent:'space-between',alignItems:'center',flexShrink:0}}>
           <div><div style={{fontSize:9,letterSpacing:'0.22em',textTransform:'uppercase',color:'var(--text-muted)'}}>Shopping Bag</div><div style={{fontFamily:'Playfair Display,serif',fontSize:14,color:'var(--gold-light)',marginTop:4}}>{cartCount} item{cartCount!==1?'s':''}</div></div>
-          <button className="cb-ov-back" onClick={()=>setCartOpen(false)}>✕</button>
+          <button className="cb-ov-back" onClick={()=>{setCartOpen(false);document.body.style.overflow=''}}>✕</button>
         </div>
         <div style={{flex:1,overflowY:'auto',padding:'16px 20px'}}>
           {cartItems.length===0?<div style={{textAlign:'center',padding:'60px 0',color:'var(--text-muted)',fontSize:13}}>Your bag is empty.</div>:cartItems.map(item=><div key={item.id} style={{display:'flex',gap:12,padding:'14px 0',borderBottom:'1px solid var(--dark-4)'}}>
@@ -1308,7 +1322,7 @@ const CSS = `
 .cb-dot.active{width:18px;border-radius:3px;background:var(--gold)}.cb-dot.done{background:rgba(201,168,76,.35)}
 .cb-ov-pages{flex:1;overflow:hidden;position:relative}
 .cb-ov-inner{display:flex;height:100%;transition:transform .38s cubic-bezier(.25,.46,.45,.94)!important}
-.cb-ov-page{min-width:100%;height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column}
+.cb-ov-page{min-width:100%;height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;display:flex;flex-direction:column}
 .cb-ov-content{flex:1;padding:28px 20px 16px}
 .cb-ov-footer{padding:14px 20px 28px;background:var(--dark);border-top:1px solid var(--dark-4);flex-shrink:0}
 .cb-page-eye{font-size:8px;letter-spacing:.26em;text-transform:uppercase;color:var(--gold);margin-bottom:8px}
@@ -1359,11 +1373,11 @@ const CSS = `
 .cb-recap-row:last-child{border-bottom:none}
 .cb-recap-key{color:var(--text-muted);flex-shrink:0;font-size:12px}.cb-recap-val{color:var(--text-soft);text-align:right;font-weight:400}
 
-.cb-portfolio-overlay{position:fixed;inset:0;background:var(--dark);z-index:1000;transform:translateX(100%);transition:transform .42s cubic-bezier(.25,.46,.45,.94)!important;overflow-y:auto;display:flex;flex-direction:column}
+.cb-portfolio-overlay{position:fixed;inset:0;background:var(--dark);z-index:1000;transform:translateX(100%);transition:transform .42s cubic-bezier(.25,.46,.45,.94)!important;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;display:flex;flex-direction:column}
 .cb-portfolio-overlay.open{transform:translateX(0)}
 .cb-portfolio-nav{position:sticky;top:0;padding:0 20px;height:62px;display:flex;align-items:center;justify-content:space-between;background:rgba(10,5,2,.97);border-bottom:1px solid var(--dark-4);backdrop-filter:blur(20px);z-index:10;flex-shrink:0}
 
-.cb-cart-drawer{position:fixed;top:0;right:0;width:340px;max-width:100vw;height:100vh;background:var(--dark-2);border-left:1px solid var(--dark-4);z-index:800;transform:translateX(100%);transition:transform .38s cubic-bezier(.25,.46,.45,.94)!important;display:flex;flex-direction:column}
+.cb-cart-drawer{position:fixed;top:0;right:0;width:340px;max-width:100vw;height:100vh;background:var(--dark-2);border-left:1px solid var(--dark-4);z-index:800;transform:translateX(100%);transition:transform .38s cubic-bezier(.25,.46,.45,.94)!important;display:flex;flex-direction:column;overscroll-behavior:contain}
 .cb-cart-drawer.open{transform:translateX(0)}
 .cb-qty-btn{width:22px;height:22px;border:1px solid var(--dark-5);background:transparent;color:var(--text-muted);cursor:pointer;border-radius:1px;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all .15s}
 .cb-qty-btn:hover{border-color:var(--gold-border);color:var(--gold)}
