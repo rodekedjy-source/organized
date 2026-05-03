@@ -254,6 +254,17 @@ export default function ClientPage() {
   const [bkAppointment,  setBkAppointment]  = useState(null)
   const [bkSubmitErr,    setBkSubmitErr]    = useState(null)
 
+  // ── Payment state ─────────────────────────────────────────────────────────
+  const [paymentChoice,  setPaymentChoice]  = useState('deposit') // 'deposit' | 'full'
+  const [paymentLoading, setPaymentLoading] = useState(false)
+  const [paymentError,   setPaymentError]   = useState(null)
+  const [paymentIntentId,setPaymentIntentId]= useState(null)
+  const [cardReady,      setCardReady]      = useState(false)   // carte complète et valide
+  const [cardValidErr,   setCardValidErr]   = useState(null)    // erreur Luhn / expiry / cvc
+  const stripeRef        = useRef(null)
+  const cardElementRef   = useRef(null)
+  const cardMountRef     = useRef(null)
+
   // ── Fetch all data ────────────────────────────────────────────────────────
   useEffect(() => {
     if (!slug) return
@@ -262,7 +273,7 @@ export default function ClientPage() {
       setLoading(true); setNotFound(false)
       try {
         const { data: ws } = await supabase.from('workspaces')
-          .select('id,name,slug,tagline,bio,avatar_url,instagram,tiktok,phone,email,location,timezone,currency,is_published,theme,offers_domicile,domicile_fee,domicile_radius_km,domicile_notes,address_visibility,neighborhood,address_street,address_city,address_province,address_postal,address_country,share_address,show_address_on_page,faq_settings,featured_product_id,featured_product_note,working_hours')
+          .select('id,name,slug,tagline,bio,avatar_url,instagram,tiktok,phone,email,location,timezone,currency,is_published,theme,offers_domicile,domicile_fee,domicile_radius_km,domicile_notes,address_visibility,neighborhood,address_street,address_city,address_province,address_postal,address_country,share_address,show_address_on_page,faq_settings,featured_product_id,featured_product_note,working_hours,payment_mode,deposit_type,deposit_value,stripe_onboarded')
           .eq('slug', slug).eq('is_published', true).maybeSingle()
         if (!ws) { if (!cancelled) { setNotFound(true); setLoading(false) }; return }
         if (!cancelled) setWorkspace(ws)
@@ -315,6 +326,32 @@ export default function ClientPage() {
     setBkSlotsLoading(false)
   }, [workspace, availability, bkCalY, bkCalM])
 
+  // ── Stripe helpers ────────────────────────────────────────────────────────
+  async function loadStripeJs() {
+    if (window.Stripe) return window.Stripe
+    return new Promise((resolve, reject) => {
+      const s = document.createElement('script')
+      s.src = 'https://js.stripe.com/v3/'
+      s.onload = () => resolve(window.Stripe)
+      s.onerror = reject
+      document.head.appendChild(s)
+    })
+  }
+
+  function calcDepositAmount() {
+    if (!workspace || !bkService) return 0
+    if (workspace.deposit_type === 'percentage') {
+      return Math.round((Number(bkService.price) * (workspace.deposit_value / 100)) * 100) / 100
+    }
+    return Number(workspace.deposit_value) || 0
+  }
+
+  function getPaymentAmount() {
+    if (!bkService) return 0
+    if (paymentChoice === 'full') return Number(bkService.price) || 0
+    return calcDepositAmount()
+  }
+
   // ── Open booking ──────────────────────────────────────────────────────────
   const openBooking = (svc) => {
     setBkService(svc); setBkAddons([]); setBkVisit('studio'); setBkPolicy(false)
@@ -339,15 +376,18 @@ export default function ClientPage() {
   }
 
   // ── Submit ────────────────────────────────────────────────────────────────
-  const submitBooking = async () => {
+  const submitBooking = async (stripePaymentIntentId = null, depositAmt = 0) => {
     const errs = {}
     if (!bkForm.fname.trim()) errs.fname = true
     if (!bkForm.lname.trim()) errs.lname = true
     const hasValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(bkForm.email)
     const hasValidPhone = bkForm.phone.replace(/\D/g,'').length >= 7
     if (!hasValidEmail && !hasValidPhone) { errs.email = true; errs.phone = true }
-    setBkErrors(errs)
-    if (Object.keys(errs).length || !bkService || !bkDay || !bkTime || !workspace) return
+    // Only show errors if called directly (no stripe intent = no-deposit flow)
+    if (!stripePaymentIntentId) {
+      setBkErrors(errs)
+      if (Object.keys(errs).length || !bkService || !bkDay || !bkTime || !workspace) return
+    }
     setBkSubmitting(true); setBkSubmitErr(null)
     try {
       const dateStr = `${bkCalY}-${String(bkCalM+1).padStart(2,'0')}-${String(bkDay).padStart(2,'0')}`
@@ -365,16 +405,18 @@ export default function ClientPage() {
         scheduled_at: scheduledAt.toISOString(), ends_at: endsAt.toISOString(),
         duration_min: bkService.duration_min,
         amount: bkService.is_free ? 0 : Number(bkService.price),
-        currency: workspace.currency||'CAD', status:'pending', payment_status:'unpaid',
+        currency: workspace.currency||'CAD', status:'pending', payment_status: stripePaymentIntentId ? 'authorized' : 'none',
         notes: bkForm.notes.trim()||null, how_found: bkForm.source||null,
         visit_type: bkVisit,
         travel_fee: bkVisit==='home' ? Number(workspace.domicile_fee||45) : 0,
         client_address: bkVisit==='home' ? bkDom.street.trim() : null,
         client_address_notes: bkVisit==='home' ? (bkDom.access.trim()||null) : null,
         addons: addonsJson,
+        stripe_payment_intent_id: stripePaymentIntentId || null,
+        deposit_amount: depositAmt || 0,
       }).select('id,cancellation_token,scheduled_at,service_name,client_name,client_email').single()
       if (error) throw error
-      setBkAppointment(data); setBkPage(4)
+      setBkAppointment(data); setBkPage(5)
     } catch(err) {
       const msg = err.message||''
       if (msg.includes('conflict')||msg.includes('overlap')) {
@@ -382,6 +424,103 @@ export default function ClientPage() {
         setBkPage(2); setBkTime(null)
       } else { setBkSubmitErr('Something went wrong. Please try again.') }
     } finally { setBkSubmitting(false) }
+  }
+
+  // ── Proceed to payment (deposit flow) ────────────────────────────────────
+  const proceedToPayment = async () => {
+    // Validate form first (same as submitBooking)
+    const errs = {}
+    if (!bkForm.fname.trim()) errs.fname = true
+    if (!bkForm.lname.trim()) errs.lname = true
+    const hasValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(bkForm.email)
+    const hasValidPhone = bkForm.phone.replace(/\D/g,'').length >= 7
+    if (!hasValidEmail && !hasValidPhone) { errs.email = true; errs.phone = true }
+    setBkErrors(errs)
+    if (Object.keys(errs).length || !bkService || !bkDay || !bkTime || !workspace) return
+
+    setPaymentLoading(true); setPaymentError(null)
+    try {
+      const amount = getPaymentAmount()
+      const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
+      const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/create-payment-intent`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
+        body: JSON.stringify({
+          workspace_id: workspace.id,
+          amount,
+          currency: workspace.currency?.toLowerCase() || 'cad',
+          client_name: `${bkForm.fname.trim()} ${bkForm.lname.trim()}`,
+          client_email: bkForm.email.trim(),
+          description: `${paymentChoice === 'full' ? 'Payment' : 'Deposit'} — ${bkService.name}`,
+        }),
+      })
+      const { client_secret, payment_intent_id, error: fnErr } = await res.json()
+      if (fnErr) throw new Error(fnErr)
+
+      setPaymentIntentId(payment_intent_id)
+
+      // Load Stripe.js and mount card element
+      const StripeJs = await loadStripeJs()
+      const stripe = StripeJs(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY)
+      stripeRef.current = stripe
+
+      const elements = stripe.elements()
+      const cardElement = elements.create('card', {
+        style: {
+          base: {
+            fontFamily: 'DM Sans, sans-serif', fontSize: '14px',
+            color: '#faf6f1', '::placeholder': { color: 'rgba(250,246,241,0.35)' },
+          },
+          invalid: { color: '#e87071' },
+        },
+      })
+      cardElementRef.current = { cardElement, clientSecret: client_secret }
+
+      setBkPage(4)
+      // Mount after page transition
+      setTimeout(() => {
+        if (cardMountRef.current) {
+          cardElement.mount(cardMountRef.current)
+          // Écouter les changements — Stripe valide le Luhn, l'expiry et le CVC en temps réel
+          cardElement.on('change', (event) => {
+            if (event.error) {
+              setCardValidErr(event.error.message)
+              setCardReady(false)
+            } else {
+              setCardValidErr(null)
+              setCardReady(event.complete) // true seulement quand tout est valide et complet
+            }
+          })
+        }
+      }, 350)
+    } catch (err) {
+      setPaymentError('Could not initialize payment. Please try again.')
+    } finally {
+      setPaymentLoading(false)
+    }
+  }
+
+  const handleStripePayment = async () => {
+    if (!stripeRef.current || !cardElementRef.current) return
+    setPaymentLoading(true); setPaymentError(null)
+    try {
+      const { error, paymentIntent } = await stripeRef.current.confirmCardPayment(
+        cardElementRef.current.clientSecret,
+        { payment_method: { card: cardElementRef.current.cardElement,
+            billing_details: { name: `${bkForm.fname} ${bkForm.lname}`, email: bkForm.email } } }
+      )
+      if (error) { setPaymentError(error.message); return }
+      if (paymentIntent.status === 'requires_capture') {
+        // Payment authorized — now create the appointment
+        await submitBooking(paymentIntentId, getPaymentAmount())
+      }
+    } catch (err) {
+      setPaymentError('Payment failed. Please try again.')
+    } finally {
+      setPaymentLoading(false)
+    }
   }
 
   // ── Download ICS ──────────────────────────────────────────────────────────
@@ -702,11 +841,11 @@ export default function ClientPage() {
       {/* ═══════════ BOOKING OVERLAY ═══════════ */}
       {bkOpen && <div className={`cb-overlay${bkOpen?' open':''}`}>
         <div className="cb-ov-header">
-          <button className="cb-ov-back" onClick={bkPage===1?closeBooking:()=>setBkPage(p=>p-1)}>{bkPage===1?'✕':'← Back'}</button>
+          <button className="cb-ov-back" onClick={bkPage===1?closeBooking:bkPage>=5?closeBooking:()=>setBkPage(p=>p-1)}>{bkPage===1||bkPage>=5?'✕':'← Back'}</button>
           <div style={{textAlign:'center'}}><div style={{fontFamily:'Playfair Display,serif',fontSize:14,color:'var(--text)'}}>{bkService?.name||''}</div><div style={{fontSize:10,color:'var(--text-muted)',marginTop:2}}>{bkService?(bkService.is_free?'Free':`$${Number(bkService.price).toFixed(0)}`)+'·'+bkService.duration_min+'min':''}</div></div>
           <button className="cb-ov-back" style={{textAlign:'right'}} onClick={closeBooking}>✕</button>
         </div>
-        <div className="cb-dots">{[1,2,3].map(n=><div key={n} className={`cb-dot${bkPage===n?' active':bkPage>n?' done':''}`}/>)}</div>
+        <div className="cb-dots">{(workspace?.payment_mode==='deposit'&&workspace?.stripe_onboarded?[1,2,3,4]:[1,2,3]).map(n=><div key={n} className={`cb-dot${bkPage===n?' active':bkPage>n?' done':''}`}/>)}</div>
 
         <div className="cb-ov-pages">
           <div className="cb-ov-inner" style={{transform:`translateX(-${(bkPage-1)*100}%)`}}>
@@ -790,7 +929,7 @@ export default function ClientPage() {
             {/* PAGE 3 — Your Info */}
             <div className="cb-ov-page">
               <div className="cb-ov-content">
-                <div className="cb-page-eye">Step 3 of 3</div>
+                <div className="cb-page-eye">{workspace?.payment_mode==='deposit'&&workspace?.stripe_onboarded ? 'Step 3 of 4' : 'Step 3 of 3'}</div>
                 <h3 className="cb-page-title">Your details</h3>
                 {/* Recap */}
                 <div className="cb-recap">
@@ -820,10 +959,114 @@ export default function ClientPage() {
                 <div style={{fontSize:11,color:'var(--text-muted)',fontWeight:300,lineHeight:1.7,marginTop:4}}>By confirming you agree to the cancellation policy. {workspace.faq_settings?.cancellation_hours||48}-hour notice required.</div>
                 {bkSubmitErr&&<div style={{fontSize:13,color:'var(--error)',background:'rgba(208,96,90,.08)',border:'1px solid rgba(208,96,90,.2)',padding:'12px 14px',marginTop:10,borderRadius:1}}>{bkSubmitErr}</div>}
               </div>
-              <div className="cb-ov-footer"><button className="cb-btn-primary" style={{width:'100%',padding:16}} disabled={bkSubmitting} onClick={submitBooking}>{bkSubmitting?'Confirming…':'Confirm Booking'}</button></div>
+              <div className="cb-ov-footer">
+                {workspace?.payment_mode==='deposit' && workspace?.stripe_onboarded ? (
+                  <div style={{display:'flex',flexDirection:'column',gap:10,width:'100%'}}>
+                    {/* Choix dépôt ou paiement complet */}
+                    <div style={{display:'flex',gap:8}}>
+                      {[
+                        {val:'deposit',label:`Deposit — $${calcDepositAmount().toFixed(2)}`},
+                        {val:'full',label:`Full payment — $${Number(bkService?.price||0).toFixed(2)}`},
+                      ].map(({val,label})=>(
+                        <button key={val} onClick={()=>setPaymentChoice(val)}
+                          style={{flex:1,padding:'10px 8px',borderRadius:1,border:'1px solid',fontSize:10,letterSpacing:'.06em',textTransform:'uppercase',cursor:'pointer',fontFamily:'DM Sans,sans-serif',
+                            borderColor: paymentChoice===val ? 'var(--gold-border)' : 'var(--dark-5)',
+                            background: paymentChoice===val ? 'var(--gold-dim)' : 'transparent',
+                            color: paymentChoice===val ? 'var(--gold-light)' : 'var(--text-muted)',
+                          }}>
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                    <button className="cb-btn-primary" style={{width:'100%',padding:16}}
+                      disabled={paymentLoading} onClick={proceedToPayment}>
+                      {paymentLoading ? 'Preparing payment…' : `Pay $${getPaymentAmount().toFixed(2)} →`}
+                    </button>
+                  </div>
+                ) : (
+                  <button className="cb-btn-primary" style={{width:'100%',padding:16}} disabled={bkSubmitting} onClick={()=>submitBooking()}>{bkSubmitting?'Confirming…':'Confirm Booking'}</button>
+                )}
+              </div>
             </div>
 
-            {/* PAGE 4 — Success */}
+            {/* PAGE 4 — Payment */}
+            <div className="cb-ov-page">
+              <div className="cb-ov-content">
+                <div className="cb-page-eye">Step 4 of 4</div>
+                <h3 className="cb-page-title">Secure payment</h3>
+                {/* Recap montant */}
+                <div className="cb-recap" style={{marginBottom:20}}>
+                  <div className="cb-recap-header">
+                    <div style={{fontSize:8,letterSpacing:'0.22em',textTransform:'uppercase',color:'var(--text-muted)'}}>You are paying</div>
+                    <div style={{fontFamily:'Playfair Display,serif',fontSize:16,color:'var(--gold)'}}>
+                      ${getPaymentAmount().toFixed(2)} {workspace?.currency||'CAD'}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="cb-recap-row">
+                      <span className="cb-recap-key">Service</span>
+                      <span className="cb-recap-val">{bkService?.name}</span>
+                    </div>
+                    <div className="cb-recap-row">
+                      <span className="cb-recap-key">Type</span>
+                      <span className="cb-recap-val" style={{color:'var(--gold)'}}>
+                        {paymentChoice==='full' ? 'Full payment' : 'Deposit'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Card element Stripe */}
+                <div style={{marginBottom:16}}>
+                  <div style={{fontSize:9,letterSpacing:'.2em',textTransform:'uppercase',
+                    color:'var(--text-muted)',marginBottom:10}}>Card details</div>
+                  <div ref={cardMountRef} style={{
+                    background:'var(--dark-2)',
+                    border:`1px solid ${cardValidErr ? 'rgba(208,96,90,.6)' : cardReady ? 'rgba(86,187,134,.4)' : 'var(--dark-4)'}`,
+                    borderRadius:1,padding:'14px 16px',minHeight:46,
+                    transition:'border-color .2s',
+                  }}/>
+                  {/* Erreur Luhn / expiry / CVC en temps réel */}
+                  {cardValidErr && (
+                    <div style={{display:'flex',alignItems:'center',gap:6,marginTop:8,
+                      fontSize:12,color:'rgba(208,96,90,.9)',fontWeight:400}}>
+                      <span style={{fontSize:14}}>⚠</span>
+                      {cardValidErr}
+                    </div>
+                  )}
+                  {/* Confirmation carte valide */}
+                  {cardReady && !cardValidErr && (
+                    <div style={{display:'flex',alignItems:'center',gap:6,marginTop:8,
+                      fontSize:12,color:'rgba(86,187,134,.9)',fontWeight:400}}>
+                      <span style={{fontSize:14}}>✓</span>
+                      Card details look good
+                    </div>
+                  )}
+                </div>
+
+                {paymentError && (
+                  <div style={{fontSize:13,color:'var(--error)',background:'rgba(208,96,90,.08)',
+                    border:'1px solid rgba(208,96,90,.2)',padding:'12px 14px',marginBottom:12,borderRadius:1}}>
+                    {paymentError}
+                  </div>
+                )}
+                <div style={{fontSize:11,color:'var(--text-muted)',fontWeight:300,lineHeight:1.7,marginBottom:4}}>
+                  Your card will be authorized but not charged until your appointment is confirmed.
+                </div>
+              </div>
+              <div className="cb-ov-footer">
+                <button className="cb-btn-primary" style={{width:'100%',padding:16,
+                  opacity: (!cardReady || paymentLoading || bkSubmitting) ? .5 : 1,
+                  cursor: (!cardReady || paymentLoading || bkSubmitting) ? 'not-allowed' : 'pointer',
+                }}
+                  disabled={!cardReady || paymentLoading || bkSubmitting}
+                  onClick={handleStripePayment}>
+                  {paymentLoading||bkSubmitting ? 'Processing…' : `Authorize $${getPaymentAmount().toFixed(2)}`}
+                </button>
+              </div>
+            </div>
+
+            {/* PAGE 5 — Success */}
             <div className="cb-ov-page">
               <div className="cb-ov-content" style={{display:'flex',flexDirection:'column',alignItems:'center',textAlign:'center',paddingTop:32}}>
                 <div style={{width:56,height:56,border:'1px solid rgba(86,187,134,.2)',background:'rgba(86,187,134,.06)',borderRadius:2,display:'flex',alignItems:'center',justifyContent:'center',color:'var(--success)',fontSize:22,marginBottom:22}}>✓</div>
