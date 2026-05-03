@@ -3251,6 +3251,24 @@ function Payments({ workspace, toast, lang, refetchWorkspace }) {
 
   async function saveSettings() {
     if (!workspace?.id) return
+
+    // Validation avant save — le owner doit savoir que Stripe exige un minimum de 0.50$
+    if (settings.payment_mode === 'deposit') {
+      const val = parseFloat(settings.deposit_value) || 0
+      if (settings.deposit_type === 'flat' && val < 0.50) {
+        toast(lang === 'fr'
+          ? 'Montant minimum requis par Stripe : 0,50 $. Veuillez augmenter le dépôt.'
+          : 'Stripe requires a minimum deposit of $0.50. Please increase the amount.')
+        return
+      }
+      if (settings.deposit_type === 'percentage' && val <= 0) {
+        toast(lang === 'fr'
+          ? 'Le pourcentage de dépôt doit être supérieur à 0.'
+          : 'Deposit percentage must be greater than 0.')
+        return
+      }
+    }
+
     setSaving(true)
     const { error } = await supabase
       .from('workspaces')
