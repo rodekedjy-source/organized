@@ -208,6 +208,45 @@ function monthRevenue(appts, monthOffset=0) {
 function pct(a,b) { if(!b) return null; return Math.round(((a-b)/b)*100) }
 function svcName(a) { return a.services?.name || a.service_name || '—' }
 
+// ── PERIOD TABS ───────────────────────────────────────────────────────────────
+const PERIODS = ['week','month','year']
+const PERIOD_LABELS = {
+  en:{ week:'This Week', month:'This Month', year:'This Year' },
+  fr:{ week:'Cette semaine', month:'Ce mois', year:'Cette année' },
+  es:{ week:'Esta semana', month:'Este mes', year:'Este año' },
+}
+function PeriodTabs({ period, setPeriod, lang='en' }) {
+  const labels = PERIOD_LABELS[lang] || PERIOD_LABELS.en
+  return (
+    <div style={{ display:'flex', gap:'.35rem', marginBottom:'1.25rem' }}>
+      {PERIODS.map(p => (
+        <button key={p} onClick={()=>setPeriod(p)} style={{
+          padding:'.35rem .85rem', borderRadius:99, border:'1.5px solid',
+          borderColor: period===p ? 'var(--gold)' : 'var(--border)',
+          background: period===p ? 'rgba(var(--gold-rgb),.1)' : 'transparent',
+          color: period===p ? 'var(--gold)' : 'var(--ink-3)',
+          fontSize:'.75rem', fontWeight:700, cursor:'pointer',
+          letterSpacing:'.03em', transition:'all .15s',
+        }}>
+          {labels[p]}
+        </button>
+      ))}
+    </div>
+  )
+}
+function startOfPeriod(period) {
+  const now = new Date()
+  if (period === 'week') {
+    const d = new Date(now); d.setDate(now.getDate() - now.getDay()); d.setHours(0,0,0,0); return d
+  }
+  if (period === 'month') { return new Date(now.getFullYear(), now.getMonth(), 1) }
+  return new Date(now.getFullYear(), 0, 1)
+}
+function filterByPeriod(arr, period, dateKey='scheduled_at') {
+  const start = startOfPeriod(period)
+  return arr.filter(r => new Date(r[dateKey]) >= start)
+}
+
 // FIX 1: exact date label — "aujourd'hui à 10h45" or "le 24 avril à 10h30"
 function formatNextApptLabel(dateStr, lang='en') {
   if (!dateStr) return ''
@@ -1442,6 +1481,7 @@ function Overview({ workspace, session, ownerData, toast, setPage, refetchWorksp
 function Appointments({ workspace, toast, lang='en' }) {
   const [data,setData]=useState([])
   const [loading,setLoading]=useState(true)
+  const [period,setPeriod]=useState('month')
   useEffect(()=>{
     if(!workspace) return
     fetchData()
@@ -1453,14 +1493,66 @@ function Appointments({ workspace, toast, lang='en' }) {
     const{data}=await supabase.from('appointments').select('*, services(name)').eq('workspace_id',workspace.id).order('scheduled_at',{ascending:false})
     setData(data||[]);setLoading(false)
   }
-  async function confirm(id){await supabase.from('appointments').update({status:'confirmed'}).eq('id',id);toast('Confirmed.')}
-  async function decline(id){await supabase.from('appointments').update({status:'cancelled'}).eq('id',id);toast('Declined.')}
-  const pending=data.filter(a=>a.status==='pending')
-  const rest=data.filter(a=>a.status!=='pending')
+  async function confirm(id){
+    const appt = data.find(a=>a.id===id)
+    await supabase.from('appointments').update({status:'confirmed'}).eq('id',id)
+    // Capturer le dépôt si présent
+    if(appt?.stripe_payment_intent_id && appt?.payment_status==='authorized') {
+      const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
+      const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
+      await fetch(`${SUPABASE_URL}/functions/v1/capture-payment-intent`, {
+        method:'POST',
+        headers:{'Content-Type':'application/json','apikey':SUPABASE_ANON_KEY},
+        body:JSON.stringify({payment_intent_id:appt.stripe_payment_intent_id,appointment_id:id}),
+      })
+    }
+    toast('Confirmed.')
+  }
+  async function decline(id){
+    const appt = data.find(a=>a.id===id)
+    await supabase.from('appointments').update({status:'cancelled'}).eq('id',id)
+    // Annuler le dépôt si présent
+    if(appt?.stripe_payment_intent_id && appt?.payment_status==='authorized') {
+      const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
+      const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
+      await fetch(`${SUPABASE_URL}/functions/v1/cancel-payment-intent`, {
+        method:'POST',
+        headers:{'Content-Type':'application/json','apikey':SUPABASE_ANON_KEY},
+        body:JSON.stringify({payment_intent_id:appt.stripe_payment_intent_id,appointment_id:id}),
+      })
+    }
+    toast('Declined.')
+  }
+
+  const pending = data.filter(a=>a.status==='pending')
+  const periodData = filterByPeriod(data.filter(a=>a.status!=='pending'), period)
+  const confirmed = periodData.filter(a=>a.status==='confirmed')
+  const cancelled = periodData.filter(a=>a.status==='cancelled')
+  const revenue = periodData.filter(a=>a.status==='confirmed').reduce((s,a)=>s+Number(a.amount||0),0)
+  const periodLabel = (PERIOD_LABELS[lang]||PERIOD_LABELS.en)[period]
   return (
     <div>
       <div className="page-head"><div><div className="page-title">{t(lang,'appts_title')}</div><div className="page-sub">{t(lang,'appts_sub')}</div></div></div>
-      {/* FIX 7: pending as mobile cards */}
+
+      {/* Period tabs */}
+      <PeriodTabs period={period} setPeriod={setPeriod} lang={lang}/>
+
+      {/* Stats cards pour la période */}
+      <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'.6rem',marginBottom:'1.25rem'}}>
+        {[
+          {label:lang==='fr'?'Revenus':'Revenue', value:fmtRev(revenue), color:'var(--gold)'},
+          {label:lang==='fr'?'Confirmés':'Confirmed', value:confirmed.length, color:'var(--ink)'},
+          {label:lang==='fr'?'Annulés':'Cancelled', value:cancelled.length, color:'var(--ink-3)'},
+        ].map((s,i)=>(
+          <div key={i} style={{background:'var(--surface)',border:'1px solid var(--border)',
+            borderRadius:12,padding:'.75rem .85rem'}}>
+            <div style={{fontSize:'.68rem',color:'var(--ink-3)',marginBottom:'.2rem',
+              textTransform:'uppercase',letterSpacing:'.04em'}}>{s.label}</div>
+            <div style={{fontSize:'1.1rem',fontWeight:700,color:s.color,
+              fontFamily:"'Playfair Display',serif"}}>{s.value}</div>
+          </div>
+        ))}
+      </div>
       {pending.length>0&&(
         <div className="card" style={{marginBottom:'1.25rem'}}>
           <div className="card-head">
@@ -1488,8 +1580,8 @@ function Appointments({ workspace, toast, lang='en' }) {
       <div className="card">
         <div className="card-head"><div className="card-title">{t(lang,'all_appts')}</div></div>
         {loading?<div style={{padding:'2rem',color:'var(--ink-3)'}}>Loading...</div>
-          :rest.length===0&&pending.length===0?<div className="empty-state"><div className="empty-icon">{I.cal}</div><div className="empty-title">{t(lang,'no_appts')}</div><div className="empty-sub">{t(lang,'when_book')}</div></div>
-          :rest.map(a=>(
+          :periodData.length===0&&pending.length===0?<div className="empty-state"><div className="empty-icon">{I.cal}</div><div className="empty-title">{t(lang,'no_appts')}</div><div className="empty-sub">{t(lang,'when_book')}</div></div>
+          :periodData.map(a=>(
             <div key={a.id} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'1rem 1.25rem',borderBottom:'1px solid var(--border)'}}>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{fontWeight:600,fontSize:'.88rem',color:'var(--ink)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{a.client_name}</div>
@@ -2375,21 +2467,54 @@ function Clients({ workspace, lang='en' }) {
   const [loading,setLoading]=useState(true)
   const [selected,setSelected]=useState(null)
   const [search,setSearch]=useState('')
+  const [period,setPeriod]=useState('month')
   useEffect(()=>{if(workspace)fetchData()},[workspace])
   async function fetchData(){
     const{data}=await supabase.from('clients').select('*').eq('workspace_id',workspace.id).order('total_spent',{ascending:false})
     setData(data||[]);setLoading(false)
   }
-  const filtered=data.filter(c=>c.full_name?.toLowerCase().includes(search.toLowerCase()))
-  const totalRevenue=data.reduce((s,c)=>s+Number(c.total_spent||0),0)
-  const totalVisits=data.reduce((s,c)=>s+Number(c.total_visits||0),0)
+
+  // Filtrer les clients actifs sur la période (basé sur last_visit)
+  const periodClients = search
+    ? data.filter(c=>c.full_name?.toLowerCase().includes(search.toLowerCase()))
+    : filterByPeriod(data, period, 'last_visit').filter(c=>c.full_name?.toLowerCase().includes(search.toLowerCase()))
+
+  const allFiltered = data.filter(c=>c.full_name?.toLowerCase().includes(search.toLowerCase()))
+  const displayData = search ? allFiltered : periodClients
+
+  const totalRevenue = displayData.reduce((s,c)=>s+Number(c.total_spent||0),0)
+  const totalVisits = displayData.reduce((s,c)=>s+Number(c.total_visits||0),0)
+  const newClients = displayData.filter(c=>{
+    const start = startOfPeriod(period)
+    return c.created_at && new Date(c.created_at) >= start
+  }).length
   return (
     <div>
       <div className="page-head">
         <div>
           <div className="page-title">{t(lang,'clients_title')}</div>
-          <div className="page-sub">{data.length} client{data.length!==1?'s':''} · {fmtRev(totalRevenue)} total · {totalVisits} visit{totalVisits!==1?'s':''}</div>
+          <div className="page-sub">{data.length} client{data.length!==1?'s':''} total</div>
         </div>
+      </div>
+
+      {/* Period tabs */}
+      <PeriodTabs period={period} setPeriod={setPeriod} lang={lang}/>
+
+      {/* Stats cards période */}
+      <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'.6rem',marginBottom:'1.25rem'}}>
+        {[
+          {label:lang==='fr'?'Revenus':'Revenue', value:fmtRev(totalRevenue), color:'var(--gold)'},
+          {label:lang==='fr'?'Visites':'Visits', value:totalVisits, color:'var(--ink)'},
+          {label:lang==='fr'?'Nouveaux':'New', value:newClients, color:'var(--ink-2)'},
+        ].map((s,i)=>(
+          <div key={i} style={{background:'var(--surface)',border:'1px solid var(--border)',
+            borderRadius:12,padding:'.75rem .85rem'}}>
+            <div style={{fontSize:'.68rem',color:'var(--ink-3)',marginBottom:'.2rem',
+              textTransform:'uppercase',letterSpacing:'.04em'}}>{s.label}</div>
+            <div style={{fontSize:'1.1rem',fontWeight:700,color:s.color,
+              fontFamily:"'Playfair Display',serif"}}>{s.value}</div>
+          </div>
+        ))}
       </div>
       {/* Search */}
       {data.length>3&&(
@@ -2402,8 +2527,8 @@ function Clients({ workspace, lang='en' }) {
       )}
       <div className="card">
         {loading?<div style={{padding:'2rem',color:'var(--ink-3)'}}>Loading...</div>
-          :filtered.length===0?<div className="empty-state"><div className="empty-icon">{I.users}</div><div className="empty-title">{search?'No results':'No clients yet'}</div><div className="empty-sub">{search?'Try a different name':t(lang,'clients_appear')}</div></div>
-          :filtered.map(c=>{
+          :displayData.length===0?<div className="empty-state"><div className="empty-icon">{I.users}</div><div className="empty-title">{search?'No results':'No clients yet'}</div><div className="empty-sub">{search?'Try a different name':t(lang,'clients_appear')}</div></div>
+          :displayData.map(c=>{
             const initial=c.full_name?.charAt(0)?.toUpperCase()||'?'
             const isTopSpender=data.indexOf(c)===0&&Number(c.total_spent)>0
             return (
@@ -3372,44 +3497,86 @@ function Payments({ workspace, toast, lang, refetchWorkspace }) {
       </div>
 
       {/* ── STRIPE CONNECT STATUS ── */}
-      <div style={{
-        background: stripeOnboarded ? 'rgba(5,150,105,.06)' : 'rgba(180,83,9,.06)',
-        border: `1px solid ${stripeOnboarded ? 'rgba(5,150,105,.2)' : 'rgba(180,83,9,.2)'}`,
-        borderRadius: 14, padding: '1rem 1.25rem', marginBottom: '1.25rem',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem',
-      }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem', marginBottom: '.25rem' }}>
-            <span style={{ fontSize: '.9rem' }}>{stripeOnboarded ? '✅' : '⚠️'}</span>
-            <span style={{ fontWeight: 700, fontSize: '.9rem', color: 'var(--ink)' }}>
-              {stripeOnboarded
-                ? (lang === 'fr' ? 'Stripe connecté' : 'Stripe connected')
-                : (lang === 'fr' ? 'Stripe non connecté' : 'Stripe not connected')}
-            </span>
+      {!stripeOnboarded ? (
+        /* ── NOT CONNECTED — Full CTA ── */
+        <div style={{
+          background:'var(--surface)', border:'1px solid var(--border)',
+          borderRadius:16, padding:'2rem 1.5rem', marginBottom:'1.25rem', textAlign:'center',
+        }}>
+          <div style={{ fontSize:'2.5rem', marginBottom:'1rem' }}>💳</div>
+          <div style={{ fontWeight:800, fontSize:'1.1rem', color:'var(--ink)',
+            fontFamily:"'Playfair Display',serif", marginBottom:'.5rem' }}>
+            {lang==='fr' ? 'Configurez votre compte de paiement' : 'Set up your payment account'}
           </div>
-          <div style={{ fontSize: '.78rem', color: 'var(--ink-3)', lineHeight: 1.5 }}>
-            {stripeOnboarded
-              ? (lang === 'fr' ? 'Vous recevrez les dépôts directement dans votre compte bancaire.' : 'Deposits will be sent directly to your bank account.')
-              : (lang === 'fr' ? 'Connectez votre compte pour recevoir les dépôts de vos clientes.' : 'Connect your account to receive client deposits.')}
+          <div style={{ fontSize:'.85rem', color:'var(--ink-3)', lineHeight:1.7,
+            marginBottom:'1.5rem', maxWidth:340, margin:'0 auto 1.5rem' }}>
+            {lang==='fr'
+              ? 'Connectez Stripe pour accepter les dépôts de rendez-vous, les paiements de services, les achats de produits et les inscriptions à vos formations — directement dans votre compte bancaire.'
+              : 'Connect Stripe to accept appointment deposits, service payments, product purchases, and course enrollments — directly into your bank account.'}
+          </div>
+          {/* Bullets */}
+          <div style={{ display:'flex', flexDirection:'column', gap:'.5rem',
+            marginBottom:'1.75rem', textAlign:'left', maxWidth:280, margin:'0 auto 1.75rem' }}>
+            {(lang==='fr' ? [
+              '✓ Dépôts de rendez-vous',
+              '✓ Paiements de services complets',
+              '✓ Achats de produits',
+              '✓ Inscriptions formations & workshops',
+            ] : [
+              '✓ Appointment deposits',
+              '✓ Full service payments',
+              '✓ Product purchases',
+              '✓ Course & workshop enrollments',
+            ]).map((item,i) => (
+              <div key={i} style={{ fontSize:'.82rem', color:'var(--ink-2)',
+                display:'flex', alignItems:'center', gap:'.5rem' }}>
+                <span style={{ color:'var(--gold)', fontWeight:700 }}>{item.split(' ')[0]}</span>
+                <span>{item.split(' ').slice(1).join(' ')}</span>
+              </div>
+            ))}
+          </div>
+          <button onClick={handleConnectStripe} disabled={connectLoading} style={{
+            padding:'.8rem 2rem', background:'var(--gold)', color:'#fff',
+            border:'none', borderRadius:12, fontWeight:800, fontSize:'.92rem',
+            cursor:connectLoading?'not-allowed':'pointer', opacity:connectLoading?.7:1,
+            letterSpacing:'.02em',
+          }}>
+            {connectLoading ? '...' : (lang==='fr' ? 'Configurer Stripe →' : 'Set up Stripe →')}
+          </button>
+          <div style={{ fontSize:'.72rem', color:'var(--ink-3)', marginTop:'.85rem' }}>
+            {lang==='fr'
+              ? 'Sécurisé par Stripe · Prend environ 10 minutes'
+              : 'Secured by Stripe · Takes about 10 minutes'}
           </div>
         </div>
-        <button
-          onClick={handleConnectStripe}
-          disabled={connectLoading}
-          style={{
-            flexShrink: 0, padding: '.55rem 1rem',
-            background: stripeOnboarded ? 'transparent' : 'var(--gold)',
-            color: stripeOnboarded ? 'var(--ink-3)' : '#fff',
-            border: stripeOnboarded ? '1px solid var(--border)' : 'none',
-            borderRadius: 9, fontWeight: 700, fontSize: '.78rem',
-            cursor: connectLoading ? 'not-allowed' : 'pointer',
-            opacity: connectLoading ? .7 : 1, whiteSpace: 'nowrap',
+      ) : (
+        /* ── CONNECTED — Show manage button subtle ── */
+        <div style={{
+          display:'flex', alignItems:'center', justifyContent:'space-between',
+          background:'rgba(5,150,105,.06)', border:'1px solid rgba(5,150,105,.2)',
+          borderRadius:12, padding:'.85rem 1.1rem', marginBottom:'1.25rem',
+        }}>
+          <div style={{ display:'flex', alignItems:'center', gap:'.6rem' }}>
+            <span>✅</span>
+            <div>
+              <div style={{ fontWeight:700, fontSize:'.85rem', color:'var(--ink)' }}>
+                {lang==='fr' ? 'Stripe connecté' : 'Stripe connected'}
+              </div>
+              <div style={{ fontSize:'.75rem', color:'var(--ink-3)' }}>
+                {lang==='fr' ? 'Dépôts et paiements actifs' : 'Deposits & payments active'}
+              </div>
+            </div>
+          </div>
+          <button onClick={handleConnectStripe} disabled={connectLoading} style={{
+            padding:'.4rem .85rem', background:'transparent',
+            border:'1px solid var(--border)', borderRadius:8,
+            color:'var(--ink-3)', fontSize:'.75rem', fontWeight:600,
+            cursor:'pointer',
           }}>
-          {connectLoading ? '...' : stripeOnboarded
-            ? (lang === 'fr' ? 'Gérer' : 'Manage')
-            : (lang === 'fr' ? 'Connecter Stripe' : 'Connect Stripe')}
-        </button>
-      </div>
+            {connectLoading ? '...' : (lang==='fr' ? 'Gérer' : 'Manage')}
+          </button>
+        </div>
+      )}
 
       {/* ── REVENUE OVERVIEW ── */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '.75rem', marginBottom: '1.5rem' }}>
