@@ -3237,6 +3237,55 @@ function Payments({ workspace, toast, lang, refetchWorkspace }) {
   }
   const l = labels[lang] || labels.en
 
+  const [connectLoading, setConnectLoading] = useState(false)
+  const [stripeOnboarded, setStripeOnboarded] = useState(workspace?.stripe_onboarded || false)
+
+  // Vérifier si Stripe vient de compléter l'onboarding (retour depuis Stripe)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('stripe') === 'success' && workspace?.id) {
+      const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
+      const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
+      fetch(`${SUPABASE_URL}/functions/v1/verify-connect-account`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
+        body: JSON.stringify({ workspace_id: workspace.id }),
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (data.onboarded) {
+            setStripeOnboarded(true)
+            toast(lang === 'fr' ? 'Compte Stripe connecté avec succès ✓' : 'Stripe account connected successfully ✓')
+            refetchWorkspace && refetchWorkspace()
+          }
+          // Nettoyer l'URL
+          window.history.replaceState({}, '', '/dashboard')
+        })
+        .catch(() => {})
+    }
+  }, [workspace?.id])
+
+  async function handleConnectStripe() {
+    if (!workspace?.id) return
+    setConnectLoading(true)
+    try {
+      const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
+      const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/create-connect-account`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
+        body: JSON.stringify({ workspace_id: workspace.id }),
+      })
+      const { url, error } = await res.json()
+      if (error) throw new Error(error)
+      window.location.href = url // Redirige vers Stripe
+    } catch (err) {
+      toast(lang === 'fr' ? 'Erreur de connexion Stripe. Réessayez.' : 'Stripe connection error. Please try again.')
+    } finally {
+      setConnectLoading(false)
+    }
+  }
+
   useEffect(() => {
     if (!workspace?.id) return
     setLoadingTx(true)
@@ -3320,6 +3369,46 @@ function Payments({ workspace, toast, lang, refetchWorkspace }) {
       <div style={{ marginBottom: '1.5rem' }}>
         <h1 style={{ fontFamily: "'Playfair Display',serif", fontSize: '1.6rem',
           color: 'var(--ink)', margin: 0 }}>{l.title}</h1>
+      </div>
+
+      {/* ── STRIPE CONNECT STATUS ── */}
+      <div style={{
+        background: stripeOnboarded ? 'rgba(5,150,105,.06)' : 'rgba(180,83,9,.06)',
+        border: `1px solid ${stripeOnboarded ? 'rgba(5,150,105,.2)' : 'rgba(180,83,9,.2)'}`,
+        borderRadius: 14, padding: '1rem 1.25rem', marginBottom: '1.25rem',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem',
+      }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem', marginBottom: '.25rem' }}>
+            <span style={{ fontSize: '.9rem' }}>{stripeOnboarded ? '✅' : '⚠️'}</span>
+            <span style={{ fontWeight: 700, fontSize: '.9rem', color: 'var(--ink)' }}>
+              {stripeOnboarded
+                ? (lang === 'fr' ? 'Stripe connecté' : 'Stripe connected')
+                : (lang === 'fr' ? 'Stripe non connecté' : 'Stripe not connected')}
+            </span>
+          </div>
+          <div style={{ fontSize: '.78rem', color: 'var(--ink-3)', lineHeight: 1.5 }}>
+            {stripeOnboarded
+              ? (lang === 'fr' ? 'Vous recevrez les dépôts directement dans votre compte bancaire.' : 'Deposits will be sent directly to your bank account.')
+              : (lang === 'fr' ? 'Connectez votre compte pour recevoir les dépôts de vos clientes.' : 'Connect your account to receive client deposits.')}
+          </div>
+        </div>
+        <button
+          onClick={handleConnectStripe}
+          disabled={connectLoading}
+          style={{
+            flexShrink: 0, padding: '.55rem 1rem',
+            background: stripeOnboarded ? 'transparent' : 'var(--gold)',
+            color: stripeOnboarded ? 'var(--ink-3)' : '#fff',
+            border: stripeOnboarded ? '1px solid var(--border)' : 'none',
+            borderRadius: 9, fontWeight: 700, fontSize: '.78rem',
+            cursor: connectLoading ? 'not-allowed' : 'pointer',
+            opacity: connectLoading ? .7 : 1, whiteSpace: 'nowrap',
+          }}>
+          {connectLoading ? '...' : stripeOnboarded
+            ? (lang === 'fr' ? 'Gérer' : 'Manage')
+            : (lang === 'fr' ? 'Connecter Stripe' : 'Connect Stripe')}
+        </button>
       </div>
 
       {/* ── REVENUE OVERVIEW ── */}
