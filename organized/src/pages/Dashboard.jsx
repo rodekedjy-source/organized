@@ -8,7 +8,7 @@ const LANG = {
     nav_overview:'Overview',nav_appointments:'Appointments',nav_services:'Services',
     nav_products:'Products',nav_formations:'Formations',nav_clients:'Clients',
     nav_availability:'Availability',nav_settings:'Settings',nav_signout:'Sign out',
-    nav_portfolio:'Portfolio',nav_reviews:'Reviews',
+    nav_portfolio:'Portfolio',nav_reviews:'Reviews',nav_payments:'Payments',
     copy_link:'Copy link',link_copied:'Booking link copied!',
     today_schedule:"Today's schedule",confirmed:'confirmed',
     revenue_week:'Revenue — this week',calendar:'Calendar',tap_date:'Tap a date to view or block',
@@ -63,7 +63,7 @@ const LANG = {
     nav_overview:'Accueil',nav_appointments:'Rendez-vous',nav_services:'Services',
     nav_products:'Produits',nav_formations:'Formations',nav_clients:'Clients',
     nav_availability:'Disponibilités',nav_settings:'Paramètres',nav_signout:'Déconnexion',
-    nav_portfolio:'Portfolio',nav_reviews:'Avis',
+    nav_portfolio:'Portfolio',nav_reviews:'Avis',nav_payments:'Paiements',
     copy_link:'Copier le lien',link_copied:'Lien copié !',
     today_schedule:'Planning du jour',confirmed:'confirmé',
     revenue_week:'Revenus — cette semaine',calendar:'Calendrier',tap_date:'Appuyer sur une date pour voir ou bloquer',
@@ -118,7 +118,7 @@ const LANG = {
     nav_overview:'Inicio',nav_appointments:'Citas',nav_services:'Servicios',
     nav_products:'Productos',nav_formations:'Formaciones',nav_clients:'Clientes',
     nav_availability:'Disponibilidad',nav_settings:'Configuración',nav_signout:'Cerrar sesión',
-    nav_portfolio:'Portfolio',nav_reviews:'Reseñas',
+    nav_portfolio:'Portfolio',nav_reviews:'Reseñas',nav_payments:'Pagos',
     copy_link:'Copiar enlace',link_copied:'¡Enlace copiado!',
     today_schedule:'Agenda de hoy',confirmed:'confirmada',
     revenue_week:'Ingresos — esta semana',calendar:'Calendario',tap_date:'Toca una fecha para ver o bloquear',
@@ -257,6 +257,7 @@ const I = {
   clock: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8" cy="8" r="6.5"/><path d="M8 4.5V8l2.5 2"/></svg>,
   link:  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M6.5 9.5a3.5 3.5 0 005 0l2-2a3.5 3.5 0 00-5-5l-1 1"/><path d="M9.5 6.5a3.5 3.5 0 00-5 0l-2 2a3.5 3.5 0 005 5l1-1"/></svg>,
   avail: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8" cy="8" r="6.5"/><path d="M8 4v4l2.5 2.5"/></svg>,
+  card:  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="1" y="3.5" width="14" height="9" rx="1.5"/><path d="M1 6.5h14"/><path d="M4 10h2M9 10h3"/></svg>,
 }
 
 // ── RESCHEDULE MODAL ──────────────────────────────────────────────────────────
@@ -3176,6 +3177,295 @@ function ShaderWave() {
 
 // ── CLIENT PAGE ───────────────────────────────────────────────────────────────
 
+// ── PAYMENTS ──────────────────────────────────────────────────────────────────
+function Payments({ workspace, toast, lang, refetchWorkspace }) {
+  const [settings, setSettings] = useState({
+    payment_mode: workspace?.payment_mode || 'none',
+    deposit_type: workspace?.deposit_type || 'flat',
+    deposit_value: workspace?.deposit_value || 0,
+  })
+  const [saving, setSaving] = useState(false)
+  const [transactions, setTransactions] = useState([])
+  const [loadingTx, setLoadingTx] = useState(true)
+
+  const labels = {
+    en: {
+      title: 'Payments', settings_title: 'Payment Settings',
+      deposit_toggle: 'Require deposit to confirm booking',
+      deposit_type: 'Deposit type', flat: 'Fixed amount', pct: 'Percentage',
+      deposit_amount: 'Deposit amount', deposit_pct: 'Deposit percentage',
+      save: 'Save settings', saved: 'Settings saved!',
+      transactions: 'Recent transactions', no_tx: 'No transactions yet.',
+      no_tx_sub: 'Once clients pay deposits, they will appear here.',
+      status_authorized: 'Pending capture', status_captured: 'Captured',
+      status_deposit_captured: 'Deposit captured', status_cancelled: 'Cancelled',
+      status_refunded: 'Refunded', status_none: 'No payment',
+      connect_title: 'Connect your Stripe account',
+      connect_sub: 'To accept deposits and payments, connect your Stripe account.',
+      revenue_title: 'Revenue overview',
+    },
+    fr: {
+      title: 'Paiements', settings_title: 'Paramètres de paiement',
+      deposit_toggle: 'Exiger un dépôt pour confirmer la réservation',
+      deposit_type: 'Type de dépôt', flat: 'Montant fixe', pct: 'Pourcentage',
+      deposit_amount: 'Montant du dépôt', deposit_pct: 'Pourcentage du dépôt',
+      save: 'Sauvegarder', saved: 'Paramètres sauvegardés!',
+      transactions: 'Transactions récentes', no_tx: 'Aucune transaction.',
+      no_tx_sub: 'Les dépôts de vos clients apparaîtront ici.',
+      status_authorized: 'En attente', status_captured: 'Capturé',
+      status_deposit_captured: 'Dépôt capturé', status_cancelled: 'Annulé',
+      status_refunded: 'Remboursé', status_none: 'Aucun paiement',
+      connect_title: 'Connectez votre compte Stripe',
+      connect_sub: 'Pour accepter les dépôts, connectez votre compte Stripe.',
+      revenue_title: 'Aperçu des revenus',
+    },
+    es: {
+      title: 'Pagos', settings_title: 'Configuración de pagos',
+      deposit_toggle: 'Requerir depósito para confirmar reserva',
+      deposit_type: 'Tipo de depósito', flat: 'Monto fijo', pct: 'Porcentaje',
+      deposit_amount: 'Monto del depósito', deposit_pct: 'Porcentaje del depósito',
+      save: 'Guardar', saved: '¡Configuración guardada!',
+      transactions: 'Transacciones recientes', no_tx: 'Sin transacciones.',
+      no_tx_sub: 'Los depósitos de sus clientes aparecerán aquí.',
+      status_authorized: 'Pendiente', status_captured: 'Capturado',
+      status_deposit_captured: 'Depósito capturado', status_cancelled: 'Cancelado',
+      status_refunded: 'Reembolsado', status_none: 'Sin pago',
+      connect_title: 'Conecta tu cuenta de Stripe',
+      connect_sub: 'Para aceptar depósitos, conecta tu cuenta de Stripe.',
+      revenue_title: 'Resumen de ingresos',
+    },
+  }
+  const l = labels[lang] || labels.en
+
+  useEffect(() => {
+    if (!workspace?.id) return
+    setLoadingTx(true)
+    supabase
+      .from('payments')
+      .select('*')
+      .eq('workspace_id', workspace.id)
+      .order('created_at', { ascending: false })
+      .limit(20)
+      .then(({ data }) => { setTransactions(data || []); setLoadingTx(false) })
+  }, [workspace?.id])
+
+  async function saveSettings() {
+    if (!workspace?.id) return
+    setSaving(true)
+    const { error } = await supabase
+      .from('workspaces')
+      .update({
+        payment_mode: settings.payment_mode,
+        deposit_type: settings.deposit_type,
+        deposit_value: parseFloat(settings.deposit_value) || 0,
+      })
+      .eq('id', workspace.id)
+    setSaving(false)
+    if (error) { toast('Error saving settings.'); return }
+    toast(l.saved)
+    refetchWorkspace && refetchWorkspace()
+  }
+
+  function statusBadge(status) {
+    const map = {
+      authorized:       { label: l.status_authorized,       color: '#b45309', bg: '#fef3c7' },
+      captured:         { label: l.status_captured,          color: '#065f46', bg: '#d1fae5' },
+      deposit_captured: { label: l.status_deposit_captured,  color: '#1e40af', bg: '#dbeafe' },
+      cancelled:        { label: l.status_cancelled,         color: '#991b1b', bg: '#fee2e2' },
+      refunded:         { label: l.status_refunded,          color: '#6b21a8', bg: '#f3e8ff' },
+      none:             { label: l.status_none,              color: '#6b7280', bg: '#f3f4f6' },
+      pending:          { label: l.status_authorized,        color: '#b45309', bg: '#fef3c7' },
+    }
+    const s = map[status] || map.none
+    return (
+      <span style={{ fontSize: '.72rem', fontWeight: 600, padding: '2px 9px', borderRadius: 99,
+        color: s.color, background: s.bg, letterSpacing: '.02em' }}>
+        {s.label}
+      </span>
+    )
+  }
+
+  const totalCaptured = transactions
+    .filter(tx => ['captured','deposit_captured'].includes(tx.status))
+    .reduce((sum, tx) => sum + (tx.amount || 0), 0)
+
+  const totalPending = transactions
+    .filter(tx => tx.status === 'authorized' || tx.status === 'pending')
+    .reduce((sum, tx) => sum + (tx.amount || 0), 0)
+
+  const depositOn = settings.payment_mode === 'deposit'
+
+  return (
+    <div style={{ padding: '1.5rem 1rem', maxWidth: 680, margin: '0 auto' }}>
+
+      {/* ── HEADER ── */}
+      <div style={{ marginBottom: '1.5rem' }}>
+        <h1 style={{ fontFamily: "'Playfair Display',serif", fontSize: '1.6rem',
+          color: 'var(--ink)', margin: 0 }}>{l.title}</h1>
+      </div>
+
+      {/* ── REVENUE OVERVIEW ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '.75rem', marginBottom: '1.5rem' }}>
+        {[
+          { label: lang==='fr'?'Revenus capturés':lang==='es'?'Ingresos capturados':'Captured revenue',
+            value: `$${totalCaptured.toFixed(2)}`, color: 'var(--gold)' },
+          { label: lang==='fr'?'En attente de capture':lang==='es'?'Pendiente de captura':'Pending capture',
+            value: `$${totalPending.toFixed(2)}`, color: '#6b7280' },
+        ].map((stat, i) => (
+          <div key={i} style={{ background: 'var(--surface)', border: '1px solid var(--border)',
+            borderRadius: 14, padding: '1rem 1.25rem' }}>
+            <div style={{ fontSize: '.75rem', color: 'var(--ink-3)', marginBottom: '.35rem' }}>{stat.label}</div>
+            <div style={{ fontSize: '1.5rem', fontWeight: 700, color: stat.color,
+              fontFamily: "'Playfair Display',serif" }}>{stat.value}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── DEPOSIT SETTINGS ── */}
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)',
+        borderRadius: 16, padding: '1.25rem', marginBottom: '1.25rem' }}>
+        <div style={{ fontWeight: 700, fontSize: '.95rem', color: 'var(--ink)',
+          marginBottom: '1rem' }}>{l.settings_title}</div>
+
+        {/* Toggle dépôt */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          marginBottom: depositOn ? '1rem' : 0 }}>
+          <span style={{ fontSize: '.88rem', color: 'var(--ink-2)' }}>{l.deposit_toggle}</span>
+          <button
+            onClick={() => setSettings(s => ({ ...s,
+              payment_mode: s.payment_mode === 'deposit' ? 'none' : 'deposit' }))}
+            style={{
+              width: 44, height: 24, borderRadius: 99, border: 'none', cursor: 'pointer',
+              background: depositOn ? 'var(--gold)' : 'var(--border)',
+              position: 'relative', transition: 'background .2s', flexShrink: 0,
+            }}>
+            <span style={{
+              position: 'absolute', top: 3, left: depositOn ? 23 : 3,
+              width: 18, height: 18, borderRadius: '50%', background: '#fff',
+              transition: 'left .2s', boxShadow: '0 1px 3px rgba(0,0,0,.2)',
+            }}/>
+          </button>
+        </div>
+
+        {/* Options visibles seulement si dépôt activé */}
+        {depositOn && (
+          <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1rem',
+            display: 'flex', flexDirection: 'column', gap: '.85rem' }}>
+
+            {/* Type flat vs percentage */}
+            <div>
+              <div style={{ fontSize: '.78rem', color: 'var(--ink-3)', marginBottom: '.4rem',
+                fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em' }}>
+                {l.deposit_type}
+              </div>
+              <div style={{ display: 'flex', gap: '.5rem' }}>
+                {[['flat', l.flat], ['percentage', l.pct]].map(([val, label]) => (
+                  <button key={val}
+                    onClick={() => setSettings(s => ({ ...s, deposit_type: val }))}
+                    style={{
+                      flex: 1, padding: '.5rem', borderRadius: 10, border: '1.5px solid',
+                      borderColor: settings.deposit_type === val ? 'var(--gold)' : 'var(--border)',
+                      background: settings.deposit_type === val ? 'rgba(var(--gold-rgb),.08)' : 'transparent',
+                      color: settings.deposit_type === val ? 'var(--gold)' : 'var(--ink-3)',
+                      fontWeight: 600, fontSize: '.82rem', cursor: 'pointer', transition: 'all .15s',
+                    }}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Montant */}
+            <div>
+              <div style={{ fontSize: '.78rem', color: 'var(--ink-3)', marginBottom: '.4rem',
+                fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em' }}>
+                {settings.deposit_type === 'flat' ? l.deposit_amount : l.deposit_pct}
+              </div>
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <span style={{ position: 'absolute', left: 12, color: 'var(--ink-3)',
+                  fontSize: '.9rem', fontWeight: 600, pointerEvents: 'none' }}>
+                  {settings.deposit_type === 'flat' ? '$' : '%'}
+                </span>
+                <input
+                  type="number"
+                  min="0"
+                  max={settings.deposit_type === 'percentage' ? 100 : undefined}
+                  value={settings.deposit_value}
+                  onChange={e => setSettings(s => ({ ...s, deposit_value: e.target.value }))}
+                  style={{
+                    width: '100%', padding: '.6rem .75rem .6rem 2rem',
+                    border: '1.5px solid var(--border)', borderRadius: 10,
+                    background: 'var(--bg)', color: 'var(--ink)',
+                    fontSize: '.9rem', fontWeight: 600, outline: 'none',
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        <button
+          onClick={saveSettings}
+          disabled={saving}
+          style={{
+            marginTop: '1rem', width: '100%', padding: '.65rem',
+            background: 'var(--gold)', color: '#fff', border: 'none',
+            borderRadius: 10, fontWeight: 700, fontSize: '.88rem',
+            cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? .7 : 1,
+            transition: 'opacity .15s',
+          }}>
+          {saving ? '...' : l.save}
+        </button>
+      </div>
+
+      {/* ── HISTORIQUE TRANSACTIONS ── */}
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)',
+        borderRadius: 16, padding: '1.25rem' }}>
+        <div style={{ fontWeight: 700, fontSize: '.95rem', color: 'var(--ink)',
+          marginBottom: '1rem' }}>{l.transactions}</div>
+
+        {loadingTx ? (
+          <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--ink-3)',
+            fontSize: '.85rem' }}>Loading…</div>
+        ) : transactions.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '2rem' }}>
+            <div style={{ fontSize: '2rem', marginBottom: '.5rem' }}>💳</div>
+            <div style={{ fontWeight: 600, color: 'var(--ink)', fontSize: '.9rem' }}>{l.no_tx}</div>
+            <div style={{ color: 'var(--ink-3)', fontSize: '.82rem', marginTop: '.25rem' }}>{l.no_tx_sub}</div>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '.5rem' }}>
+            {transactions.map(tx => (
+              <div key={tx.id} style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '.75rem', borderRadius: 10, background: 'var(--bg)',
+                border: '1px solid var(--border)',
+              }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, fontSize: '.88rem', color: 'var(--ink)',
+                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {tx.client_name || 'Client'}
+                  </div>
+                  <div style={{ fontSize: '.75rem', color: 'var(--ink-3)', marginTop: 2 }}>
+                    {tx.description || '—'} · {new Date(tx.created_at).toLocaleDateString()}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '.75rem', flexShrink: 0 }}>
+                  {statusBadge(tx.status)}
+                  <span style={{ fontWeight: 700, fontSize: '.95rem', color: 'var(--ink)',
+                    fontFamily: "'Playfair Display',serif" }}>
+                    ${(tx.amount || 0).toFixed(2)}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── MAIN DASHBOARD ────────────────────────────────────────────────────────────
 export default function Dashboard() {
   const [session,setSession]=useState(null)
@@ -3262,6 +3552,7 @@ export default function Dashboard() {
     {key:'products',label:'nav_products',icon:I.box},
     {key:'formations',label:'nav_formations',icon:I.grad},
     {key:'clients',label:'nav_clients',icon:I.users},
+    {key:'payments',label:'nav_payments',icon:I.card},
     {key:'portfolio',label:'nav_portfolio',icon:I.box},
     {key:'reviews',label:'nav_reviews',icon:I.home},
     {key:'availability',label:'nav_availability',icon:I.avail},
@@ -3288,6 +3579,7 @@ export default function Dashboard() {
       case 'products':     return <Products {...props}/>
       case 'formations':   return <Formations {...props}/>
       case 'clients':      return <Clients {...props}/>
+      case 'payments':     return <Payments {...props}/>
       case 'portfolio':    return <Portfolio {...props}/>
       case 'reviews':      return <Reviews {...props}/>
       case 'availability': return <Availability {...props}/>
