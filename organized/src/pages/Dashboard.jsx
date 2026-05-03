@@ -3578,6 +3578,9 @@ function Payments({ workspace, toast, lang, refetchWorkspace }) {
         </div>
       )}
 
+      {/* ── TOUT LE RESTE : visible seulement après connexion Stripe ── */}
+      {stripeOnboarded && (<>
+
       {/* ── REVENUE OVERVIEW ── */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '.75rem', marginBottom: '1.5rem' }}>
         {[
@@ -3736,6 +3739,7 @@ function Payments({ workspace, toast, lang, refetchWorkspace }) {
           </div>
         )}
       </div>
+      </>)}
     </div>
   )
 }
