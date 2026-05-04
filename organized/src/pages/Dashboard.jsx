@@ -1408,7 +1408,7 @@ function Overview({ workspace, session, ownerData, toast, setPage, refetchWorksp
         <div style={{background:'var(--ink)',borderRadius:10,padding:'.65rem 1.1rem',marginBottom:'1rem',display:'flex',alignItems:'center',gap:'.75rem',animation:'milestoneIn .35s ease'}}>
           <span style={{fontSize:'.9rem'}}>💬</span>
           <div style={{flex:1}}>
-            <span style={{fontSize:'.75rem',color:'rgba(255,255,255,.5)',fontWeight:600,textTransform:'uppercase',letterSpacing:'.06em'}}>{lang==='fr'?'Rappels envoyés aujourd'hui':lang==='es'?'Recordatorios enviados hoy':'Reminders sent today'}</span>
+            <span style={{fontSize:'.75rem',color:'rgba(255,255,255,.5)',fontWeight:600,textTransform:'uppercase',letterSpacing:'.06em'}}>{lang==='fr'?'Rappels envoy\u00e9s aujourd\u2019hui':lang==='es'?'Recordatorios enviados hoy':'Reminders sent today'}</span>
             <div style={{display:'flex',flexWrap:'wrap',gap:'.35rem',marginTop:'.3rem'}}>
               {remindersSent.map((r,i)=>(<span key={i} style={{background:'rgba(181,137,58,.2)',border:'1px solid rgba(181,137,58,.3)',borderRadius:20,padding:'2px 10px',fontSize:'.72rem',color:'var(--gold)',fontWeight:500}}>✓ {r.name} · {r.time}</span>))}
             </div>
