@@ -1928,7 +1928,80 @@ async function uploadProductImages(files,workspaceId){
 }
 
 // ── PRODUCTS (FIX 9: full-page add, tap-to-edit photos) ──────────────────────
-function Products({ workspace, toast }) {
+// ── PLAN GATING ──────────────────────────────────────────────────────────────
+const PLAN_FEATURES = {
+  free:      [],
+  essential: [],
+  pro:       ['products','formations','analytics_full','ai_enhance','custom_branding','clients_unlimited'],
+}
+function canAccess(subscription, feature) {
+  const plan = subscription?.plan || 'essential'
+  const feats = PLAN_FEATURES[plan] || []
+  return feats.includes(feature)
+}
+const CLIENT_LIMIT = { free: 10, essential: 50, pro: Infinity }
+
+function UpgradeGate({ feature }) {
+  const [show, setShow] = useState(false)
+  const INFO = {
+    products:   { name:'Product Sales',          desc:'Sell products directly through your booking page.' },
+    formations: { name:'Workshops & Formations', desc:'Create and monetize courses, workshops, and events.' },
+    ai_enhance: { name:'AI Photo Enhancement',   desc:'Transform product photos into professional studio shots.' },
+    clients_unlimited: { name:'Unlimited Clients', desc:'Remove the 50-client cap on your Essential plan.' },
+  }
+  const info = INFO[feature] || { name: feature, desc: '' }
+  return (
+    <>
+      {show && (
+        <div onClick={()=>setShow(false)} style={{position:'fixed',inset:0,zIndex:9999,background:'rgba(0,0,0,.55)',backdropFilter:'blur(6px)',display:'flex',alignItems:'center',justifyContent:'center',padding:'1rem'}}>
+          <div onClick={e=>e.stopPropagation()} style={{background:'var(--bg-card)',borderRadius:'1.25rem',padding:'2.5rem 2rem',maxWidth:'400px',width:'100%',textAlign:'center',boxShadow:'0 20px 60px rgba(0,0,0,.25)',border:'1px solid rgba(189,151,97,.2)'}}>
+            <div style={{fontSize:'2.5rem',marginBottom:'1rem'}}>👑</div>
+            <h2 style={{fontSize:'1.3rem',fontWeight:700,color:'var(--ink)',marginBottom:'.5rem',fontFamily:"'Playfair Display',serif"}}>{info.name}</h2>
+            <p style={{fontSize:'.9rem',color:'var(--ink-2)',marginBottom:'.5rem',lineHeight:1.6}}>{info.desc}</p>
+            <p style={{fontSize:'.85rem',color:'var(--ink-3)',marginBottom:'2rem'}}>Available on the <strong style={{color:'var(--gold)'}}>Pro plan</strong> — $39/mo</p>
+            <a href="https://www.beorganized.io/#pricing" target="_blank" rel="noopener noreferrer"
+              style={{display:'block',padding:'.875rem 1.5rem',background:'var(--gold)',color:'#fff',fontWeight:600,fontSize:'.95rem',borderRadius:'.75rem',textDecoration:'none',marginBottom:'.75rem'}}>
+              Upgrade to Pro →
+            </a>
+            <button onClick={()=>setShow(false)} style={{background:'none',border:'none',cursor:'pointer',color:'var(--ink-3)',fontSize:'.875rem',padding:'.5rem'}}>Maybe later</button>
+          </div>
+        </div>
+      )}
+      <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'5rem 2rem',textAlign:'center',gap:'1rem'}}>
+        <div style={{fontSize:'2.5rem'}}>🔒</div>
+        <div style={{fontWeight:700,fontSize:'1.15rem',color:'var(--ink)',fontFamily:"'Playfair Display',serif"}}>{info.name}</div>
+        <div style={{fontSize:'.9rem',color:'var(--ink-2)',maxWidth:'260px',lineHeight:1.65}}>{info.desc}</div>
+        <button onClick={()=>setShow(true)} style={{background:'var(--gold)',color:'#fff',border:'none',borderRadius:'.75rem',padding:'.75rem 1.75rem',fontSize:'.9rem',fontWeight:600,cursor:'pointer',marginTop:'.5rem'}}>
+          Upgrade to Pro →
+        </button>
+      </div>
+    </>
+  )
+}
+
+function ClientLimitBanner({ clientCount, subscription }) {
+  const [dismissed, setDismissed] = useState(false)
+  if (canAccess(subscription, 'clients_unlimited') || dismissed) return null
+  const plan = subscription?.plan || 'essential'
+  const limit = CLIENT_LIMIT[plan] || 50
+  if ((clientCount / limit) < 0.8) return null
+  const atLimit = clientCount >= limit
+  return (
+    <div style={{background:atLimit?'rgba(220,53,69,.08)':'rgba(189,151,97,.08)',border:`1px solid ${atLimit?'rgba(220,53,69,.25)':'rgba(189,151,97,.25)'}`,borderRadius:'.875rem',padding:'.875rem 1.25rem',display:'flex',alignItems:'center',justifyContent:'space-between',gap:'1rem',flexWrap:'wrap',marginBottom:'1rem'}}>
+      <p style={{margin:0,fontSize:'.875rem',color:'var(--ink)',flex:1}}>
+        {atLimit?`You've reached your ${limit}-client limit.`:`${clientCount} of ${limit} active clients used.`}
+        {' '}Upgrade to Pro for unlimited clients.
+      </p>
+      <div style={{display:'flex',gap:'.5rem',alignItems:'center'}}>
+        <a href="https://www.beorganized.io/#pricing" target="_blank" rel="noopener noreferrer" style={{background:'var(--gold)',color:'#fff',borderRadius:'.5rem',padding:'.45rem .9rem',fontSize:'.8rem',fontWeight:600,textDecoration:'none'}}>Upgrade</a>
+        {!atLimit&&<button onClick={()=>setDismissed(true)} style={{background:'none',border:'none',cursor:'pointer',color:'var(--ink-3)',fontSize:'1.2rem',lineHeight:1,padding:'0 .25rem'}}>×</button>}
+      </div>
+    </div>
+  )
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
+function Products({ workspace, toast, subscription }) {
   const [data,setData]=useState([])
   const [addMode,setAddMode]=useState(false)
   const [form,setForm]=useState({name:'',price:'',stock:'',description:''})
@@ -2284,7 +2357,7 @@ function FormationEditModal({ formation, workspaceId, onClose, onSaved, onDelete
   )
 }
 
-function Formations({ workspace, toast }) {
+function Formations({ workspace, toast, subscription }) {
   const [data,setData]=useState([])
   const [showForm,setShowForm]=useState(false)
   const [form,setForm]=useState({title:'',price:'',duration_label:'',description:''})
@@ -2464,7 +2537,7 @@ function ClientHistoryPanel({ client, workspace, onClose }) {
   )
 }
 
-function Clients({ workspace, lang='en' }) {
+function Clients({ workspace, lang='en', subscription }) {
   const [data,setData]=useState([])
   const [loading,setLoading]=useState(true)
   const [selected,setSelected]=useState(null)
@@ -2490,6 +2563,7 @@ function Clients({ workspace, lang='en' }) {
     const start = startOfPeriod(period)
     return c.created_at && new Date(c.created_at) >= start
   }).length
+
   return (
     <div>
       <div className="page-head">
@@ -2498,6 +2572,8 @@ function Clients({ workspace, lang='en' }) {
           <div className="page-sub">{data.length} client{data.length!==1?'s':''} total</div>
         </div>
       </div>
+
+      <ClientLimitBanner clientCount={data.length} subscription={subscription}/>
 
       {/* Period tabs */}
       <PeriodTabs period={period} setPeriod={setPeriod} lang={lang}/>
@@ -3851,13 +3927,13 @@ export default function Dashboard() {
   const initials=(()=>{const n=ownerData?.full_name||firstName(workspace,session)||'';const parts=n.trim().split(' ');return parts.length>1?parts[0][0]+parts[1][0]:parts[0]?.[0]||'?'})()
 
   function renderPage(){
-    const props={workspace,toast,lang,session,ownerData,refetchWorkspace:fetchWorkspace,refetch:fetchWorkspace,theme,setTheme,setPage:navigateTo}
+    const props={workspace,toast,lang,session,ownerData,refetchWorkspace:fetchWorkspace,refetch:fetchWorkspace,theme,setTheme,setPage:navigateTo,subscription}
     switch(page){
       case 'overview':     return <Overview {...props}/>
       case 'appointments': return <Appointments {...props}/>
       case 'services':     return <Services {...props}/>
-      case 'products':     return <Products {...props}/>
-      case 'formations':   return <Formations {...props}/>
+      case 'products':     return canAccess(subscription,'products') ? <Products {...props}/> : <UpgradeGate feature="products"/>
+      case 'formations':   return canAccess(subscription,'formations') ? <Formations {...props}/> : <UpgradeGate feature="formations"/>
       case 'clients':      return <Clients {...props}/>
       case 'payments':     return <Payments {...props}/>
       case 'portfolio':    return <Portfolio {...props}/>
