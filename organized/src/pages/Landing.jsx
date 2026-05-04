@@ -423,26 +423,25 @@ footer { background:#090907; padding:2.5rem 3rem; border-top:1px solid rgba(255,
 `
 
 const plans = [
-  { tier:'Essential', amt:39, desc:'Everything you need to run your business without the chaos.', hot:false,
+  { tier:'Essential', amt:19, desc:'Everything you need to take bookings and grow your client base.', hot:false,
     feats:[
       {y:true,  t:'Public profile & booking page'},
-      {y:true,  t:'Unlimited services'},
-      {y:true,  t:'Product shop'},
-      {y:true,  t:'Formations & courses'},
-      {y:true,  t:'Client management'},
-      {y:true,  t:'Revenue analytics'},
+      {y:true,  t:'Dashboard & calendar'},
+      {y:true,  t:'Appointments & scheduling'},
       {y:true,  t:'Automated reminders — no more no-shows'},
+      {y:true,  t:'Up to 50 active clients'},
+      {y:false, t:'Product shop & formations'},
       {y:false, t:'AI Product Photo Enhancement'},
-      {y:false, t:'Priority support'},
+      {y:false, t:'Full analytics & custom branding'},
     ]},
-  { tier:'Pro', amt:79, desc:'For professionals who want to stand out and sell more.', hot:true,
+  { tier:'Pro', amt:39, desc:'For professionals who want to stand out, sell more, and build a brand.', hot:true,
     feats:[
       {y:true, t:'Everything in Essential'},
+      {y:true, t:'Unlimited clients'},
+      {y:true, t:'Product shop & formations'},
       {y:true, t:'AI Product Photo Enhancement ✦'},
-      {y:true, t:'Studio & glamour photo styles'},
+      {y:true, t:'Full analytics & custom branding'},
       {y:true, t:'Priority support'},
-      {y:true, t:'Early access to new features'},
-      {y:true, t:'Lock-in pricing — forever'},
     ]},
 ]
 
@@ -601,26 +600,25 @@ const COPY = {
 }
 
 const plans_fr = [
-  { tier:'Essential', amt:39, desc:'Tout ce dont vous avez besoin pour gérer votre business sans le chaos.', hot:false,
+  { tier:'Essential', amt:19, desc:'Tout ce dont vous avez besoin pour prendre des réservations et faire grandir votre clientèle.', hot:false,
     feats:[
       {y:true,  t:'Profil public & page de réservation'},
-      {y:true,  t:'Services illimités'},
-      {y:true,  t:'Boutique de produits'},
-      {y:true,  t:'Formations & cours'},
-      {y:true,  t:'Gestion des clients'},
-      {y:true,  t:'Analyse des revenus'},
+      {y:true,  t:'Tableau de bord & calendrier'},
+      {y:true,  t:'Rendez-vous & planification'},
       {y:true,  t:'Rappels automatiques — fini les no-shows'},
+      {y:true,  t:"Jusqu'à 50 clientes actives"},
+      {y:false, t:'Boutique produits & formations'},
       {y:false, t:'Amélioration IA des photos produits'},
-      {y:false, t:'Support prioritaire'},
+      {y:false, t:'Analytiques complètes & branding personnalisé'},
     ]},
-  { tier:'Pro', amt:79, desc:'Pour les professionnelles qui veulent se démarquer et vendre plus.', hot:true,
+  { tier:'Pro', amt:39, desc:'Pour les professionnelles qui veulent se démarquer, vendre plus et bâtir une marque.', hot:true,
     feats:[
       {y:true, t:'Tout ce qui est dans Essential'},
+      {y:true, t:'Clientes illimitées'},
+      {y:true, t:'Boutique produits & formations'},
       {y:true, t:'Amélioration IA des photos produits ✦'},
-      {y:true, t:'Styles studio & glamour'},
+      {y:true, t:'Analytiques complètes & branding personnalisé'},
       {y:true, t:'Support prioritaire'},
-      {y:true, t:"Accès anticipé aux nouvelles fonctionnalités"},
-      {y:true, t:'Prix bloqué — pour toujours'},
     ]},
 ]
 
