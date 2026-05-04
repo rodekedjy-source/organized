@@ -1294,6 +1294,7 @@ function Overview({ workspace, session, ownerData, toast, setPage, refetchWorksp
   const [selectedDay,setSelectedDay]=useState(null)
   const [stats,setStats]=useState({revenue:0,appointments:0,monthAppts:0,pending:0,confirmed:0,cancelled:0,products:0,students:0})
   const [showRevenue,setShowRevenue]=useState(false)
+  const [reminderBannerDismissed, setReminderBannerDismissed] = useState(false)
   const [remindersSent,setRemindersSent]=useState([])
   useEffect(()=>{
     if(!workspace) return
@@ -1403,15 +1404,16 @@ function Overview({ workspace, session, ownerData, toast, setPage, refetchWorksp
         </div>
       </div>
       <NextUpBanner appts={allAppts} workspace={workspace} onReloaded={fetchData} toast={toast} lang={lang}/>
-      {remindersSent.length>0&&(
+      {remindersSent.length>0&&!reminderBannerDismissed&&(
         <div style={{background:'var(--ink)',borderRadius:10,padding:'.65rem 1.1rem',marginBottom:'1rem',display:'flex',alignItems:'center',gap:'.75rem',animation:'milestoneIn .35s ease'}}>
           <span style={{fontSize:'.9rem'}}>💬</span>
           <div style={{flex:1}}>
-            <span style={{fontSize:'.75rem',color:'rgba(255,255,255,.5)',fontWeight:600,textTransform:'uppercase',letterSpacing:'.06em'}}>{lang==='fr'?'Rappels envoyés aujourd’hui':lang==='es'?'Recordatorios enviados hoy':'Reminders sent today'}</span>
+            <span style={{fontSize:'.75rem',color:'rgba(255,255,255,.5)',fontWeight:600,textTransform:'uppercase',letterSpacing:'.06em'}}>{lang==='fr'?'Rappels envoyés aujourd'hui':lang==='es'?'Recordatorios enviados hoy':'Reminders sent today'}</span>
             <div style={{display:'flex',flexWrap:'wrap',gap:'.35rem',marginTop:'.3rem'}}>
               {remindersSent.map((r,i)=>(<span key={i} style={{background:'rgba(181,137,58,.2)',border:'1px solid rgba(181,137,58,.3)',borderRadius:20,padding:'2px 10px',fontSize:'.72rem',color:'var(--gold)',fontWeight:500}}>✓ {r.name} · {r.time}</span>))}
             </div>
           </div>
+          <button onClick={()=>setReminderBannerDismissed(true)} style={{flexShrink:0,padding:'4px 14px',borderRadius:20,background:'rgba(255,255,255,.1)',border:'1px solid rgba(255,255,255,.15)',color:'rgba(255,255,255,.7)',fontSize:'.72rem',fontWeight:600,cursor:'pointer'}}>OK</button>
         </div>
       )}
       <CoachSlider appts={allAppts} stats={stats} workspace={workspace} session={session} lang={lang}/>
