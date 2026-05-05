@@ -1812,84 +1812,146 @@ function Services({ workspace, toast, lang='en' }) {
 
 // ── AI ENHANCE MODAL ──────────────────────────────────────────────────────────
 function EnhanceModal({ imageUrl, imagePreview, workspace, onSelect, onClose, toast, productName='' }) {
-  const [style,setStyle]=useState('studio')
-  const [phase,setPhase]=useState('pick')
-  const [results,setResults]=useState([])
-  const [loadingMsg,setLoadingMsg]=useState('')
-  const EDGE='https://bwfpioxvfqwnwzkvtebg.supabase.co/functions/v1/enhance-product-image'
+  const [phase, setPhase]       = useState('templates') // templates | loading | result
+  const [templates, setTemplates] = useState([])
+  const [selected, setSelected] = useState(null)
+  const [resultUrl, setResultUrl] = useState(null)
+  const [saving, setSaving]     = useState(false)
+  const EDGE = 'https://bwfpioxvfqwnwzkvtebg.supabase.co/functions/v1/enhance-product-image'
 
-  async function run(){
-    setPhase('loading');setLoadingMsg('AI is crafting your photos...')
-    try{
-      const desc=productName?`${productName} beauty product`:'professional hair and beauty product'
-      const res=await fetch(EDGE,{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({image_url:imageUrl,style,product_description:desc})
+  // Load templates on mount
+  useEffect(() => {
+    fetch(EDGE, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({}) })
+      .then(r => r.json())
+      .then(d => { if (d?.templates) setTemplates(d.templates) })
+      .catch(() => {
+        // Fallback hardcoded templates if DB fetch fails
+        setTemplates([
+          {id:'studio_white',    label:'Studio Blanc',    emoji:'⬜', url:'https://v3b.fal.media/files/b/0a98fac8/C9DokWdUT0u69qqaDgR_9.jpg'},
+          {id:'marble_luxe',     label:'Marbre Luxe',     emoji:'🧇', url:'https://v3b.fal.media/files/b/0a98fac8/5z50B-ImghTkqTO0j6Eoj.jpg'},
+          {id:'bokeh_gold',      label:'Bokeh Doré',      emoji:'✨', url:'https://v3b.fal.media/files/b/0a98fac8/42ZN6OhGvPsYAVaY0KSqI.jpg'},
+          {id:'noir_dramatique', label:'Nuit Dramatique', emoji:'🌑', url:'https://v3b.fal.media/files/b/0a98fac8/gi_jVMyiTa9YJBYjU_SMu.jpg'},
+          {id:'rose_poudre',     label:'Rose Poudré',     emoji:'🌸', url:'https://v3b.fal.media/files/b/0a98fac8/VmNTUlN8iy0eObxGLJTAJ.jpg'},
+          {id:'botanique',       label:'Botanique',       emoji:'🌿', url:'https://v3b.fal.media/files/b/0a98fac8/uCsXKl3V_WiABW9oVevBi.jpg'},
+        ])
       })
-      const data=await res.json()
-      if(data?.error) throw new Error(data.error)
-      if(data?.urls && data.urls.length>0){ setResults(data.urls.filter(Boolean)); setPhase('results'); return }
-      throw new Error('No images returned.')
-    }catch(e){toast('Enhancement unavailable — '+e.message);setPhase('pick')}
+  }, [])
+
+  async function generate(template) {
+    setSelected(template)
+    setPhase('loading')
+    try {
+      const res = await fetch(EDGE, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ image_url: imageUrl, template_id: template.id }),
+      })
+      const data = await res.json()
+      if (data?.error) throw new Error(data.error)
+      if (data?.url) { setResultUrl(data.url); setPhase('result'); return }
+      throw new Error('No image returned.')
+    } catch(e) {
+      toast('Enhancement failed — ' + e.message)
+      setPhase('templates')
+    }
   }
-  async function pick(url){
-    try{
-      const res=await fetch(url),blob=await res.blob()
-      const path=`${workspace.id}/enhanced-${Date.now()}.jpg`
-      await supabase.storage.from('product-images').upload(path,blob,{upsert:true,contentType:'image/jpeg'})
-      const{data:ud}=supabase.storage.from('product-images').getPublicUrl(path)
-      onSelect(ud.publicUrl||url);onClose()
-    }catch(e){toast('Could not save enhanced image: '+e.message)}
+
+  async function save() {
+    if (!resultUrl) return
+    setSaving(true)
+    try {
+      let finalUrl = resultUrl
+      // If data URL (upload failed in edge fn), upload from client
+      if (resultUrl.startsWith('data:')) {
+        const blob = await (await fetch(resultUrl)).blob()
+        const path = `${workspace.id}/enhanced-${Date.now()}.png`
+        await supabase.storage.from('product-images').upload(path, blob, { upsert:true, contentType:'image/png' })
+        const { data: ud } = supabase.storage.from('product-images').getPublicUrl(path)
+        finalUrl = ud?.publicUrl || resultUrl
+      }
+      onSelect(finalUrl)
+      onClose()
+    } catch(e) {
+      toast('Could not save: ' + e.message)
+    } finally { setSaving(false) }
   }
-  const labels={studio:['Front view','Angled view'],glamour:['Cosmetic scene','Wellness scene']}
+
   return (
-    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.7)',zIndex:1050,display:'flex',alignItems:'center',justifyContent:'center',padding:'1rem'}}>
-      <style>{`@keyframes spin-en{to{transform:rotate(360deg)}}`}</style>
-      <div style={{background:'var(--surface)',borderRadius:'20px',width:'100%',maxWidth:'480px',overflow:'hidden',boxShadow:'0 32px 80px rgba(0,0,0,.4)'}}>
-        <div style={{padding:'1.2rem 1.5rem',borderBottom:'1px solid var(--border)',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.75)',zIndex:1050,display:'flex',alignItems:'flex-end',justifyContent:'center',padding:'0'}}>
+      <style>{`@keyframes spin-en{to{transform:rotate(360deg)}} @keyframes slide-up{from{transform:translateY(100%)}to{transform:translateY(0)}}`}</style>
+      <div style={{background:'var(--surface)',borderRadius:'20px 20px 0 0',width:'100%',maxWidth:'520px',overflow:'hidden',boxShadow:'0 -8px 40px rgba(0,0,0,.4)',animation:'slide-up .3s ease',maxHeight:'92vh',display:'flex',flexDirection:'column'}}>
+
+        {/* Header */}
+        <div style={{padding:'1rem 1.25rem',borderBottom:'1px solid var(--border)',display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0}}>
           <div>
-            <div style={{fontSize:'1rem',fontWeight:600,fontFamily:"'Playfair Display',serif"}}>AI Photo Enhancement</div>
-            <div style={{fontSize:'.75rem',color:'var(--ink-3)',marginTop:'.15rem'}}>Transform your photo into a professional visual</div>
+            <div style={{fontSize:'.95rem',fontWeight:700,fontFamily:"'Playfair Display',serif"}}>✨ AI Photo Enhancement</div>
+            <div style={{fontSize:'.72rem',color:'var(--ink-3)',marginTop:'.1rem'}}>Choose a background template</div>
           </div>
-          <button onClick={onClose} style={{background:'var(--bg)',border:'1px solid var(--border)',borderRadius:'8px',width:30,height:30,cursor:'pointer',color:'var(--ink-3)',fontSize:'1.1rem',display:'flex',alignItems:'center',justifyContent:'center'}}>×</button>
+          <button onClick={onClose} style={{background:'var(--bg)',border:'1px solid var(--border)',borderRadius:'8px',width:28,height:28,cursor:'pointer',color:'var(--ink-3)',fontSize:'1rem',display:'flex',alignItems:'center',justifyContent:'center'}}>×</button>
         </div>
-        <div style={{padding:'1.4rem'}}>
-          {phase==='pick'&&(<>
-            <img src={imagePreview||imageUrl} style={{width:'100%',height:140,objectFit:'cover',borderRadius:10,marginBottom:'1.25rem'}} alt="product"/>
-            <div style={{fontSize:'.7rem',fontWeight:700,color:'var(--ink-3)',marginBottom:'.65rem',textTransform:'uppercase',letterSpacing:'.08em'}}>Choose a style</div>
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'.65rem',marginBottom:'1.25rem'}}>
-              {[{v:'studio',label:'Studio',desc:'Clean background · sharp lighting'},{v:'glamour',label:'Glamour',desc:'Marble · bokeh · luxury spa'}].map(o=>(
-                <div key={o.v} onClick={()=>setStyle(o.v)}
-                  style={{border:`1.5px solid ${style===o.v?'var(--gold)':'var(--border)'}`,borderRadius:12,padding:'.9rem',cursor:'pointer',background:style===o.v?'var(--gold-lt)':'var(--bg)',transition:'all .15s'}}>
-                  <div style={{width:28,height:3,background:style===o.v?'var(--gold)':'var(--border-2)',borderRadius:2,marginBottom:'.6rem',transition:'background .15s'}}/>
-                  <div style={{fontWeight:600,fontSize:'.88rem',color:'var(--ink)',marginBottom:'.2rem'}}>{o.label}</div>
-                  <div style={{fontSize:'.72rem',color:'var(--ink-3)',lineHeight:1.5}}>{o.desc}</div>
-                </div>
-              ))}
-            </div>
-            <button onClick={run} style={{width:'100%',padding:'.85rem',background:'linear-gradient(135deg,#c5a66a,#a8863d)',color:'#fff',border:'none',borderRadius:10,fontWeight:600,fontSize:'.88rem',cursor:'pointer'}}>Generate Enhanced Photos</button>
-          </>)}
-          {phase==='loading'&&(
-            <div style={{textAlign:'center',padding:'2.5rem 0'}}>
-              <div style={{width:44,height:44,borderRadius:'50%',border:'3px solid var(--border)',borderTopColor:'var(--gold)',animation:'spin-en 1s linear infinite',margin:'0 auto 1.1rem'}}/>
-              <div style={{fontWeight:600,color:'var(--ink)',marginBottom:'.35rem'}}>{loadingMsg}</div>
-              <div style={{fontSize:'.78rem',color:'var(--ink-3)'}}>This takes 20 – 40 seconds</div>
+
+        {/* Body */}
+        <div style={{padding:'1rem 1.25rem',overflowY:'auto',flex:1}}>
+
+          {/* Product preview — always visible */}
+          {phase !== 'result' && (
+            <div style={{display:'flex',alignItems:'center',gap:'.75rem',marginBottom:'1rem',background:'var(--bg)',borderRadius:10,padding:'.65rem'}}>
+              <img src={imagePreview||imageUrl} style={{width:52,height:52,objectFit:'cover',borderRadius:8,flexShrink:0}} alt="product"/>
+              <div>
+                <div style={{fontSize:'.8rem',fontWeight:600,color:'var(--ink)'}}>{productName||'Your product'}</div>
+                <div style={{fontSize:'.7rem',color:'var(--ink-3)'}}>Background will be replaced by AI</div>
+              </div>
             </div>
           )}
-          {phase==='results'&&(<>
-            <div style={{fontSize:'.7rem',fontWeight:700,color:'var(--ink-3)',marginBottom:'.65rem',textTransform:'uppercase',letterSpacing:'.08em'}}>Select your photo</div>
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'.65rem',marginBottom:'.85rem'}}>
-              {results.map((url,i)=>(
-                <div key={i} onClick={()=>pick(url)} style={{borderRadius:10,overflow:'hidden',cursor:'pointer',border:'2px solid var(--border)',transition:'border-color .15s',position:'relative'}}
-                  onMouseEnter={e=>e.currentTarget.style.borderColor='var(--gold)'} onMouseLeave={e=>e.currentTarget.style.borderColor='var(--border)'}>
-                  <img src={url} style={{width:'100%',aspectRatio:'2/3',objectFit:'cover',display:'block'}} alt={`Option ${i+1}`}/>
-                  <div style={{position:'absolute',bottom:0,left:0,right:0,background:'linear-gradient(transparent,rgba(0,0,0,.55))',padding:'.4rem .55rem',fontSize:'.7rem',color:'#fff',fontWeight:500}}>{labels[style][i]}</div>
+
+          {/* PHASE: template grid */}
+          {phase === 'templates' && (
+            <>
+              <div style={{fontSize:'.68rem',fontWeight:700,color:'var(--ink-3)',marginBottom:'.65rem',textTransform:'uppercase',letterSpacing:'.08em'}}>Select a background</div>
+              {templates.length === 0 ? (
+                <div style={{textAlign:'center',padding:'2rem',color:'var(--ink-3)',fontSize:'.85rem'}}>Loading templates...</div>
+              ) : (
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'.5rem'}}>
+                  {templates.map(t => (
+                    <div key={t.id} onClick={() => generate(t)}
+                      style={{cursor:'pointer',borderRadius:10,overflow:'hidden',border:'2px solid var(--border)',transition:'border-color .15s,transform .1s'}}
+                      onMouseEnter={e=>{e.currentTarget.style.borderColor='var(--gold)';e.currentTarget.style.transform='scale(1.02)'}}
+                      onMouseLeave={e=>{e.currentTarget.style.borderColor='var(--border)';e.currentTarget.style.transform='scale(1)'}}>
+                      <img src={t.url} alt={t.label} style={{width:'100%',aspectRatio:'1',objectFit:'cover',display:'block'}}/>
+                      <div style={{padding:'.3rem .4rem',background:'var(--bg)'}}>
+                        <div style={{fontSize:'.65rem',fontWeight:600,color:'var(--ink)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{t.emoji} {t.label}</div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              )}
+            </>
+          )}
+
+          {/* PHASE: loading */}
+          {phase === 'loading' && (
+            <div style={{textAlign:'center',padding:'2.5rem 0'}}>
+              {selected && <img src={selected.url} style={{width:80,height:80,objectFit:'cover',borderRadius:12,marginBottom:'1rem',opacity:.6}} alt=""/>}
+              <div style={{width:40,height:40,borderRadius:'50%',border:'3px solid var(--border)',borderTopColor:'var(--gold)',animation:'spin-en 1s linear infinite',margin:'0 auto .9rem'}}/>
+              <div style={{fontWeight:600,color:'var(--ink)',marginBottom:'.3rem',fontSize:'.9rem'}}>Creating your visual…</div>
+              <div style={{fontSize:'.75rem',color:'var(--ink-3)'}}>Removing background · Compositing · ~15 seconds</div>
             </div>
-            <button onClick={()=>{setPhase('pick');setResults([])}} style={{width:'100%',padding:'.65rem',background:'none',border:'1px solid var(--border)',borderRadius:9,color:'var(--ink-3)',cursor:'pointer',fontSize:'.82rem'}}>← Try a different style</button>
-          </>)}
+          )}
+
+          {/* PHASE: result */}
+          {phase === 'result' && (
+            <>
+              <img src={resultUrl} style={{width:'100%',aspectRatio:'1',objectFit:'contain',borderRadius:12,marginBottom:'1rem',background:'#f5f5f5'}} alt="enhanced"/>
+              <button onClick={save} disabled={saving}
+                style={{width:'100%',padding:'.85rem',background:'linear-gradient(135deg,#c5a66a,#a8863d)',color:'#fff',border:'none',borderRadius:10,fontWeight:600,fontSize:'.88rem',cursor:saving?'default':'pointer',opacity:saving?.7:1,marginBottom:'.6rem'}}>
+                {saving ? 'Saving…' : '✓ Use this photo'}
+              </button>
+              <button onClick={()=>{setPhase('templates');setResultUrl(null);setSelected(null)}}
+                style={{width:'100%',padding:'.65rem',background:'none',border:'1px solid var(--border)',borderRadius:9,color:'var(--ink-3)',cursor:'pointer',fontSize:'.82rem'}}>
+                ← Try another template
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>
