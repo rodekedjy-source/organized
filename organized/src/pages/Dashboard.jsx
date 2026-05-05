@@ -1390,14 +1390,14 @@ function Overview({ workspace, session, ownerData, toast, setPage, refetchWorksp
         </div>
         <div className="head-actions">
           <button className="btn btn-secondary btn-sm" onClick={()=>{
-            const url=workspace?.slug?`https://beorganized.io/${workspace.slug}`:''
+            const url=workspace?.slug?`${window.location.origin}/${workspace.slug}`:''
             if(url){navigator.clipboard?.writeText(url);toast(t(lang,'link_copied'))}
           }}>
             <span style={{width:14,height:14,display:'flex'}}>{I.link}</span>
             {t(lang,'copy_link')}
           </button>
           {workspace?.slug&&(
-            <button className="btn btn-primary btn-sm" onClick={()=>window.open(`https://beorganized.io/${workspace.slug}`,'_blank')}>
+            <button className="btn btn-primary btn-sm" onClick={()=>window.open(`${window.location.origin}/${workspace.slug}`,'_blank')}>
               {lang==='fr'?'Voir ma page':lang==='es'?'Ver mi página':'View page'} →
             </button>
           )}
@@ -1454,7 +1454,7 @@ function Overview({ workspace, session, ownerData, toast, setPage, refetchWorksp
             <div className="empty-icon">{I.cal}</div>
             <div className="empty-title">{t(lang,'day_open')}</div>
             <div className="empty-sub">{t(lang,'share_link')}</div>
-            <button className="btn btn-primary btn-sm" style={{marginTop:'.75rem'}} onClick={()=>{navigator.clipboard?.writeText(`https://beorganized.io/${workspace?.slug||''}`);toast(t(lang,'link_copied'))}}>{t(lang,'copy_booking_link')}</button>
+            <button className="btn btn-primary btn-sm" style={{marginTop:'.75rem'}} onClick={()=>{navigator.clipboard?.writeText(`${window.location.origin}/${workspace?.slug||''}`);toast(t(lang,'link_copied'))}}>{t(lang,'copy_booking_link')}</button>
           </div>
         ):(
           <div>
@@ -4151,7 +4151,7 @@ export default function Dashboard() {
         <div className="sb-footer">
           {workspace?.slug&&(
             <a
-              href={'https://beorganized.io/'+workspace.slug}
+              href={`${window.location.origin}/${workspace.slug}`}
               target="_blank"
               rel="noopener noreferrer"
               style={{display:'block',marginBottom:'.65rem',padding:'.75rem .9rem',background:'var(--gold-lt)',border:'1px solid var(--gold-dim)',borderRadius:12,cursor:'pointer',textDecoration:'none'}}
