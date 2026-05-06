@@ -7,6 +7,8 @@ import Dashboard         from './pages/Dashboard'
 import ClientPage        from './pages/ClientPage'
 import CancelAppointment from './pages/CancelAppointment'
 import ReviewPage        from './pages/ReviewPage'
+import { WorkspaceProvider } from './contexts/WorkspaceContext'
+import { ToastProvider }     from './contexts/ToastContext'
 
 export default function App() {
   const [session, setSession] = useState(null)
@@ -48,7 +50,13 @@ export default function App() {
       {/* Dashboard — protected */}
       <Route
         path="/dashboard/*"
-        element={session ? <Dashboard key={session.user.id} session={session} /> : <Navigate to="/auth" replace />}
+        element={session ? (
+          <ToastProvider>
+            <WorkspaceProvider>
+              <Dashboard key={session.user.id} session={session} />
+            </WorkspaceProvider>
+          </ToastProvider>
+        ) : <Navigate to="/auth" replace />}
       />
 
       {/* Client booking page — public, must be last */}
