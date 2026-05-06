@@ -1005,7 +1005,7 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
             {t(lang,'copy_link')}
           </button>
           {workspace?.slug&&(
-            <button className="btn btn-primary btn-sm" onClick={()=>window.open(`${window.location.origin}/${workspace.slug}`,'_blank')}>
+            <button className="btn btn-primary btn-sm" onClick={()=>window.open(`${window.location.origin}/book/${workspace.slug}`,'_blank')}>
               {lang==='fr'?'Voir ma page':lang==='es'?'Ver mi página':'View page'} →
             </button>
           )}
