@@ -161,6 +161,7 @@ export default function ClientPage() {
 
   // ── UI State ──────────────────────────────────────────────────────────────
   const [activeTab,      setActiveTab]      = useState('book')
+  const [heroFading,     setHeroFading]     = useState(false)
   const [portfolioOpen,  setPortfolioOpen]  = useState(false)
   const [policyOpen,     setPolicyOpen]     = useState(false)
   const [cartOpen,       setCartOpen]       = useState(false)
@@ -352,6 +353,19 @@ export default function ClientPage() {
   if (loading) return <div style={{minHeight:'100vh',background:'#080706',display:'flex',alignItems:'center',justifyContent:'center'}}><div style={{fontFamily:'Playfair Display,serif',fontSize:24,color:'#C9A84C'}}>Organized.</div></div>
   if (notFound) return <div style={{minHeight:'100vh',background:'#080706',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',color:'#F0EAE0',textAlign:'center',padding:32}}><div style={{fontFamily:'Playfair Display,serif',fontSize:64,color:'#C9A84C',lineHeight:1}}>404</div><div style={{fontFamily:'Playfair Display,serif',fontSize:24,marginTop:16}}>Profile not found</div><div style={{fontSize:14,color:'#9A8E7E',marginTop:8}}>This page does not exist or has not been published yet.</div></div>
 
+  // ── Hero content per tab ─────────────────────────────────────────────────
+  const HERO_CONTENT = {
+    book:  { tag:'Accepting New Clients', eyebrow:workspace.tagline||workspace.location||'Beauty Professional', bio:workspace.bio||'Expert beauty services — crafting confidence one appointment at a time.', stats:[['200+','Clients'],['10','Years'],['4.9','Rating']], ctas:['Book your Service','See our Portfolio'], pills:['Color & Highlights','Precision Cut','Keratin Treatment'], edLabel:'Portfolio · Studio' },
+    shop:  { tag:'Studio Curated Products', eyebrow:`${workspace.name} · Hair & Beauty Edit`, bio:'Products personally tested and used in the studio. Every item on this shelf is a recommendation.', stats:[[String(products.length),'Products'],['$29+','Starting'],['Free','Advice']], ctas:['Browse Products','Open my Bag'], pills:['Hair Care','Styling','Treatment'], edLabel:'The Edit · Shop' },
+    learn: { tag:'Workshops & Online Courses', eyebrow:'Education · All Levels Welcome', bio:'From intensive in-person workshops to self-paced online programs — grow on your terms.', stats:[[String(offerings.length),'Programs'],['120+','Graduates'],['4.8','Rating']], ctas:['View Workshops','Browse Online'], pills:['In-Person','Online Courses','All Levels'], edLabel:'Knowledge · Learn' }
+  }
+  const hc = HERO_CONTENT[activeTab] || HERO_CONTENT.book
+  function switchTab(tab) {
+    if (tab === activeTab) return
+    setHeroFading(true)
+    setTimeout(() => { setActiveTab(tab); setHeroFading(false) }, 220)
+  }
+
   // ─────────────────────────────────────────────────────────────────────────
   return (
     <>
@@ -371,30 +385,63 @@ export default function ClientPage() {
 
       {/* HERO */}
       <section className="cb-hero">
-        <div className="cb-hero-bg"><canvas ref={canvasRef} style={{position:'absolute',inset:0,width:'100%',height:'100%',display:'block'}} /></div>
-        <div className="cb-hero-content">
-          <div className="cb-avail-tag"><span className="cb-tag-dot"/>Accepting New Clients</div>
-          <h1 className="cb-hero-name">{workspace.name}</h1>
-          <div className="cb-hero-eyebrow">{workspace.tagline||workspace.location||'Beauty Professional'}</div>
-          {workspace.bio&&<p className="cb-hero-bio">{workspace.bio}</p>}
-          <div className="cb-hero-cta">
-            <button className="cb-btn-primary" onClick={()=>document.querySelector('.cb-tabs')?.scrollIntoView({behavior:'smooth'})}>Book your Service</button>
-            <button className="cb-btn-ghost" onClick={()=>setPortfolioOpen(true)}>See our Portfolio</button>
+        <div className="hero-blob-bg"><canvas ref={canvasRef} style={{position:'absolute',inset:0,width:'100%',height:'100%',display:'block'}}/></div>
+        <div className="hero-left">
+          <div className={`hero-context-tag${heroFading?' hero-fading':''}`}>
+            <span className="hero-tag-dot"/><span>{hc.tag}</span>
           </div>
-          <div className="cb-socials">
+          <h1 className="hero-name">{workspace.name}</h1>
+          <div className={`hero-eyebrow${heroFading?' hero-fading':''}`}>{hc.eyebrow}</div>
+          <p className={`hero-bio${heroFading?' hero-fading':''}`}>{hc.bio}</p>
+          <div className={`hero-stats${heroFading?' hero-fading':''}`}>
+            {hc.stats.map(([num,lbl],i)=>(
+              <div key={i} className="stat-item">
+                <span className="stat-num">{num}</span>
+                <span className="stat-label">{lbl}</span>
+              </div>
+            ))}
+          </div>
+          <div className={`hero-cta-row${heroFading?' hero-fading':''}`}>
+            <button className="cb-btn-primary" onClick={()=>document.querySelector('.tab-bar-wrap')?.scrollIntoView({behavior:'smooth'})}>{hc.ctas[0]}</button>
+            <button className="cb-btn-ghost" onClick={()=>setPortfolioOpen(true)}>{hc.ctas[1]}</button>
+          </div>
+          <div className="hero-socials">
             {workspace.instagram&&<a href={`https://instagram.com/${workspace.instagram.replace('@','')}`} target="_blank" rel="noreferrer"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>{workspace.instagram}</a>}
+            {workspace.instagram&&workspace.tiktok&&<span className="soc-divider"/>}
             {workspace.tiktok&&<a href={`https://tiktok.com/@${workspace.tiktok.replace('@','')}`} target="_blank" rel="noreferrer"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg>TikTok</a>}
           </div>
         </div>
+        <div className="hero-right">
+          <div className="hero-right-bg"/>
+          <div className="hero-right-leak"/>
+          <div className="editorial-letter">{(workspace.name||'N')[0]}</div>
+          <div className="editorial-frame">
+            <div className="corner corner-tl"/><div className="corner corner-tr"/>
+            <div className="corner corner-bl"/><div className="corner corner-br"/>
+          </div>
+          <div className="editorial-center">
+            <div className="ed-label" style={{opacity:heroFading?0:1,transition:'opacity .25s'}}>{hc.edLabel}</div>
+            <div className="ed-title-line"/>
+            <div className="ed-services">
+              {hc.pills.map((pill,i)=>(
+                <div key={i} className={`ed-svc-pill${heroFading?' hero-fading':''}`} style={{transitionDelay:`${i*40}ms`}}>{pill}</div>
+              ))}
+            </div>
+          </div>
+          {avgRating&&<div className="fc fc-1"><div className="fc-lbl">Rating</div><div className="fc-val">★ {avgRating}</div><div className="fc-sub">{reviews.length} reviews</div></div>}
+          <div className="fc fc-2"><div className="fc-lbl">Location</div><div className="fc-val" style={{fontSize:14}}>{workspace.neighborhood||workspace.address_city||workspace.location||'Studio'}</div></div>
+        </div>
       </section>
 
-      {/* TABS */}
-      <div className="cb-tabs">
-        {[{id:'book',label:'Book an Appointment'},{id:'shop',label:'Shop',hide:products.length===0},{id:'learn',label:'Learn',hide:offerings.length===0}].filter(t=>!t.hide).map(t=>(
-          <button key={t.id} className={`cb-tab${activeTab===t.id?' active':''}`} onClick={()=>setActiveTab(t.id)}>
-            {activeTab===t.id&&<span className="cb-tab-dot"/>}{t.label}
-          </button>
-        ))}
+      {/* TAB BAR */}
+      <div className="tab-bar-wrap">
+        <div className="tab-bar">
+          {[{id:'book',label:'Book an Appointment'},{id:'shop',label:'Shop',hide:products.length===0},{id:'learn',label:'Learn',hide:offerings.length===0}].filter(t=>!t.hide).map(t=>(
+            <button key={t.id} className={`tab-btn${activeTab===t.id?' active':''}`} onClick={()=>switchTab(t.id)}>
+              {activeTab===t.id&&<span className="tab-dot"/>}{t.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* ═══════════ BOOK PANEL ═══════════ */}
@@ -765,33 +812,73 @@ const CSS = `
 .cb-icon-btn:hover{border-color:var(--gold);color:var(--gold-light)}
 .cb-cart-badge{position:absolute;top:-6px;right:-6px;background:var(--gold);color:#141210;font-size:9px;font-weight:700;width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center}
 
-.cb-hero{min-height:100vh;padding-top:64px;position:relative;overflow:hidden;display:flex;align-items:center}
-.cb-hero-bg{position:absolute;inset:0;z-index:0}
-.cb-hero-content{position:relative;z-index:1;padding:60px 24px 80px;max-width:560px}
-.cb-avail-tag{display:inline-flex;align-items:center;gap:8px;background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.22);border-radius:100px;padding:5px 16px 5px 10px;font-size:10px;color:rgba(201,168,76,0.9);letter-spacing:.14em;text-transform:uppercase;margin-bottom:24px}
-.cb-tag-dot{width:6px;height:6px;border-radius:50%;background:var(--gold);animation:pulse 2.5s infinite}
+/* ── HERO ── */
+.cb-hero{min-height:100vh;display:grid;grid-template-columns:52% 48%;padding-top:64px;position:relative;overflow:hidden}
+.hero-blob-bg{position:absolute!important;inset:0!important;z-index:0!important}
+.hero-left,.hero-right{position:relative;z-index:1}
+.hero-left{display:flex;flex-direction:column;justify-content:center;padding:80px 60px 60px 40px;position:relative;z-index:2;background:transparent}
+.hero-left::after{content:'';position:absolute;right:0;top:12%;bottom:12%;width:1px;background:linear-gradient(to bottom,transparent,rgba(201,168,76,0.18),transparent)}
+.hero-context-tag{display:inline-flex;align-items:center;gap:8px;background:var(--gold-dim);border:1px solid var(--gold-border);border-radius:100px;padding:5px 16px 5px 10px;font-size:10px;color:var(--gold-light);letter-spacing:.14em;text-transform:uppercase;margin-bottom:20px;width:fit-content;transition:opacity .25s ease,transform .25s ease}
+.hero-tag-dot{width:6px;height:6px;border-radius:50%;background:var(--gold);flex-shrink:0;animation:pulse 2.5s infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.2}}
-.cb-hero-name{font-family:'Playfair Display',serif;font-size:clamp(48px,9vw,80px);font-weight:500;line-height:.95;color:#FAF6F1;margin-bottom:12px}
-.cb-hero-eyebrow{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:rgba(250,246,241,.6);margin-bottom:18px}
-.cb-hero-bio{font-size:15px;color:rgba(250,246,241,.72);font-weight:300;line-height:1.8;margin-bottom:36px;max-width:380px}
-.cb-hero-cta{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:36px}
-@media(max-width:480px){.cb-hero-cta{flex-direction:column}.cb-hero-cta button{width:100%;text-align:center}}
-.cb-socials{display:flex;align-items:center;gap:16px}
-.cb-socials a{display:flex;align-items:center;gap:6px;font-size:12px;color:rgba(250,246,241,.5);text-decoration:none;transition:color .2s}
-.cb-socials a:hover{color:rgba(250,246,241,.85)}
+@keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+.hero-name{font-family:'Playfair Display',serif;font-size:clamp(52px,5.5vw,78px);font-weight:500;line-height:.95;margin-bottom:26px;animation:fadeUp .8s .16s ease both;color:#FAF6F1}
+.hero-name em{font-style:italic;color:var(--gold)}
+.hero-eyebrow{font-size:10px;color:var(--text-muted);letter-spacing:.22em;text-transform:uppercase;margin-bottom:20px;transition:opacity .25s ease,transform .25s ease}
+.hero-bio{font-size:15px;line-height:1.85;color:var(--text-soft);max-width:360px;margin-bottom:40px;font-weight:300;transition:opacity .25s ease,transform .25s ease}
+.hero-stats{display:flex;gap:40px;margin-bottom:44px;transition:opacity .25s ease,transform .25s ease}
+.stat-item{display:flex;flex-direction:column;gap:4px}
+.stat-num{font-family:'Playfair Display',serif;font-size:28px;color:var(--gold);font-weight:500;line-height:1}
+.stat-label{font-size:9px;color:var(--text-muted);letter-spacing:.14em;text-transform:uppercase}
+.hero-cta-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:36px;transition:opacity .25s ease,transform .25s ease}
+@media(max-width:640px){.hero-cta-row{flex-direction:column}.hero-cta-row button{width:100%;text-align:center}}
+.hero-fading{opacity:0!important;transform:translateY(4px)!important}
+.hero-socials{display:flex;align-items:center;gap:20px}
+.hero-socials a{display:flex;align-items:center;gap:7px;font-size:11px;color:var(--text-muted);text-decoration:none;letter-spacing:.06em;transition:color .2s}
+.hero-socials a:hover{color:var(--gold-light)}
+.hero-socials svg{width:14px;height:14px;fill:currentColor}
+.soc-divider{width:1px;height:14px;background:var(--dark-5)}
+/* Hero right panel */
+.hero-right{position:relative;overflow:hidden}
+.hero-right-bg{position:absolute;inset:0;background:radial-gradient(ellipse 55% 60% at 70% 22%,rgba(60,35,10,.8) 0%,transparent 65%),radial-gradient(ellipse 50% 70% at 30% 80%,rgba(40,22,5,.55) 0%,transparent 60%),linear-gradient(155deg,#1a1108 0%,#0d0a05 45%,#0a0906 100%)}
+.hero-right-leak{position:absolute;top:-60px;right:-60px;width:340px;height:340px;background:radial-gradient(circle,rgba(201,168,76,.07) 0%,transparent 70%);border-radius:50%;pointer-events:none}
+.editorial-letter{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:'Playfair Display',serif;font-size:clamp(180px,20vw,260px);font-weight:600;font-style:italic;color:rgba(201,168,76,.035);line-height:1;user-select:none;pointer-events:none}
+.editorial-frame{position:absolute;inset:32px;border:1px solid rgba(201,168,76,.07);pointer-events:none}
+.editorial-frame::before{content:'';position:absolute;inset:10px;border:1px solid rgba(201,168,76,.03)}
+.corner{position:absolute;width:14px;height:14px;border-color:rgba(201,168,76,.28);border-style:solid}
+.corner-tl{top:32px;left:32px;border-width:1px 0 0 1px}
+.corner-tr{top:32px;right:32px;border-width:1px 1px 0 0}
+.corner-bl{bottom:32px;left:32px;border-width:0 0 1px 1px}
+.corner-br{bottom:32px;right:32px;border-width:0 1px 1px 0}
+.editorial-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 48px}
+.ed-label{font-size:9px;letter-spacing:.28em;text-transform:uppercase;color:rgba(201,168,76,.38);margin-bottom:14px}
+.ed-title-line{width:40px;height:1px;background:rgba(201,168,76,.22);margin:18px auto}
+.ed-services{display:flex;flex-direction:column;gap:9px;align-items:center}
+.ed-svc-pill{font-size:10px;color:rgba(201,168,76,.45);letter-spacing:.16em;text-transform:uppercase;border:1px solid rgba(201,168,76,.12);padding:5px 16px;border-radius:100px;transition:opacity .25s ease,transform .25s ease}
+.fc{position:absolute;background:rgba(10,8,5,.96);border:1px solid rgba(201,168,76,.14);border-radius:2px;padding:16px 20px;backdrop-filter:blur(24px);animation:fadeUp .9s .6s ease both}
+.fc-1{bottom:60px;left:-20px;min-width:180px}
+.fc-2{top:36%;right:24px;animation-delay:.75s}
+.fc-lbl{font-size:8px;color:var(--text-muted);letter-spacing:.2em;text-transform:uppercase;margin-bottom:6px}
+.fc-val{font-family:'Playfair Display',serif;font-size:17px;color:var(--gold-light)}
+.fc-sub{font-size:10px;color:var(--text-soft);margin-top:3px}
+@media(max-width:768px){.cb-hero{grid-template-columns:1fr}.hero-left{padding:80px 24px 52px}.hero-left::after{display:none}.hero-right{display:none}}
 
-.cb-btn-primary{background:var(--gold);color:#141210;border:none;padding:14px 28px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;border-radius:1px;transition:all .25s}
+/* ── BUTTONS ── */
+.cb-btn-primary{background:var(--gold);color:#141210;border:none;padding:14px 28px;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;border-radius:1px;transition:all .25s}
 .cb-btn-primary:hover{background:var(--gold-light);box-shadow:0 8px 28px rgba(201,168,76,.25)}
 .cb-btn-primary:disabled{background:var(--dark-5);color:var(--text-muted);cursor:not-allowed;box-shadow:none}
-.cb-btn-ghost{background:transparent;color:rgba(250,246,241,.7);border:1px solid rgba(250,246,241,.25);padding:14px 28px;font-family:'DM Sans',sans-serif;font-size:12px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;border-radius:1px;transition:all .25s}
+.cb-btn-ghost{background:transparent;color:rgba(250,246,241,.7);border:1px solid rgba(250,246,241,.25);padding:14px 28px;font-family:'DM Sans',sans-serif;font-size:11px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;border-radius:1px;transition:all .25s}
 .cb-btn-ghost:hover{border-color:rgba(250,246,241,.5);color:rgba(250,246,241,.9)}
 
-.cb-tabs{position:sticky;top:64px;z-index:400;background:rgba(10,5,2,0.98);border-bottom:1px solid rgba(201,168,76,.1);backdrop-filter:blur(20px);display:flex;padding:0 20px;overflow-x:auto}
-[data-theme="light"] .cb-tabs{background:rgba(14,7,2,0.98)!important}
-.cb-tab{background:transparent;border:none;color:rgba(201,168,76,.5);font-family:'DM Sans',sans-serif;font-size:10px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;padding:18px 18px;cursor:pointer;display:flex;align-items:center;gap:7px;position:relative;white-space:nowrap;transition:color .25s}
-.cb-tab::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;background:var(--gold);transform:scaleX(0);transition:transform .3s var(--ease)}
-.cb-tab.active{color:var(--gold-light)}.cb-tab.active::after{transform:scaleX(1)}
-.cb-tab-dot{width:5px;height:5px;border-radius:50%;background:var(--gold)}
+/* ── TAB BAR ── */
+.tab-bar-wrap{position:sticky;top:64px;z-index:400;background:rgba(10,5,2,.99);border-bottom:1px solid rgba(201,168,76,.10);backdrop-filter:blur(20px)}
+.tab-bar{max-width:1200px;margin:0 auto;padding:0 40px;display:flex;align-items:stretch;gap:0;overflow-x:auto}
+.tab-btn{background:transparent;border:none;color:var(--text-muted);font-family:'DM Sans',sans-serif;font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;padding:20px 24px;cursor:pointer;position:relative;transition:color .25s;display:flex;align-items:center;gap:8px;white-space:nowrap}
+.tab-btn::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;background:var(--gold);transform:scaleX(0);transition:transform .3s var(--ease)}
+.tab-btn:hover{color:var(--text-soft)}
+.tab-btn.active{color:var(--gold-light)}
+.tab-btn.active::after{transform:scaleX(1)}
+.tab-dot{width:5px;height:5px;border-radius:50%;background:var(--gold)}
 
 .cb-panel{background:var(--dark)}
 .cb-section{padding:64px 24px;background:var(--dark)}
