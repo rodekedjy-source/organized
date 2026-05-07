@@ -998,7 +998,7 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
         </div>
         <div className="head-actions">
           <button className="btn btn-secondary btn-sm" onClick={()=>{
-            const url=workspace?.slug?`${window.location.origin}/${workspace.slug}`:''
+            const url=workspace?.slug?`${window.location.origin}/book/${workspace.slug}`:''
             if(url){navigator.clipboard?.writeText(url);toast(t(lang,'link_copied'))}
           }}>
             <span style={{width:14,height:14,display:'flex'}}>{I.link}</span>
@@ -1062,7 +1062,7 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
             <div className="empty-icon">{I.cal}</div>
             <div className="empty-title">{t(lang,'day_open')}</div>
             <div className="empty-sub">{t(lang,'share_link')}</div>
-            <button className="btn btn-primary btn-sm" style={{marginTop:'.75rem'}} onClick={()=>{navigator.clipboard?.writeText(`${window.location.origin}/${workspace?.slug||''}`);toast(t(lang,'link_copied'))}}>{t(lang,'copy_booking_link')}</button>
+            <button className="btn btn-primary btn-sm" style={{marginTop:'.75rem'}} onClick={()=>{navigator.clipboard?.writeText(`${window.location.origin}/book/${workspace?.slug||''}`);toast(t(lang,'link_copied'))}}>{t(lang,'copy_booking_link')}</button>
           </div>
         ):(
           <div>
