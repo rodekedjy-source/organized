@@ -727,7 +727,7 @@ export default function ClientPage() {
             <div style={{flex:1}}><div style={{fontSize:13,color:'var(--text)'}}>{item.name}</div><div style={{fontSize:13,color:'var(--gold)',fontFamily:'Playfair Display,serif'}}>${Number(item.price).toFixed(0)}</div><div style={{display:'flex',alignItems:'center',gap:10,marginTop:8}}><button className="cb-qty-btn" onClick={()=>changeQty(item.id,-1)}>−</button><span style={{fontSize:13,color:'var(--text)'}}>{item.qty}</span><button className="cb-qty-btn" onClick={()=>changeQty(item.id,1)}>+</button></div></div>
           </div>)}
         </div>
-        {cartItems.length>0&&<div style={{padding:'16px 20px 24px',borderTop:'1px solid var(--dark-4)',flexShrink:0'}}>
+        {cartItems.length>0&&<div style={{padding:'16px 20px 24px',borderTop:'1px solid var(--dark-4)',flexShrink:0}}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}><span style={{fontSize:11,letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--text-muted)'}}>Subtotal</span><span style={{fontFamily:'Playfair Display,serif',fontSize:22,color:'var(--gold)'}}>${cartTotal}</span></div>
           <button className="cb-btn-primary" style={{width:'100%',padding:14}}>Proceed to Checkout →</button>
         </div>}
