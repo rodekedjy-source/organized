@@ -7,6 +7,7 @@ import Dashboard         from './pages/Dashboard'
 import ClientPage        from './pages/ClientPage'
 import CancelAppointment from './pages/CancelAppointment'
 import ReviewPage        from './pages/ReviewPage'
+import Legal               from './pages/Legal'
 import { WorkspaceProvider } from './contexts/WorkspaceContext'
 import { ToastProvider }     from './contexts/ToastContext'
 
@@ -58,6 +59,9 @@ export default function App() {
           </ToastProvider>
         ) : <Navigate to="/auth" replace />}
       />
+
+      {/* Legal */}
+      <Route path="/legal" element={<Legal />} />
 
       {/* Client booking page — public, must be last */}
       <Route path="/book/:slug" element={<ClientPage />} />
