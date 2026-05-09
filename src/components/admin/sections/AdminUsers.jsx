@@ -67,7 +67,7 @@ function ViolationsPanel({ wsId }) {
   )
 }
 
-function DetailPanel({ ws, onAction }) {
+function DetailPanel({ ws, onAction, role }) {
   const [busy,    setBusy]    = useState(false)
   const [confirm, setConfirm] = useState(null)
 
@@ -81,6 +81,8 @@ function DetailPanel({ ws, onAction }) {
       ({ error } = await supabase.rpc('admin_perm_ban_workspace', { p_id: ws.id }))
     } else if (type === 'unban') {
       ({ error } = await supabase.rpc('admin_restore_workspace', { p_id: ws.id }))
+    } else if (type === 'lift_perm_ban') {
+      ({ error } = await supabase.rpc('admin_lift_permanent_ban', { p_id: ws.id }))
     } else if (type === 'essential') {
       ({ error } = await supabase.rpc('admin_force_essential', { p_id: ws.id }))
     } else if (type === 'beta') {
@@ -127,7 +129,24 @@ function DetailPanel({ ws, onAction }) {
                 </button>
               )}
 
-              {isSuspended ? (
+              {ws.banned_permanently ? (
+                role === 'super_admin' && (
+                  <button
+                    className="x-btn-danger"
+                    disabled={busy}
+                    style={{ background: 'rgba(180,20,20,0.15)', color: '#ff4444', borderColor: 'rgba(180,20,20,0.5)' }}
+                    onClick={() => setConfirm({
+                      type: 'lift_perm_ban',
+                      title: 'Override — Lift Permanent Ban',
+                      message: `This will fully restore a permanently banned workspace. Are you absolutely sure?`,
+                      label: 'Yes, Restore',
+                      danger: true,
+                    })}
+                  >
+                    {busy ? '…' : 'Override — Lift Permanent Ban'}
+                  </button>
+                )
+              ) : isSuspended ? (
                 <button
                   className="x-btn-action"
                   disabled={busy}
@@ -231,7 +250,7 @@ function StatusPill({ ws }) {
   return <span className="x-pill act">Active</span>
 }
 
-export default function AdminUsers({ onNavigate }) {
+export default function AdminUsers({ onNavigate, role }) {
   const [workspaces, setWorkspaces] = useState([])
   const [loading,    setLoading]    = useState(true)
   const [expanded,   setExpanded]   = useState(null)
@@ -250,20 +269,22 @@ export default function AdminUsers({ onNavigate }) {
       return
     }
     const messages = {
-      temp_ban:  'Workspace suspended — click Unban to restore.',
-      perm_ban:  'Workspace permanently banned.',
-      unban:     'Workspace restored — fully active again.',
-      essential: 'Plan reset to Essential. User retains all data.',
-      beta:      'Tagged as beta tester. Visible in Beta section.',
+      temp_ban:     'Workspace suspended — click Unban to restore.',
+      perm_ban:     'Workspace permanently banned.',
+      unban:        'Workspace restored — fully active again.',
+      lift_perm_ban:'Permanent ban lifted — workspace fully restored.',
+      essential:    'Plan reset to Essential. User retains all data.',
+      beta:         'Tagged as beta tester. Visible in Beta section.',
     }
     showToast(messages[type] || 'Done')
     setWorkspaces(prev => prev.map(w => {
       if (w.id !== wsId) return w
-      if (type === 'temp_ban')  return { ...w, is_published: false, beta_suspended: true }
-      if (type === 'perm_ban')  return { ...w, is_published: false, beta_suspended: true, banned_permanently: true }
-      if (type === 'unban')     return { ...w, is_published: true,  beta_suspended: false }
-      if (type === 'essential') return { ...w, stripe_onboarded: false }
-      if (type === 'beta')      return { ...w, is_beta: true, beta_tagged_at: new Date().toISOString(), is_published: true, beta_suspended: false }
+      if (type === 'temp_ban')     return { ...w, is_published: false, beta_suspended: true }
+      if (type === 'perm_ban')     return { ...w, is_published: false, beta_suspended: true, banned_permanently: true }
+      if (type === 'unban')        return { ...w, is_published: true,  beta_suspended: false }
+      if (type === 'lift_perm_ban')return { ...w, is_published: true,  beta_suspended: false, banned_permanently: false }
+      if (type === 'essential')    return { ...w, stripe_onboarded: false }
+      if (type === 'beta')         return { ...w, is_beta: true, beta_tagged_at: new Date().toISOString(), is_published: true, beta_suspended: false }
       return w
     }))
   }
@@ -327,7 +348,7 @@ export default function AdminUsers({ onNavigate }) {
                   <td style={{ fontFamily: 'DM Mono,monospace', fontSize: 9, color: 'var(--muted)' }}>{fmtDate(w.created_at)}</td>
                 </tr>
                 {expanded === w.id && (
-                  <DetailPanel ws={w} onAction={(type, err) => handleAction(w.id, type, err)} />
+                  <DetailPanel ws={w} onAction={(type, err) => handleAction(w.id, type, err)} role={role} />
                 )}
               </React.Fragment>
             ))}

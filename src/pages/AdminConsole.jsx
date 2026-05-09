@@ -38,10 +38,10 @@ function useClock() {
   return `${days[time.getDay()]} ${time.getDate()} ${months[time.getMonth()]} ${time.getFullYear()} · ${h}:${m}`
 }
 
-function ConsoleSections({ section, onNavigate }) {
+function ConsoleSections({ section, onNavigate, role }) {
   switch (section) {
     case 'overview': return <AdminOverview onNavigate={onNavigate} />
-    case 'users':    return <AdminUsers    onNavigate={onNavigate} />
+    case 'users':    return <AdminUsers    onNavigate={onNavigate} role={role} />
     case 'revenue':  return <AdminRevenue />
     case 'beta':     return <AdminBeta />
     case 'health':   return <AdminHealth  onNavigate={onNavigate} />
@@ -120,7 +120,7 @@ function ConsoleShell() {
           </header>
 
           <div className="x-content">
-            <ConsoleSections section={section} onNavigate={setSection} />
+            <ConsoleSections section={section} onNavigate={setSection} role={role} />
           </div>
         </div>
       </div>
