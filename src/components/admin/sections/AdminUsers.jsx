@@ -34,7 +34,7 @@ function DetailPanel({ ws, onAction }) {
     setConfirm(null)
     let error = null
     if (type === 'ban') {
-      ({ error } = await supabase.rpc('admin_set_workspace_published', { p_id: ws.id, p_published: false }))
+      ({ error } = await supabase.rpc('admin_ban_workspace', { p_id: ws.id }))
     } else if (type === 'unban') {
       ({ error } = await supabase.rpc('admin_restore_workspace', { p_id: ws.id }))
     } else if (type === 'essential') {

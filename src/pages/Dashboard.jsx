@@ -842,6 +842,27 @@ export default function Dashboard() {
     }
   }
 
+  useEffect(()=>{
+    if(!workspace?.id) return
+    const channel = supabase
+      .channel('workspace-status-' + workspace.id)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'workspaces',
+        filter: `id=eq.${workspace.id}`,
+      }, (payload) => {
+        const w = payload.new
+        if (w.beta_suspended === true && !w.is_beta) {
+          window.location.replace('/suspended')
+        } else {
+          setWorkspace(prev => ({ ...prev, ...w }))
+        }
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [workspace?.id])
+
   function setTheme(t){
     setThemeState(t)
     localStorage.setItem('org-theme',t)
