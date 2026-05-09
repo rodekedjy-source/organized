@@ -17,32 +17,28 @@ export default function Suspended() {
   }, [])
 
   useEffect(() => {
-    let channel
+    let interval = null
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) return
-      supabase
-        .from('workspaces')
-        .select('id, beta_suspended')
-        .eq('user_id', session.user.id)
-        .maybeSingle()
-        .then(({ data: ws }) => {
-          if (!ws) return
-          channel = supabase
-            .channel('suspended-ws-' + ws.id)
-            .on('postgres_changes', {
-              event: 'UPDATE',
-              schema: 'public',
-              table: 'workspaces',
-              filter: `id=eq.${ws.id}`,
-            }, (payload) => {
-              if (payload.new.beta_suspended === false || payload.new.is_published === true) {
-                window.location.href = '/dashboard'
-              }
-            })
-            .subscribe()
-        })
+
+      interval = setInterval(async () => {
+        const { data: ws } = await supabase
+          .from('workspaces')
+          .select('beta_suspended, is_published, is_beta')
+          .eq('user_id', session.user.id)
+          .single()
+
+        if (!ws) return
+
+        if (ws.beta_suspended === false && ws.is_published === true) {
+          clearInterval(interval)
+          window.location.href = '/dashboard'
+        }
+      }, 3000)
     })
-    return () => { if (channel) supabase.removeChannel(channel) }
+
+    return () => { if (interval) clearInterval(interval) }
   }, [])
 
   async function signOut() {
