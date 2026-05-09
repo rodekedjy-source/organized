@@ -16,6 +16,35 @@ export default function Suspended() {
     return () => { if (document.head.contains(link)) document.head.removeChild(link) }
   }, [])
 
+  useEffect(() => {
+    let channel
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) return
+      supabase
+        .from('workspaces')
+        .select('id, beta_suspended')
+        .eq('user_id', session.user.id)
+        .maybeSingle()
+        .then(({ data: ws }) => {
+          if (!ws) return
+          channel = supabase
+            .channel('suspended-ws-' + ws.id)
+            .on('postgres_changes', {
+              event: 'UPDATE',
+              schema: 'public',
+              table: 'workspaces',
+              filter: `id=eq.${ws.id}`,
+            }, (payload) => {
+              if (payload.new.beta_suspended === false || payload.new.is_published === true) {
+                window.location.href = '/dashboard'
+              }
+            })
+            .subscribe()
+        })
+    })
+    return () => { if (channel) supabase.removeChannel(channel) }
+  }, [])
+
   async function signOut() {
     await supabase.auth.signOut()
     window.location.href = '/'
