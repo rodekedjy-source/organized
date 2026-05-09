@@ -1,23 +1,27 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../../lib/supabase'
-import { KpiCard, SecHd, Card, StatusPill, CenterSpinner, Toast, useToast, fmtMoney, fmtDate, fmtTime } from '../AdminShared'
+import { KpiCard, SecHd, Card, CenterSpinner, Toast, useToast, fmtMoney, fmtDate, fmtTime } from '../AdminShared'
 
 function AuditOpPill({ action }) {
   const a = (action || '').toLowerCase()
   const cls = a === 'insert' ? 'ins' : a === 'update' ? 'upd' : a === 'delete' ? 'del' : 'ins'
-  const label = a.toUpperCase()
-  return <div className={`x-aop ${cls}`}>{label}</div>
+  return <div className={`x-aop ${cls}`}>{a.toUpperCase()}</div>
 }
 
 export default function AdminOverview() {
-  const [data, setData] = useState(null)
+  const [data,    setData]    = useState(null)
+  const [mrr,     setMrr]     = useState(null)
   const [loading, setLoading] = useState(true)
-  const { toastMsg, showToast } = useToast()
+  const { toastMsg, toastType, showToast } = useToast()
 
   useEffect(() => {
     async function load() {
-      const { data: result } = await supabase.rpc('get_admin_overview')
-      setData(result)
+      const [{ data: overview }, { data: mrrData }] = await Promise.all([
+        supabase.rpc('get_admin_overview'),
+        supabase.rpc('get_mrr_overview'),
+      ])
+      setData(overview)
+      setMrr(mrrData)
       setLoading(false)
     }
     load()
@@ -25,22 +29,34 @@ export default function AdminOverview() {
 
   if (loading) return <CenterSpinner />
 
-  const wsCount = data?.workspace_count ?? 0
-  const auditCount = data?.audit_count ?? 0
-  const apptCount = data?.appointment_count ?? 0
-  const recentWs = data?.recent_workspaces || []
-  const recentAudit = data?.recent_audit || []
+  const wsCount    = data?.workspace_count    ?? 0
+  const auditCount = data?.audit_count        ?? 0
+  const apptCount  = data?.appointment_count  ?? 0
+  const recentWs   = data?.recent_workspaces  || []
+  const recentAudit= data?.recent_audit       || []
+
+  const thisMRR  = mrr?.this_month  ?? 0
+  const lastMRR  = mrr?.last_month  ?? 0
+  const mrrDelta = thisMRR - lastMRR
+  const mrrChangeType = mrrDelta > 0 ? 'up' : mrrDelta < 0 ? 'wn' : 'nn'
+  const mrrChangeLabel = lastMRR === 0
+    ? (thisMRR > 0 ? '↑ First revenue!' : '— No payments yet')
+    : `${mrrDelta >= 0 ? '↑' : '↓'} ${fmtMoney(Math.abs(mrrDelta))} vs last month`
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <div className="x-g4">
-        <KpiCard label="MRR" value="$0" change="⚡ Stripe required" changeType="wn" gold
+        <KpiCard label="MRR — This Month" value={fmtMoney(thisMRR)}
+          change={mrrChangeLabel} changeType={mrrChangeType} gold
           spark={[20, 20, 20, 20, 20]} />
-        <KpiCard label="Workspaces" value={wsCount} change="— Pre-beta" changeType="nn"
+        <KpiCard label="Workspaces" value={wsCount}
+          change="— Pre-beta" changeType="nn"
           spark={[10, 10, 60, 60, 100]} />
-        <KpiCard label="Appointments" value={apptCount} change="↑ Active" changeType="up"
+        <KpiCard label="Appointments" value={apptCount}
+          change="↑ Active" changeType="up"
           spark={[30, 55, 45, 80, 100]} sparkAllGold />
-        <KpiCard label="Audit Events" value={auditCount} change="↑ Real-time" changeType="up"
+        <KpiCard label="Audit Events" value={auditCount}
+          change="↑ Real-time" changeType="up"
           spark={[40, 65, 55, 85, 100]} sparkAllGold />
       </div>
 
@@ -77,7 +93,7 @@ export default function AdminOverview() {
           <div className="x-hrow"><div className="x-hname">Vercel Production</div><div className="x-hst ok"><span className="x-hd" />Ready</div></div>
           <div className="x-hrow"><div className="x-hname">Stripe Webhook</div><div className="x-hst ok"><span className="x-hd" />Active v2</div></div>
           <div className="x-hrow"><div className="x-hname">Edge Functions</div><div className="x-hst ok"><span className="x-hd" />Active</div></div>
-          <div className="x-hrow"><div className="x-hname">Stripe Mode</div><div className="x-hst wn"><span className="x-hd" />Test only</div></div>
+          <div className="x-hrow"><div className="x-hname">MRR this month</div><div className="x-hst ok"><span className="x-hd" />{fmtMoney(thisMRR)}</div></div>
           <div style={{ marginTop: 14 }}><button className="x-btn-ghost">Full details →</button></div>
         </Card>
       </div>
@@ -91,13 +107,12 @@ export default function AdminOverview() {
           <div key={a.id} className="x-audit-row">
             <div className="x-at">{fmtTime(a.changed_at)}</div>
             <AuditOpPill action={a.action} />
-            <div className="x-am">{a.table_name} — {a.action}</div>
-            <div className="x-aw">@ws</div>
+            <div className="x-am" style={{ flex: 1 }}>{a.table_name}</div>
           </div>
         ))}
       </Card>
 
-      <Toast msg={toastMsg} />
+      <Toast msg={toastMsg} type={toastType} />
     </div>
   )
 }

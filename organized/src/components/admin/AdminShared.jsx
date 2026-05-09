@@ -83,6 +83,10 @@ body{background:var(--bg);color:var(--white);font-family:'DM Sans',sans-serif;fo
 .x-btn-primary:hover{background:#d4b35e;}
 .x-btn-cancel{font-family:'DM Mono',monospace;font-size:10px;color:var(--muted2);cursor:pointer;padding:8px 16px;border-radius:6px;border:1px solid var(--border);background:transparent;transition:all 0.15s;}
 .x-btn-cancel:hover{border-color:var(--border2);color:var(--white);}
+.x-btn-danger{font-family:'DM Mono',monospace;font-size:9px;color:#fff;cursor:pointer;padding:5px 10px;border-radius:4px;border:1px solid rgba(239,68,68,0.4);background:rgba(239,68,68,0.12);transition:all 0.15s;white-space:nowrap;}
+.x-btn-danger:hover{background:rgba(239,68,68,0.9);border-color:var(--red);}
+.x-btn-action{font-family:'DM Mono',monospace;font-size:9px;color:var(--muted2);cursor:pointer;padding:5px 10px;border-radius:4px;border:1px solid var(--border2);background:transparent;transition:all 0.15s;white-space:nowrap;}
+.x-btn-action:hover{color:var(--white);border-color:var(--border2);background:var(--surface2);}
 
 .x-tbl{width:100%;border-collapse:collapse;}
 .x-tbl th{font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;text-align:left;padding:0 0 12px;border-bottom:1px solid var(--border);}
@@ -207,8 +211,9 @@ body{background:var(--bg);color:var(--white);font-family:'DM Sans',sans-serif;fo
 .x-rd{font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);}
 .x-modal-actions{display:flex;gap:10px;justify-content:flex-end;}
 
-.x-toast{position:fixed;bottom:24px;right:24px;background:var(--surface);border:1px solid rgba(34,197,94,0.3);border-radius:8px;padding:12px 16px;font-family:'DM Mono',monospace;font-size:11px;color:var(--green);z-index:200;transform:translateY(80px);opacity:0;transition:all 0.3s;pointer-events:none;}
+.x-toast{position:fixed;bottom:24px;right:24px;background:var(--surface);border:1px solid rgba(34,197,94,0.3);border-radius:8px;padding:12px 16px;font-family:'DM Mono',monospace;font-size:11px;color:var(--green);z-index:9999;transform:translateY(80px);opacity:0;transition:all 0.3s;pointer-events:none;max-width:320px;}
 .x-toast.show{transform:translateY(0);opacity:1;}
+.x-toast.err{border-color:rgba(239,68,68,0.3);color:var(--red);}
 
 .x-spinner{width:20px;height:20px;border:2px solid rgba(201,168,76,0.15);border-top-color:var(--gold);border-radius:50%;animation:x-spin 0.7s linear infinite;}
 @keyframes x-spin{to{transform:rotate(360deg);}}
@@ -285,17 +290,18 @@ export function CenterSpinner() {
   return <div className="x-center-spinner"><Spinner /></div>
 }
 
-export function Toast({ msg }) {
-  return <div className={`x-toast${msg ? ' show' : ''}`}>{msg ? `✓  ${msg}` : ''}</div>
+export function Toast({ msg, type = 'ok' }) {
+  const icon = type === 'err' ? '✕' : '✓'
+  return <div className={`x-toast${msg ? ' show' : ''}${type === 'err' ? ' err' : ''}`}>{msg ? `${icon}  ${msg}` : ''}</div>
 }
 
 export function useToast() {
-  const [msg, setMsg] = useState(null)
-  function showToast(text) {
-    setMsg(text)
-    setTimeout(() => setMsg(null), 2500)
+  const [toast, setToast] = useState(null)
+  function showToast(text, type = 'ok') {
+    setToast({ text, type })
+    setTimeout(() => setToast(null), 3000)
   }
-  return { toastMsg: msg, showToast }
+  return { toastMsg: toast?.text || null, toastType: toast?.type || 'ok', showToast }
 }
 
 export function KpiCard({ label, value, change, changeType = 'nn', gold = false, spark, sparkAllGold = false }) {
