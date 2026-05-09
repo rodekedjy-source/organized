@@ -213,6 +213,36 @@ body{background:var(--bg);color:var(--white);font-family:'DM Sans',sans-serif;fo
 .x-spinner{width:20px;height:20px;border:2px solid rgba(201,168,76,0.15);border-top-color:var(--gold);border-radius:50%;animation:x-spin 0.7s linear infinite;}
 @keyframes x-spin{to{transform:rotate(360deg);}}
 .x-center-spinner{display:flex;align-items:center;justify-content:center;padding:60px;}
+
+/* HAMBURGER — hidden on desktop, shown on mobile */
+.x-hamburger{display:none;flex-direction:column;gap:4px;padding:6px;background:none;border:none;cursor:pointer;flex-shrink:0;}
+.x-hamburger-bar{width:18px;height:2px;background:var(--white);border-radius:2px;display:block;}
+
+/* OVERLAY — rendered conditionally via React, always full-screen when present */
+.x-sb-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:999;}
+
+@media(max-width:768px){
+  /* Pull sidebar completely out of layout flow — it covers content as overlay */
+  .x-sidebar{
+    position:fixed;top:0;left:0;bottom:0;
+    z-index:1000;width:280px;
+    transform:translateX(-100%);
+    transition:transform 0.28s cubic-bezier(.4,0,.2,1);
+    box-shadow:8px 0 32px rgba(0,0,0,0.4);
+  }
+  .x-sidebar.mobile-open{transform:translateX(0);}
+  /* Main fills full width since sidebar is no longer in the flex flow */
+  .x-main{width:100%;}
+  .x-hamburger{display:flex;}
+  .x-topbar{padding:0 12px;}
+  .x-content{padding:16px;}
+  .x-g4{grid-template-columns:repeat(2,1fr);}
+  .x-g2{grid-template-columns:1fr;}
+  .x-g32{grid-template-columns:1fr;}
+  .x-g3{grid-template-columns:1fr;}
+  .x-topbar-date{display:none;}
+  .x-sep{display:none;}
+}
 `
 
 export function fmt(n) {

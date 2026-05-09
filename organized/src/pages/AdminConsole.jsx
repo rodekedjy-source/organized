@@ -69,6 +69,16 @@ function ConsoleShell() {
     setSidebarOpen(false)
   }
 
+  function closeSidebar() {
+    setSidebarOpen(false)
+  }
+
+  // Lock body scroll when mobile sidebar is open (same as Dashboard)
+  useEffect(() => {
+    document.body.style.overflow = sidebarOpen ? 'hidden' : ''
+    return () => { document.body.style.overflow = '' }
+  }, [sidebarOpen])
+
   useEffect(() => {
     const link = document.createElement('link')
     link.rel = 'stylesheet'
@@ -81,7 +91,8 @@ function ConsoleShell() {
     <>
       <style>{ADMIN_CSS}</style>
       <div className="x-wrap">
-        {sidebarOpen && <div className="x-sb-overlay" onClick={() => setSidebarOpen(false)} />}
+        {sidebarOpen && <div className="x-sb-overlay" onClick={closeSidebar} />}
+
         <AdminSidebar
           active={section}
           onSelect={handleSelect}
@@ -92,7 +103,11 @@ function ConsoleShell() {
 
         <div className="x-main">
           <header className="x-topbar">
-            <button className="x-hamburger" onClick={() => setSidebarOpen(v => !v)}>☰</button>
+            <button className="x-hamburger" onClick={() => setSidebarOpen(v => !v)} aria-label="Open menu">
+              <span className="x-hamburger-bar" />
+              <span className="x-hamburger-bar" />
+              <span className="x-hamburger-bar" />
+            </button>
             <div className="x-page-title">{SECTION_TITLES[section] || 'Console'}</div>
             <div className="x-live-dot" />
             <div className="x-live-lbl">Live</div>
