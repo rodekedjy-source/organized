@@ -13,10 +13,10 @@ export function useAdminAuth() {
       setUser(session.user)
       const { data } = await supabase
         .from('admin_users')
-        .select('is_active, role')
+        .select('authorized, role')
         .eq('user_id', session.user.id)
         .single()
-      setIsAdmin(data?.is_active === true)
+      setIsAdmin(data?.authorized === true)
       setLoading(false)
     }
     check()

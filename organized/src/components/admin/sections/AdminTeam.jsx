@@ -56,11 +56,11 @@ export default function AdminTeam() {
   async function handleToggleActive(member) {
     const { data } = await supabase
       .from('admin_users')
-      .update({ is_active: !member.is_active })
-      .eq('id', member.id)
+      .update({ authorized: !member.authorized })
+      .eq('user_id', member.user_id)
       .select()
       .single()
-    if (data) setMembers(prev => prev.map(m => m.id === member.id ? data : m))
+    if (data) setMembers(prev => prev.map(m => m.user_id === member.user_id ? data : m))
   }
 
   if (loading) return <CenterSpinner />
@@ -155,12 +155,12 @@ export default function AdminTeam() {
                 >
                   <span style={{
                     width: 7, height: 7, borderRadius: '50%',
-                    background: m.is_active ? '#4ade80' : 'rgba(255,255,255,.15)',
-                    boxShadow: m.is_active ? '0 0 5px rgba(74,222,128,.35)' : 'none',
+                    background: m.authorized ? '#4ade80' : 'rgba(255,255,255,.15)',
+                    boxShadow: m.authorized ? '0 0 5px rgba(74,222,128,.35)' : 'none',
                     display: 'inline-block',
                   }} />
-                  <span style={{ fontSize: '.7rem', color: m.is_active ? '#4ade80' : 'rgba(240,236,228,.25)' }}>
-                    {m.is_active ? 'Active' : 'Inactive'}
+                  <span style={{ fontSize: '.7rem', color: m.authorized ? '#4ade80' : 'rgba(240,236,228,.25)' }}>
+                    {m.authorized ? 'Active' : 'Inactive'}
                   </span>
                 </button>
               </td>
