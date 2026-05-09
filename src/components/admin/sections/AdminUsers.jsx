@@ -36,16 +36,7 @@ function DetailPanel({ ws, onAction }) {
     if (type === 'ban') {
       ({ error } = await supabase.rpc('admin_set_workspace_published', { p_id: ws.id, p_published: false }))
     } else if (type === 'unban') {
-      const { error: e1 } = await supabase.rpc('admin_set_workspace_published', { p_id: ws.id, p_published: true })
-      if (!e1) {
-        const { error: e2 } = await supabase
-          .from('workspaces')
-          .update({ beta_suspended: false, beta_suspended_at: null })
-          .eq('id', ws.id)
-        error = e2
-      } else {
-        error = e1
-      }
+      ({ error } = await supabase.rpc('admin_restore_workspace', { p_id: ws.id }))
     } else if (type === 'essential') {
       ({ error } = await supabase.rpc('admin_force_essential', { p_id: ws.id }))
     } else if (type === 'beta') {
