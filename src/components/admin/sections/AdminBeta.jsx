@@ -196,25 +196,47 @@ function BetaCard({ ws, status, onRemoved }) {
 }
 
 export default function AdminBeta() {
-  const [betaUsers, setBetaUsers] = useState([])
-  const [loading,   setLoading]   = useState(true)
+  const [betaUsers,       setBetaUsers]       = useState([])
+  const [loading,         setLoading]         = useState(true)
+  const [waitlist,        setWaitlist]        = useState([])
+  const [waitlistLoading, setWaitlistLoading] = useState(true)
+  const [sendConfirm,     setSendConfirm]     = useState(false)
+  const [sending,         setSending]         = useState(false)
   const { toastMsg, toastType, showToast } = useToast()
 
   useEffect(() => {
     supabase.rpc('get_workspaces_admin').then(({ data }) => {
-      const beta = (data || []).filter(w => w.is_beta)
-      setBetaUsers(beta)
+      setBetaUsers((data || []).filter(w => w.is_beta))
       setLoading(false)
     })
+    loadWaitlist()
   }, [])
 
+  async function loadWaitlist() {
+    setWaitlistLoading(true)
+    const { data } = await supabase
+      .from('waitlist')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(50)
+    setWaitlist(data || [])
+    setWaitlistLoading(false)
+  }
+
   function handleRemoved(wsId, error) {
-    if (error) {
-      showToast(`Failed: ${error.message}`, 'err')
-      return
-    }
+    if (error) { showToast(`Failed: ${error.message}`, 'err'); return }
     showToast('Access suspended. All data preserved. They will be restored at launch when they pay.')
     setBetaUsers(prev => prev.filter(w => w.id !== wsId))
+  }
+
+  async function sendLaunchEmails() {
+    setSending(true)
+    setSendConfirm(false)
+    const { data, error } = await supabase.functions.invoke('send-launch-email')
+    setSending(false)
+    if (error) { showToast(`Failed: ${error.message}`, 'err'); return }
+    showToast(`Emails envoyés avec succès à ${data?.sent ?? 0} personnes`)
+    loadWaitlist()
   }
 
   if (loading) return <CenterSpinner />
@@ -229,6 +251,10 @@ export default function AdminBeta() {
   const inactive = withStatus.filter(w => w._status === 'inactive').length
   const churned  = withStatus.filter(w => w._status === 'churned').length
   const pct      = Math.round((total / GOAL) * 100)
+
+  const waitlistTotal    = waitlist.length
+  const waitlistNotified = waitlist.filter(r => r.notified_at).length
+  const waitlistPending  = waitlistTotal - waitlistNotified
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -264,7 +290,6 @@ export default function AdminBeta() {
             Churned first · Active last
           </div>
         } />
-
         {sorted.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--muted)', fontSize: 12 }}>
             <div style={{ fontFamily: 'Cormorant Garamond,serif', fontSize: 22, marginBottom: 10, color: 'var(--muted2)' }}>No beta testers yet</div>
@@ -295,6 +320,74 @@ export default function AdminBeta() {
           </div>
         </div>
       </Card>
+
+      {/* Waitlist card */}
+      <Card>
+        <SecHd title="Waitlist" right={
+          <div style={{ fontFamily: 'DM Mono,monospace', fontSize: 9, color: 'var(--muted)' }}>
+            Suspended page sign-ups
+          </div>
+        } />
+
+        <div className="x-g4" style={{ gridTemplateColumns: '1fr 1fr', marginBottom: 16 }}>
+          <KpiCard label="Total signups" value={waitlistTotal} change="Depuis la page suspendue" changeType={waitlistTotal > 0 ? 'up' : 'nn'} />
+          <KpiCard label="Notified" value={waitlistNotified} change={waitlistPending > 0 ? `${waitlistPending} en attente` : '— All notified'} changeType={waitlistNotified > 0 ? 'up' : 'nn'} />
+        </div>
+
+        {waitlistLoading ? (
+          <div style={{ fontFamily: 'DM Mono,monospace', fontSize: 10, color: 'var(--muted)', padding: '12px 0' }}>Loading…</div>
+        ) : waitlist.length === 0 ? (
+          <div style={{ fontFamily: 'DM Mono,monospace', fontSize: 10, color: 'var(--muted)', padding: '16px 0', textAlign: 'center' }}>
+            No signups yet — waitlist form appears on the /suspended page
+          </div>
+        ) : (
+          <table className="x-tbl" style={{ marginBottom: 16 }}>
+            <thead>
+              <tr>
+                <th>Email</th>
+                <th>Source</th>
+                <th>Workspace</th>
+                <th>Joined</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {waitlist.map(r => (
+                <tr key={r.id}>
+                  <td style={{ fontFamily: 'DM Mono,monospace', fontSize: 10 }}>{r.email}</td>
+                  <td style={{ fontFamily: 'DM Mono,monospace', fontSize: 9, color: 'var(--muted)' }}>{r.source || '—'}</td>
+                  <td style={{ fontFamily: 'DM Mono,monospace', fontSize: 9, color: 'var(--muted)' }}>{r.workspace_slug || '—'}</td>
+                  <td style={{ fontFamily: 'DM Mono,monospace', fontSize: 9, color: 'var(--muted)' }}>{fmtDate(r.created_at)}</td>
+                  <td>
+                    {r.notified_at
+                      ? <span className="x-pill act">Notified ✓</span>
+                      : <span className="x-pill inn">Waiting</span>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+
+        <button
+          className="x-btn-primary"
+          disabled={sending || waitlistPending === 0}
+          style={{ width: '100%', justifyContent: 'center', opacity: waitlistPending === 0 ? 0.5 : 1 }}
+          onClick={() => setSendConfirm(true)}
+        >
+          {sending ? 'Envoi en cours…' : `Send Launch Email${waitlistPending > 0 ? ` (${waitlistPending} pending)` : ''}`}
+        </button>
+      </Card>
+
+      <ConfirmModal
+        open={sendConfirm}
+        title="Envoyer l'email de lancement"
+        body={`Ceci enverra l'email de lancement à ${waitlistPending} personne${waitlistPending !== 1 ? 's' : ''} qui n'ont pas encore été notifiées. Cette action ne peut pas être annulée.`}
+        confirmLabel={`Envoyer à ${waitlistPending} personne${waitlistPending !== 1 ? 's' : ''}`}
+        busy={sending}
+        onClose={() => setSendConfirm(false)}
+        onConfirm={sendLaunchEmails}
+      />
 
       <Toast msg={toastMsg} type={toastType} />
     </div>

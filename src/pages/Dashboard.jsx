@@ -822,7 +822,7 @@ export default function Dashboard() {
       supabase.from('workspaces').select('*').eq('user_id',s.user.id).maybeSingle(),
       supabase.from('users').select('*').eq('id',s.user.id).maybeSingle(),
     ])
-    if (ws?.beta_suspended === true) {
+    if (ws?.beta_suspended === true && ws?.is_beta === false) {
       window.location.replace('/suspended')
       return
     }
