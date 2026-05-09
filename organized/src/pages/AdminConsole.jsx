@@ -54,6 +54,7 @@ function ConsoleSections({ section }) {
 
 function ConsoleShell() {
   const [section, setSection] = useState('overview')
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const navigate = useNavigate()
   const { user, role } = useAdminAuth()
   const clock = useClock()
@@ -61,6 +62,11 @@ function ConsoleShell() {
   async function handleSignOut() {
     await supabase.auth.signOut()
     navigate('/', { replace: true })
+  }
+
+  function handleSelect(id) {
+    setSection(id)
+    setSidebarOpen(false)
   }
 
   useEffect(() => {
@@ -75,15 +81,18 @@ function ConsoleShell() {
     <>
       <style>{ADMIN_CSS}</style>
       <div className="x-wrap">
+        {sidebarOpen && <div className="x-sb-overlay" onClick={() => setSidebarOpen(false)} />}
         <AdminSidebar
           active={section}
-          onSelect={setSection}
+          onSelect={handleSelect}
           userEmail={user?.email}
           userRole={role}
+          mobileOpen={sidebarOpen}
         />
 
         <div className="x-main">
           <header className="x-topbar">
+            <button className="x-hamburger" onClick={() => setSidebarOpen(v => !v)}>☰</button>
             <div className="x-page-title">{SECTION_TITLES[section] || 'Console'}</div>
             <div className="x-live-dot" />
             <div className="x-live-lbl">Live</div>

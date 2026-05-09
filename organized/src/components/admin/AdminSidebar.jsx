@@ -59,13 +59,13 @@ const NAV = [
   },
 ]
 
-export default function AdminSidebar({ active, onSelect, userEmail, userName, userRole }) {
+export default function AdminSidebar({ active, onSelect, userEmail, userName, userRole, mobileOpen }) {
   const initials = (userName || userEmail || 'A').charAt(0).toUpperCase()
   const displayName = userName || (userEmail ? userEmail.split('@')[0] : 'Admin')
   const roleLabel = { super_admin: 'Super Admin', co_founder: 'Co-Founder', team: 'Team' }[userRole] || 'Admin'
 
   return (
-    <div className="x-sidebar">
+    <div className={`x-sidebar${mobileOpen ? ' mobile-open' : ''}`}>
       <div className="x-sb-logo">
         <div className="x-sb-brand">Organized.</div>
         <div className="x-sb-label">Founder Console</div>

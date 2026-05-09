@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { supabase } from '../../../lib/supabase'
 import { KpiCard, SecHd, Card, CenterSpinner, fmtDate } from '../AdminShared'
 
@@ -59,6 +59,7 @@ export default function AdminUsers() {
             <tr>
               <th>Workspace</th>
               <th>Email</th>
+              <th>Usage</th>
               <th>Status</th>
               <th>Created</th>
             </tr>
@@ -68,8 +69,8 @@ export default function AdminUsers() {
               <tr><td colSpan={4} style={{ color: 'var(--muted)', fontFamily: 'DM Mono, monospace', fontSize: 10, paddingTop: 16 }}>No workspaces found</td></tr>
             )}
             {workspaces.map(w => (
-              <>
-                <tr key={w.id} style={{ cursor: 'pointer' }} onClick={() => setExpanded(expanded === w.id ? null : w.id)}>
+              <React.Fragment key={w.id}>
+                <tr style={{ cursor: 'pointer' }} onClick={() => setExpanded(expanded === w.id ? null : w.id)}>
                   <td>
                     <div className="x-ws-row">
                       <div className="x-ws-av">🏢</div>
@@ -80,6 +81,7 @@ export default function AdminUsers() {
                     </div>
                   </td>
                   <td style={{ fontSize: 11, color: 'var(--muted2)' }}>{w.email || '—'}</td>
+                  <td style={{ fontFamily: 'DM Mono, monospace', fontSize: 9, color: 'var(--muted)' }}>{w.client_count ?? '—'} clients · {w.appointment_count ?? '—'} appts</td>
                   <td>
                     <span className={`x-pill ${w.is_published ? 'act' : 'inn'}`}>
                       {w.is_published ? 'Active' : 'Inactive'}
@@ -87,8 +89,8 @@ export default function AdminUsers() {
                   </td>
                   <td style={{ fontFamily: 'DM Mono, monospace', fontSize: 9, color: 'var(--muted)' }}>{fmtDate(w.created_at)}</td>
                 </tr>
-                {expanded === w.id && <DetailPanel key={`d-${w.id}`} ws={w} />}
-              </>
+                {expanded === w.id && <DetailPanel ws={w} />}
+              </React.Fragment>
             ))}
           </tbody>
         </table>
