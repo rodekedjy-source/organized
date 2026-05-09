@@ -5,6 +5,7 @@ export function useAdminAuth() {
   const [isAdmin, setIsAdmin] = useState(null)
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState(null)
+  const [role, setRole] = useState(null)
 
   useEffect(() => {
     async function check() {
@@ -13,14 +14,15 @@ export function useAdminAuth() {
       setUser(session.user)
       const { data } = await supabase
         .from('admin_users')
-        .select('authorized, role')
+        .select('authorized, role, name')
         .eq('user_id', session.user.id)
         .single()
       setIsAdmin(data?.authorized === true)
+      setRole(data?.role || null)
       setLoading(false)
     }
     check()
   }, [])
 
-  return { isAdmin, loading, user }
+  return { isAdmin, loading, user, role }
 }

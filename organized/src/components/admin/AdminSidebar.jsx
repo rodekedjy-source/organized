@@ -1,107 +1,104 @@
-export const NAV_ITEMS = [
+const NAV = [
   {
-    id: 'overview', label: 'Overview',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-        <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
-        <rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>
-      </svg>
-    ),
+    group: 'Principal',
+    items: [
+      {
+        id: 'overview', label: 'Overview',
+        icon: <svg className="x-nav-icon" viewBox="0 0 15 15" fill="none"><rect x="1" y="1" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.2"/><rect x="9" y="1" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.2"/><rect x="1" y="9" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.2"/><rect x="9" y="9" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.2"/></svg>,
+      },
+      {
+        id: 'users', label: 'Workspaces',
+        icon: <svg className="x-nav-icon" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="4.5" r="2.5" stroke="currentColor" strokeWidth="1.2"/><path d="M2 13c0-3.038 2.462-5.5 5.5-5.5S13 9.962 13 13" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>,
+      },
+      {
+        id: 'revenue', label: 'Revenue',
+        icon: <svg className="x-nav-icon" viewBox="0 0 15 15" fill="none"><path d="M1 11l3-3 3 3 3-5 3 3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+      },
+    ],
   },
   {
-    id: 'users', label: 'Workspaces',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-        <circle cx="9" cy="7" r="4"/>
-        <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
-      </svg>
-    ),
+    group: 'Launch',
+    items: [
+      {
+        id: 'beta', label: 'Beta Testers',
+        icon: <svg className="x-nav-icon" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="6" stroke="currentColor" strokeWidth="1.2"/><path d="M7.5 4v4l2 2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>,
+      },
+    ],
   },
   {
-    id: 'revenue', label: 'Revenue',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-        <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-      </svg>
-    ),
+    group: 'System',
+    items: [
+      {
+        id: 'health', label: 'System Health',
+        icon: <svg className="x-nav-icon" viewBox="0 0 15 15" fill="none"><rect x="1" y="3" width="13" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.2"/><path d="M5 12v2M10 12v2M3 14h9" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>,
+      },
+      {
+        id: 'audit', label: 'Audit Trail',
+        icon: <svg className="x-nav-icon" viewBox="0 0 15 15" fill="none"><path d="M1 4h13M1 7.5h13M1 11h13" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>,
+        badge: { label: 'live', type: 'gold' },
+      },
+    ],
   },
   {
-    id: 'beta', label: 'Beta Testers',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-        <path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18"/>
-      </svg>
-    ),
+    group: 'Custom',
+    items: [
+      {
+        id: 'theme', label: 'Theme',
+        icon: <svg className="x-nav-icon" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="3" stroke="currentColor" strokeWidth="1.2"/><path d="M7.5 1v2M7.5 12v2M1 7.5h2M12 7.5h2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>,
+      },
+    ],
   },
   {
-    id: 'health', label: 'System Health',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-      </svg>
-    ),
-  },
-  {
-    id: 'audit', label: 'Audit Log',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-        <polyline points="14 2 14 8 20 8"/>
-        <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
-        <polyline points="10 9 9 9 8 9"/>
-      </svg>
-    ),
-  },
-  {
-    id: 'theme', label: 'Theme',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-        <circle cx="12" cy="12" r="3"/>
-        <path d="M19.07 4.93l-1.41 1.41M5.34 18.66l-1.41 1.41M21 12h-2M5 12H3M19.07 19.07l-1.41-1.41M5.34 5.34 3.93 3.93M12 21v-2M12 5V3"/>
-      </svg>
-    ),
-  },
-  {
-    id: 'team', label: 'Team',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-      </svg>
-    ),
+    group: 'Config',
+    items: [
+      {
+        id: 'team', label: 'Team',
+        icon: <svg className="x-nav-icon" viewBox="0 0 15 15" fill="none"><circle cx="5" cy="4" r="2" stroke="currentColor" strokeWidth="1.2"/><circle cx="10" cy="4" r="2" stroke="currentColor" strokeWidth="1.2"/><path d="M1 12c0-2.21 1.79-4 4-4s4 1.79 4 4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/><path d="M10 8c1.66 0 3 1.34 3 3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>,
+      },
+    ],
   },
 ]
 
-export default function AdminSidebar({ active, onSelect, userEmail }) {
+export default function AdminSidebar({ active, onSelect, userEmail, userName, userRole }) {
+  const initials = (userName || userEmail || 'A').charAt(0).toUpperCase()
+  const displayName = userName || (userEmail ? userEmail.split('@')[0] : 'Admin')
+  const roleLabel = { super_admin: 'Super Admin', co_founder: 'Co-Founder', team: 'Team' }[userRole] || 'Admin'
+
   return (
-    <aside className="x-sidebar">
-      <div className="x-logo-wrap">
-        <div className="x-logo">Organized<span>.</span></div>
-        <div className="x-logo-badge">Founder Console</div>
+    <div className="x-sidebar">
+      <div className="x-sb-logo">
+        <div className="x-sb-brand">Organized.</div>
+        <div className="x-sb-label">Founder Console</div>
       </div>
 
-      <nav className="x-nav">
-        <div className="x-nav-label">Navigation</div>
-        {NAV_ITEMS.map(item => (
-          <button
-            key={item.id}
-            className={`x-nav-item${active === item.id ? ' active' : ''}`}
-            onClick={() => onSelect(item.id)}
-          >
-            {item.icon}
-            {item.label}
-          </button>
+      <nav className="x-sb-nav">
+        {NAV.map(({ group, items }) => (
+          <div key={group}>
+            <div className="x-nav-grp">{group}</div>
+            {items.map(({ id, label, icon, badge }) => (
+              <button
+                key={id}
+                className={`x-nav-item${active === id ? ' active' : ''}`}
+                onClick={() => onSelect(id)}
+              >
+                {icon}
+                {label}
+                {badge && <span className={`x-nav-badge ${badge.type}`}>{badge.label}</span>}
+              </button>
+            ))}
+          </div>
         ))}
       </nav>
 
-      {userEmail && (
-        <div className="x-sidebar-foot">
-          <div style={{ fontSize: '.62rem', color: 'rgba(240,236,228,.2)', fontWeight: 300, lineHeight: 1.5 }}>
-            <span className="x-user-dot" />
-            {userEmail}
+      <div className="x-sb-foot">
+        <div className="x-admin-pill">
+          <div className="x-admin-av">{initials}</div>
+          <div>
+            <div className="x-admin-name">{displayName}</div>
+            <div className="x-admin-role">{roleLabel}</div>
           </div>
         </div>
-      )}
-    </aside>
+      </div>
+    </div>
   )
 }

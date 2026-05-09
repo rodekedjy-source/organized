@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { ADMIN_CSS } from '../components/admin/AdminShared'
@@ -15,14 +15,27 @@ import AdminTeam     from '../components/admin/sections/AdminTeam'
 import { useAdminAuth } from '../hooks/useAdminAuth'
 
 const SECTION_TITLES = {
-  overview: 'Platform Overview',
+  overview: 'Overview',
   users:    'Workspaces',
   revenue:  'Revenue',
   beta:     'Beta Testers',
   health:   'System Health',
-  audit:    'Audit Log',
-  theme:    'Theme & Settings',
-  team:     'Console Team',
+  audit:    'Audit Trail',
+  theme:    'Theme',
+  team:     'Team',
+}
+
+function useClock() {
+  const [time, setTime] = useState(new Date())
+  useEffect(() => {
+    const id = setInterval(() => setTime(new Date()), 1000)
+    return () => clearInterval(id)
+  }, [])
+  const days = ['Sun.', 'Mon.', 'Tue.', 'Wed.', 'Thu.', 'Fri.', 'Sat.']
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  const h = String(time.getHours()).padStart(2, '0')
+  const m = String(time.getMinutes()).padStart(2, '0')
+  return `${days[time.getDay()]} ${time.getDate()} ${months[time.getMonth()]} ${time.getFullYear()} · ${h}:${m}`
 }
 
 function ConsoleSections({ section }) {
@@ -42,12 +55,21 @@ function ConsoleSections({ section }) {
 function ConsoleShell() {
   const [section, setSection] = useState('overview')
   const navigate = useNavigate()
-  const { user } = useAdminAuth()
+  const { user, role } = useAdminAuth()
+  const clock = useClock()
 
   async function handleSignOut() {
     await supabase.auth.signOut()
     navigate('/', { replace: true })
   }
+
+  useEffect(() => {
+    const link = document.createElement('link')
+    link.rel = 'stylesheet'
+    link.href = 'https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap'
+    document.head.appendChild(link)
+    return () => { if (document.head.contains(link)) document.head.removeChild(link) }
+  }, [])
 
   return (
     <>
@@ -57,34 +79,19 @@ function ConsoleShell() {
           active={section}
           onSelect={setSection}
           userEmail={user?.email}
+          userRole={role}
         />
 
         <div className="x-main">
           <header className="x-topbar">
-            <span className="x-topbar-title">
-              Organized · {SECTION_TITLES[section] || 'Console'}
-            </span>
+            <div className="x-page-title">{SECTION_TITLES[section] || 'Console'}</div>
+            <div className="x-live-dot" />
+            <div className="x-live-lbl">Live</div>
+            <div className="x-sep" />
+            <div className="x-topbar-date">{clock}</div>
             <div className="x-topbar-r">
-              <button
-                onClick={() => navigate('/dashboard')}
-                style={{
-                  fontSize: '.68rem', color: 'rgba(240,236,228,.28)',
-                  background: 'none', border: 'none', cursor: 'pointer',
-                  fontFamily: 'inherit', letterSpacing: '.04em', textTransform: 'uppercase',
-                }}
-              >
-                ← Dashboard
-              </button>
-              <button
-                onClick={handleSignOut}
-                style={{
-                  fontSize: '.68rem', color: 'rgba(240,236,228,.18)',
-                  background: 'none', border: 'none', cursor: 'pointer',
-                  fontFamily: 'inherit', letterSpacing: '.04em', textTransform: 'uppercase',
-                }}
-              >
-                Sign out
-              </button>
+              <button className="x-topbar-btn" onClick={() => navigate('/dashboard')}>← Dashboard</button>
+              <button className="x-topbar-btn" onClick={handleSignOut}>Sign out</button>
             </div>
           </header>
 
