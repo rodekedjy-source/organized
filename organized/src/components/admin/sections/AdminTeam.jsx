@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../../lib/supabase'
-import { KpiCard, SecHd, Card, CenterSpinner, Toast, useToast } from '../AdminShared'
+import { KpiCard, SecHd, Card, InfoBanner, CenterSpinner, Toast, useToast } from '../AdminShared'
 
 function RoleLabel({ role }) {
   const map = { super_admin: ['pro', 'Super Admin'], co_founder: ['inv', 'Co-Founder'], team: ['inn', 'Team'] }
@@ -95,6 +95,7 @@ export default function AdminTeam() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <InfoBanner id="team" text="Membres internes avec accès au Founder Console. Seul le Super Admin peut inviter ou révoquer. Active = accès activé. Inactive = accès suspendu sans suppression." />
       <div className="x-g4">
         <KpiCard label="Super Admin" value={superAdmins} change="You only" changeType="nn" gold />
         <KpiCard label="Co-Founders" value={coFounders} change="— None yet" changeType="nn" />

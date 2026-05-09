@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../../lib/supabase'
-import { KpiCard, SecHd, Card, CenterSpinner, fmtTime } from '../AdminShared'
+import { KpiCard, SecHd, Card, InfoBanner, CenterSpinner, fmtTime } from '../AdminShared'
 
 function AuditOpPill({ action }) {
   const a = (action || '').toLowerCase()
@@ -62,6 +62,7 @@ export default function AdminAudit() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <InfoBanner id="audit" text="Chaque action sur la plateforme est loggée ici en temps réel. INSERT = nouveau, UPDATE = modifié, DELETE = supprimé. Les filtres permettent de cibler un type d'opération." />
       <div className="x-g4">
         <KpiCard label="Total Events"  value={events.length}  change="↑ Active"                                                     changeType="up" gold />
         <KpiCard label="INSERT"        value={insertCount}    change={`${Math.round(insertCount / Math.max(events.length, 1) * 100)}% of total`} changeType="nn" />

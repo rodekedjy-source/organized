@@ -1,107 +1,127 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../../lib/supabase'
-import { KpiCard, SecHd, Card, CenterSpinner, Toast, useToast, fmtDate } from '../AdminShared'
+import { KpiCard, SecHd, Card, InfoBanner, CenterSpinner, Toast, useToast, fmtDate } from '../AdminShared'
 
 const GOAL = 15
+const BETA_CUTOFF_DATE = '2026-07-01'
 
 function BetaPill({ status }) {
-  const map = { active: ['act', 'Active'], invited: ['inv', 'Invited'], pending: ['pnd', 'Pending'], inactive: ['inn', 'Inactive'] }
-  const [type, label] = map[status?.toLowerCase()] || ['inn', status || '—']
+  const map = { active: ['act', 'Active'], invited: ['inv', 'Invited'] }
+  const [type, label] = map[status] || ['inn', status || '—']
   return <span className={`x-pill ${type}`}>{label}</span>
 }
 
-function InviteModal({ open, onClose, onSaved }) {
-  const [form, setForm] = useState({ name: '', email: '', instagram: '' })
-  const [saving, setSaving] = useState(false)
-
-  async function save() {
-    if (!form.email.trim()) return
-    setSaving(true)
-    await supabase.from('beta_testers').insert({ ...form, status: 'invited', invited_at: new Date().toISOString() })
-    setSaving(false)
-    setForm({ name: '', email: '', instagram: '' })
-    onSaved()
-    onClose()
-  }
-
-  return (
-    <div className={`x-modal-overlay${open ? ' open' : ''}`} onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="x-modal">
-        <div className="x-modal-title">Invite Beta Tester</div>
-        <div className="x-modal-sub">Secure link · Expires in 24h</div>
-        <label className="x-inp-label">Name</label>
-        <input className="x-inp" placeholder="Marie-Claire" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
-        <label className="x-inp-label">Email</label>
-        <input className="x-inp" type="email" placeholder="email@example.com" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
-        <label className="x-inp-label">Instagram (optional)</label>
-        <input className="x-inp" placeholder="@handle" value={form.instagram} onChange={e => setForm(f => ({ ...f, instagram: e.target.value }))} />
-        <div className="x-modal-actions">
-          <button className="x-btn-cancel" onClick={onClose}>Cancel</button>
-          <button className="x-btn-primary" onClick={save} disabled={saving || !form.email.trim()}>
-            {saving ? 'Saving…' : 'Send invite'}
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 export default function AdminBeta() {
-  const [testers, setTesters] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [showModal, setShowModal] = useState(false)
+  const [betaUsers, setBetaUsers] = useState([])
+  const [loading,   setLoading]   = useState(true)
   const { toastMsg, showToast } = useToast()
 
-  async function load() {
-    const { data } = await supabase.from('beta_testers').select('*').order('created_at', { ascending: false })
-    setTesters(data || [])
-    setLoading(false)
-  }
-
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    async function load() {
+      const { data } = await supabase.rpc('get_workspaces_admin')
+      const all = data || []
+      const beta = all
+        .filter(w => w.created_at < BETA_CUTOFF_DATE)
+        .map(w => ({
+          ...w,
+          status: (w.appointment_count ?? 0) >= 1 ? 'active' : 'invited',
+        }))
+        .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+      setBetaUsers(beta)
+      setLoading(false)
+    }
+    load()
+  }, [])
 
   if (loading) return <CenterSpinner />
 
-  const active = testers.filter(t => t.status === 'active').length
-  const invited = testers.filter(t => t.status === 'invited').length
-  const pct = Math.round((testers.length / GOAL) * 100)
+  const active  = betaUsers.filter(u => u.status === 'active').length
+  const invited = betaUsers.filter(u => u.status === 'invited').length
+  const pct = Math.round((betaUsers.length / GOAL) * 100)
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <InfoBanner id="beta" text="Comptes créés avant le lancement public (avant juillet 2026). Actif = au moins 1 rendez-vous. Invité = compte créé sans activité." />
+
       <div className="x-g4">
-        <KpiCard label="Goal" value={GOAL} change="Beta testers" changeType="nn" gold />
-        <KpiCard label="Recruited" value={testers.length} change={`${pct}% of goal`} changeType={pct > 0 ? 'up' : 'wn'} />
-        <KpiCard label="Active" value={active} change={active > 0 ? '↑ Using platform' : '— None yet'} changeType={active > 0 ? 'up' : 'nn'} />
-        <KpiCard label="Onboarded" value={`${Math.round(active / GOAL * 100)}%`} change={`— ${active}/${GOAL}`} changeType="nn" />
+        <KpiCard label="Goal"      value={GOAL}            change="Beta testers"             changeType="nn" gold />
+        <KpiCard label="Detected"  value={betaUsers.length} change={`${pct}% of goal`}       changeType={pct > 0 ? 'up' : 'nn'} />
+        <KpiCard label="Active"    value={active}           change={active > 0 ? '↑ Using platform' : '— None yet'} changeType={active > 0 ? 'up' : 'nn'} />
+        <KpiCard label="Invited"   value={invited}          change="Workspace — no bookings"  changeType="nn" />
       </div>
 
       <Card>
-        <SecHd title="Beta Tester Tracker" right={<button className="x-btn-primary" onClick={() => setShowModal(true)}>+ Invite</button>} />
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
-          {testers.length === 0 && (
-            <div style={{ color: 'var(--muted)', fontFamily: 'DM Mono,monospace', fontSize: 10, padding: '12px 0' }}>No beta testers yet</div>
-          )}
-          {testers.map(t => (
-            <div key={t.id} className="x-brow">
-              <div className="x-bav">{(t.name || t.email || '?').charAt(0).toUpperCase()}</div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 12, fontWeight: 500 }}>{t.name || '—'}</div>
-                <div style={{ fontFamily: 'DM Mono,monospace', fontSize: 9, color: 'var(--muted)' }}>
-                  {t.instagram && `${t.instagram} · `}{t.email}
-                </div>
-              </div>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <BetaPill status={t.status} />
-                <button className="x-btn-ghost" onClick={() => showToast(`Message sent to ${t.name || t.email}`)}>📧</button>
-              </div>
+        <SecHd
+          title="Beta Users — Auto-detected"
+          right={
+            <div style={{ fontFamily: 'DM Mono,monospace', fontSize: 9, color: 'var(--muted)' }}>
+              Created before {BETA_CUTOFF_DATE}
             </div>
-          ))}
-          {testers.length < GOAL && (
-            <div className="x-brow" style={{ border: '1px dashed var(--border2)', background: 'transparent', justifyContent: 'center', color: 'var(--muted)' }} onClick={() => setShowModal(true)}>
-              <div style={{ fontFamily: 'DM Mono,monospace', fontSize: 10 }}>+ Add {GOAL - testers.length} more beta testers</div>
-            </div>
-          )}
+          }
+        />
+
+        {/* Progress bar */}
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+            <span style={{ fontFamily: 'DM Mono,monospace', fontSize: 9, color: 'var(--muted)' }}>Progress</span>
+            <span style={{ fontFamily: 'DM Mono,monospace', fontSize: 9, color: 'var(--gold)' }}>{betaUsers.length}/{GOAL}</span>
+          </div>
+          <div style={{ height: 4, background: 'var(--border2)', borderRadius: 2, overflow: 'hidden' }}>
+            <div style={{ height: '100%', width: `${Math.min(pct, 100)}%`, background: 'var(--gold)', borderRadius: 2, transition: 'width 0.6s ease' }} />
+          </div>
         </div>
+
+        <table className="x-tbl">
+          <thead>
+            <tr>
+              <th>Workspace</th>
+              <th>Slug</th>
+              <th>Appts</th>
+              <th>Status</th>
+              <th>Joined</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {betaUsers.length === 0 && (
+              <tr>
+                <td colSpan={6} style={{ color: 'var(--muted)', fontFamily: 'DM Mono,monospace', fontSize: 10, paddingTop: 16 }}>
+                  No workspaces created before {BETA_CUTOFF_DATE}
+                </td>
+              </tr>
+            )}
+            {betaUsers.map(u => (
+              <tr key={u.id}>
+                <td>
+                  <div style={{ fontSize: 11.5, fontWeight: 500 }}>{u.name || '—'}</div>
+                  {u.email && <div style={{ fontFamily: 'DM Mono,monospace', fontSize: 9, color: 'var(--muted)' }}>{u.email}</div>}
+                </td>
+                <td style={{ fontFamily: 'DM Mono,monospace', fontSize: 9, color: 'var(--muted)' }}>
+                  {u.slug ? `@${u.slug}` : '—'}
+                </td>
+                <td style={{ fontFamily: 'DM Mono,monospace', fontSize: 10, color: u.appointment_count > 0 ? 'var(--green)' : 'var(--muted)' }}>
+                  {u.appointment_count ?? 0}
+                </td>
+                <td><BetaPill status={u.status} /></td>
+                <td style={{ fontFamily: 'DM Mono,monospace', fontSize: 9, color: 'var(--muted)' }}>{fmtDate(u.created_at)}</td>
+                <td>
+                  {u.email && (
+                    <button className="x-btn-ghost" onClick={() => window.open(`mailto:${u.email}`, '_blank')}>
+                      Contact
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+            {betaUsers.length < GOAL && (
+              <tr>
+                <td colSpan={6} style={{ color: 'var(--muted)', fontFamily: 'DM Mono,monospace', fontSize: 10, paddingTop: 12, fontStyle: 'italic' }}>
+                  {GOAL - betaUsers.length} more beta users needed before {BETA_CUTOFF_DATE}
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </Card>
 
       <Card>
@@ -112,7 +132,6 @@ export default function AdminBeta() {
         <button className="x-btn-ghost" style={{ marginTop: 12 }} onClick={() => showToast('Copied to clipboard!')}>📋 Copy template</button>
       </Card>
 
-      <InviteModal open={showModal} onClose={() => setShowModal(false)} onSaved={() => { load(); showToast('Invite sent!') }} />
       <Toast msg={toastMsg} />
     </div>
   )

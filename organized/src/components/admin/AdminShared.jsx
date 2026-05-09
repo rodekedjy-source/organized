@@ -65,6 +65,11 @@ body{background:var(--bg);color:var(--white);font-family:'DM Sans',sans-serif;fo
 .x-kpi-lbl{font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:10px;}
 .x-kpi-val{font-family:'Cormorant Garamond',serif;font-size:32px;font-weight:500;line-height:1;margin-bottom:8px;color:var(--white);}
 .x-kpi.gold .x-kpi-val{color:var(--gold);}
+.x-kpi.clickable{cursor:pointer;transition:border-color 0.18s;}
+.x-kpi.clickable:hover{border-color:rgba(201,168,76,0.35);}
+.x-kpi.gold.clickable:hover{border-color:rgba(201,168,76,0.55);}
+.x-kpi-arrow{position:absolute;bottom:14px;right:14px;font-size:12px;color:var(--muted);opacity:0;transition:opacity 0.15s;}
+.x-kpi.clickable:hover .x-kpi-arrow{opacity:1;}
 .x-kpi-ch{font-family:'DM Mono',monospace;font-size:10px;}
 .x-kpi-ch.up{color:var(--green);}
 .x-kpi-ch.nn{color:var(--muted);}
@@ -211,6 +216,11 @@ body{background:var(--bg);color:var(--white);font-family:'DM Sans',sans-serif;fo
 .x-rd{font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);}
 .x-modal-actions{display:flex;gap:10px;justify-content:flex-end;}
 
+/* TOOLTIP */
+[data-tooltip]{position:relative;}
+[data-tooltip]::after{content:attr(data-tooltip);position:absolute;bottom:calc(100% + 7px);left:50%;transform:translateX(-50%);background:#181818;border:1px solid var(--border2);color:var(--muted2);padding:7px 10px;border-radius:6px;font-family:'DM Mono',monospace;font-size:9px;white-space:normal;width:210px;line-height:1.55;z-index:200;pointer-events:none;opacity:0;transition:opacity 0.15s;text-align:left;}
+[data-tooltip]:hover::after{opacity:1;}
+
 .x-toast{position:fixed;bottom:24px;right:24px;background:var(--surface);border:1px solid rgba(34,197,94,0.3);border-radius:8px;padding:12px 16px;font-family:'DM Mono',monospace;font-size:11px;color:var(--green);z-index:9999;transform:translateY(80px);opacity:0;transition:all 0.3s;pointer-events:none;max-width:320px;}
 .x-toast.show{transform:translateY(0);opacity:1;}
 .x-toast.err{border-color:rgba(239,68,68,0.3);color:var(--red);}
@@ -304,9 +314,9 @@ export function useToast() {
   return { toastMsg: toast?.text || null, toastType: toast?.type || 'ok', showToast }
 }
 
-export function KpiCard({ label, value, change, changeType = 'nn', gold = false, spark, sparkAllGold = false }) {
+export function KpiCard({ label, value, change, changeType = 'nn', gold = false, spark, sparkAllGold = false, onClick }) {
   return (
-    <div className={`x-kpi${gold ? ' gold' : ''}`}>
+    <div className={`x-kpi${gold ? ' gold' : ''}${onClick ? ' clickable' : ''}`} onClick={onClick} style={{ position: 'relative' }}>
       <div className="x-kpi-lbl">{label}</div>
       <div className="x-kpi-val">{value ?? '—'}</div>
       {change && <div className={`x-kpi-ch ${changeType}`}>{change}</div>}
@@ -319,6 +329,29 @@ export function KpiCard({ label, value, change, changeType = 'nn', gold = false,
           })}
         </div>
       )}
+      {onClick && <div className="x-kpi-arrow">→</div>}
+    </div>
+  )
+}
+
+export function InfoBanner({ id, text }) {
+  const key = 'admin_dismissed_banners'
+  const [dismissed, setDismissed] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(key) || '[]').includes(id) } catch { return false }
+  })
+  function dismiss() {
+    try {
+      const list = JSON.parse(localStorage.getItem(key) || '[]')
+      if (!list.includes(id)) list.push(id)
+      localStorage.setItem(key, JSON.stringify(list))
+    } catch {}
+    setDismissed(true)
+  }
+  if (dismissed) return null
+  return (
+    <div style={{ background: 'rgba(201,168,76,0.05)', borderLeft: '3px solid #C9A84C', borderRadius: '0 6px 6px 0', padding: '10px 14px', marginBottom: 4, display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: 11, color: '#888', lineHeight: 1.6 }}>
+      <div style={{ flex: 1 }}>{text}</div>
+      <button onClick={dismiss} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#555', fontSize: 14, padding: 0, flexShrink: 0, lineHeight: 1, marginTop: 1 }}>✕</button>
     </div>
   )
 }

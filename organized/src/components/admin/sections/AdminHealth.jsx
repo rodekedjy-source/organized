@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../../lib/supabase'
-import { SecHd, Card, CenterSpinner } from '../AdminShared'
+import { SecHd, Card, InfoBanner, CenterSpinner } from '../AdminShared'
 
 function HRow({ name, status, pulse }) {
   return (
@@ -110,6 +110,7 @@ export default function AdminHealth() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <InfoBanner id="health" text="État de tous les services en temps réel. Rouge = action requise immédiatement. Amber = attention nécessaire. Vert = opérationnel. Le bouton Re-check rafraîchit la latence." />
       <div className="x-g2">
         <Card>
           <SecHd title="Core Services" right={<button className="x-btn-ghost" onClick={runChecks}>Re-check</button>} />

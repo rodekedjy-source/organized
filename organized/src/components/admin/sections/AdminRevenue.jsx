@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../../lib/supabase'
-import { KpiCard, SecHd, Card, StatusPill, CenterSpinner, fmtMoney, fmtDate } from '../AdminShared'
+import { KpiCard, SecHd, Card, InfoBanner, StatusPill, CenterSpinner, fmtMoney, fmtDate } from '../AdminShared'
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
@@ -41,6 +41,7 @@ export default function AdminRevenue() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <InfoBanner id="revenue" text="Paiements Stripe en temps réel. MRR = revenus des abonnements actifs ce mois. Les montants sont en cents dans Supabase, divisés par 100 pour l'affichage." />
       <div className="x-g4">
         <KpiCard label="MRR" value="$0" change="Awaiting Stripe" changeType="wn" gold />
         <KpiCard label="ARR Projected" value="$0" change="— MRR × 12" changeType="nn" />

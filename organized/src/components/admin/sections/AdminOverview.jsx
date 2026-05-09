@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../../lib/supabase'
-import { KpiCard, SecHd, Card, CenterSpinner, Toast, useToast, fmtMoney, fmtDate, fmtTime } from '../AdminShared'
+import { KpiCard, SecHd, Card, InfoBanner, CenterSpinner, Toast, useToast, fmtMoney, fmtDate, fmtTime } from '../AdminShared'
 
 function AuditOpPill({ action }) {
   const a = (action || '').toLowerCase()
@@ -8,7 +8,7 @@ function AuditOpPill({ action }) {
   return <div className={`x-aop ${cls}`}>{a.toUpperCase()}</div>
 }
 
-export default function AdminOverview() {
+export default function AdminOverview({ onNavigate }) {
   const [data,    setData]    = useState(null)
   const [mrr,     setMrr]     = useState(null)
   const [loading, setLoading] = useState(true)
@@ -29,40 +29,48 @@ export default function AdminOverview() {
 
   if (loading) return <CenterSpinner />
 
-  const wsCount    = data?.workspace_count    ?? 0
-  const auditCount = data?.audit_count        ?? 0
-  const apptCount  = data?.appointment_count  ?? 0
-  const recentWs   = data?.recent_workspaces  || []
-  const recentAudit= data?.recent_audit       || []
+  const wsCount     = data?.workspace_count   ?? 0
+  const auditCount  = data?.audit_count        ?? 0
+  const apptCount   = data?.appointment_count  ?? 0
+  const recentWs    = data?.recent_workspaces  || []
+  const recentAudit = data?.recent_audit       || []
 
-  const thisMRR  = mrr?.this_month  ?? 0
-  const lastMRR  = mrr?.last_month  ?? 0
+  const thisMRR  = mrr?.this_month ?? 0
+  const lastMRR  = mrr?.last_month ?? 0
   const mrrDelta = thisMRR - lastMRR
-  const mrrChangeType = mrrDelta > 0 ? 'up' : mrrDelta < 0 ? 'wn' : 'nn'
+  const mrrChangeType  = mrrDelta > 0 ? 'up' : mrrDelta < 0 ? 'wn' : 'nn'
   const mrrChangeLabel = lastMRR === 0
     ? (thisMRR > 0 ? '↑ First revenue!' : '— No payments yet')
     : `${mrrDelta >= 0 ? '↑' : '↓'} ${fmtMoney(Math.abs(mrrDelta))} vs last month`
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <InfoBanner id="overview" text="Vue globale de la plateforme. Cliquez sur une carte pour naviguer directement vers cette section." />
+
       <div className="x-g4">
         <KpiCard label="MRR — This Month" value={fmtMoney(thisMRR)}
           change={mrrChangeLabel} changeType={mrrChangeType} gold
-          spark={[20, 20, 20, 20, 20]} />
+          spark={[20, 20, 20, 20, 20]}
+          onClick={() => onNavigate?.('revenue')} />
         <KpiCard label="Workspaces" value={wsCount}
           change="— Pre-beta" changeType="nn"
-          spark={[10, 10, 60, 60, 100]} />
+          spark={[10, 10, 60, 60, 100]}
+          onClick={() => onNavigate?.('users')} />
         <KpiCard label="Appointments" value={apptCount}
           change="↑ Active" changeType="up"
-          spark={[30, 55, 45, 80, 100]} sparkAllGold />
+          spark={[30, 55, 45, 80, 100]} sparkAllGold
+          onClick={() => onNavigate?.('audit')} />
         <KpiCard label="Audit Events" value={auditCount}
           change="↑ Real-time" changeType="up"
-          spark={[40, 65, 55, 85, 100]} sparkAllGold />
+          spark={[40, 65, 55, 85, 100]} sparkAllGold
+          onClick={() => onNavigate?.('audit')} />
       </div>
 
       <div className="x-g2">
         <Card>
-          <SecHd title="Workspaces" right={<button className="x-btn-ghost">see all →</button>} />
+          <SecHd title="Workspaces" right={
+            <button className="x-btn-ghost" onClick={() => onNavigate?.('users')}>see all →</button>
+          } />
           <table className="x-tbl">
             <thead><tr><th>Workspace</th><th>Status</th><th>Created</th></tr></thead>
             <tbody>
@@ -94,12 +102,16 @@ export default function AdminOverview() {
           <div className="x-hrow"><div className="x-hname">Stripe Webhook</div><div className="x-hst ok"><span className="x-hd" />Active v2</div></div>
           <div className="x-hrow"><div className="x-hname">Edge Functions</div><div className="x-hst ok"><span className="x-hd" />Active</div></div>
           <div className="x-hrow"><div className="x-hname">MRR this month</div><div className="x-hst ok"><span className="x-hd" />{fmtMoney(thisMRR)}</div></div>
-          <div style={{ marginTop: 14 }}><button className="x-btn-ghost">Full details →</button></div>
+          <div style={{ marginTop: 14 }}>
+            <button className="x-btn-ghost" onClick={() => onNavigate?.('health')}>Full details →</button>
+          </div>
         </Card>
       </div>
 
       <Card>
-        <SecHd title="Audit Trail — Preview" right={<button className="x-btn-ghost">see all →</button>} />
+        <SecHd title="Audit Trail — Preview" right={
+          <button className="x-btn-ghost" onClick={() => onNavigate?.('audit')}>see all →</button>
+        } />
         {recentAudit.length === 0 && (
           <div style={{ color: 'var(--muted)', fontFamily: 'DM Mono,monospace', fontSize: 10, paddingTop: 8 }}>No audit events yet</div>
         )}
