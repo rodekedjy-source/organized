@@ -67,6 +67,15 @@ function ViolationsPanel({ wsId }) {
   )
 }
 
+function PlanPill({ plan }) {
+  if (plan === 'pro') return (
+    <span style={{ fontFamily: 'DM Mono,monospace', fontSize: 8, fontWeight: 500, color: '#C9A84C', background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 4, padding: '2px 7px', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Pro</span>
+  )
+  return (
+    <span style={{ fontFamily: 'DM Mono,monospace', fontSize: 8, color: 'var(--muted)', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border2)', borderRadius: 4, padding: '2px 7px', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Essential</span>
+  )
+}
+
 function DetailPanel({ ws, onAction, role }) {
   const [busy,    setBusy]    = useState(false)
   const [confirm, setConfirm] = useState(null)
@@ -83,8 +92,10 @@ function DetailPanel({ ws, onAction, role }) {
       ({ error } = await supabase.rpc('admin_restore_workspace', { p_id: ws.id }))
     } else if (type === 'lift_perm_ban') {
       ({ error } = await supabase.rpc('admin_lift_permanent_ban', { p_id: ws.id }))
-    } else if (type === 'essential') {
-      ({ error } = await supabase.rpc('admin_force_essential', { p_id: ws.id }))
+    } else if (type === 'set_pro') {
+      ({ error } = await supabase.rpc('admin_set_workspace_plan', { p_id: ws.id, p_plan: 'pro' }))
+    } else if (type === 'set_essential') {
+      ({ error } = await supabase.rpc('admin_set_workspace_plan', { p_id: ws.id, p_plan: 'essential' }))
     } else if (type === 'beta') {
       ({ error } = await supabase.rpc('admin_tag_as_beta', { p_id: ws.id }))
     }
@@ -93,6 +104,7 @@ function DetailPanel({ ws, onAction, role }) {
   }
 
   const isSuspended = ws.beta_suspended || !ws.is_published
+  const currentPlan = ws.plan || (ws.stripe_onboarded ? 'pro' : 'essential')
 
   return (
     <>
@@ -101,7 +113,11 @@ function DetailPanel({ ws, onAction, role }) {
           <div style={{ background: 'var(--surface2)', borderRadius: 8, padding: 16, border: '1px solid var(--border2)' }}>
 
             {/* Stats row */}
-            <div style={{ display: 'flex', gap: 24, marginBottom: 14, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 24, marginBottom: 14, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+              <div>
+                <div style={{ fontFamily: 'DM Mono,monospace', fontSize: 9, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 3 }}>Plan</div>
+                <PlanPill plan={currentPlan} />
+              </div>
               <div>
                 <div style={{ fontFamily: 'DM Mono,monospace', fontSize: 9, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 3 }}>Last sign-in</div>
                 <div style={{ fontFamily: 'DM Mono,monospace', fontSize: 10, color: 'var(--muted2)' }}>{ws.last_sign_in_at ? timeAgo(ws.last_sign_in_at) : '—'}</div>
@@ -138,7 +154,7 @@ function DetailPanel({ ws, onAction, role }) {
                     onClick={() => setConfirm({
                       type: 'lift_perm_ban',
                       title: 'Override — Lift Permanent Ban',
-                      message: `This will fully restore a permanently banned workspace. Are you absolutely sure?`,
+                      message: 'This will fully restore a permanently banned workspace. Are you absolutely sure?',
                       label: 'Yes, Restore',
                       danger: true,
                     })}
@@ -194,18 +210,33 @@ function DetailPanel({ ws, onAction, role }) {
               )}
 
               <button
-                className="x-btn-danger"
-                disabled={busy}
-                data-tooltip="Removes Pro plan. User keeps all their data but loses Pro features (AI photos, formations, products)."
+                className="x-btn-action"
+                disabled={busy || currentPlan === 'pro'}
+                style={{ color: '#C9A84C', borderColor: 'rgba(201,168,76,0.35)', opacity: currentPlan === 'pro' ? 0.4 : 1 }}
                 onClick={() => setConfirm({
-                  type: 'essential',
-                  title: 'Force Essential plan',
-                  message: `This removes ${ws.name}'s Pro subscription. They keep all data but lose Pro features.`,
-                  label: 'Downgrade to Essential',
+                  type: 'set_pro',
+                  title: 'Passer en Pro',
+                  message: 'Accès complet à toutes les features Pro.',
+                  label: 'Set Pro',
+                  danger: false,
+                })}
+              >
+                Set Pro ↑
+              </button>
+
+              <button
+                className="x-btn-action"
+                disabled={busy || currentPlan === 'essential'}
+                style={{ color: 'var(--amber)', borderColor: 'rgba(245,158,11,0.3)', opacity: currentPlan === 'essential' ? 0.4 : 1 }}
+                onClick={() => setConfirm({
+                  type: 'set_essential',
+                  title: 'Passer en Essential',
+                  message: "Retire le plan Pro. L'utilisateur garde ses données mais perd les features Pro.",
+                  label: 'Set Essential',
                   danger: true,
                 })}
               >
-                Force Essential
+                Set Essential ↓
               </button>
 
               {ws.is_beta ? (
@@ -273,7 +304,8 @@ export default function AdminUsers({ onNavigate, role }) {
       perm_ban:     'Workspace permanently banned.',
       unban:        'Workspace restored — fully active again.',
       lift_perm_ban:'Permanent ban lifted — workspace fully restored.',
-      essential:    'Plan reset to Essential. User retains all data.',
+      set_pro:      'Plan mis à jour → Pro',
+      set_essential:'Plan mis à jour → Essential',
       beta:         'Tagged as beta tester. Visible in Beta section.',
     }
     showToast(messages[type] || 'Done')
@@ -283,7 +315,8 @@ export default function AdminUsers({ onNavigate, role }) {
       if (type === 'perm_ban')     return { ...w, is_published: false, beta_suspended: true, banned_permanently: true }
       if (type === 'unban')        return { ...w, is_published: true,  beta_suspended: false }
       if (type === 'lift_perm_ban')return { ...w, is_published: true,  beta_suspended: false, banned_permanently: false }
-      if (type === 'essential')    return { ...w, stripe_onboarded: false }
+      if (type === 'set_pro')      return { ...w, plan: 'pro', stripe_onboarded: true }
+      if (type === 'set_essential')return { ...w, plan: 'essential', stripe_onboarded: false }
       if (type === 'beta')         return { ...w, is_beta: true, beta_tagged_at: new Date().toISOString(), is_published: true, beta_suspended: false }
       return w
     }))
