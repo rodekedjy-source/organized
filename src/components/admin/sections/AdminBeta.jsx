@@ -1,11 +1,10 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../../../lib/supabase'
 import { KpiCard, SecHd, Card, InfoBanner, CenterSpinner, Toast, useToast, fmtDate, timeAgo } from '../AdminShared'
 
 const GOAL = 15
 
 function betaStatus(w) {
-  if (!w.is_beta) return null
   const total = Number(w.appointment_count) || 0
   const thisWeek = Number(w.appointments_this_week) || 0
   if (total === 0) return 'tagged'
@@ -78,8 +77,9 @@ function NoteField({ wsId, initial }) {
 }
 
 function BetaCard({ ws, status, onRemoved }) {
-  const [confirm, setConfirm] = useState(false)
-  const [busy,    setBusy]    = useState(false)
+  const [expanded, setExpanded] = useState(false)
+  const [confirm,  setConfirm]  = useState(false)
+  const [busy,     setBusy]     = useState(false)
 
   async function removeBeta() {
     setBusy(true)
@@ -97,73 +97,89 @@ function BetaCard({ ws, status, onRemoved }) {
     <>
       <div style={{
         background: 'var(--surface)', border: `1px solid ${borderColor}`,
-        borderRadius: 10, padding: 16, display: 'flex', flexDirection: 'column', gap: 12,
+        borderRadius: 10, overflow: 'hidden',
       }}>
-        {/* Header row */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+        {/* Collapsed header row — always visible, clickable */}
+        <div
+          onClick={() => setExpanded(e => !e)}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px',
+            cursor: 'pointer', userSelect: 'none',
+          }}
+        >
           <div style={{
-            width: 36, height: 36, borderRadius: 8, flexShrink: 0,
+            width: 32, height: 32, borderRadius: 7, flexShrink: 0,
             background: 'linear-gradient(135deg,var(--surface2),var(--border2))',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontFamily: 'Cormorant Garamond,serif', fontSize: 16, color: 'var(--gold)', fontWeight: 500,
+            fontFamily: 'Cormorant Garamond,serif', fontSize: 15, color: 'var(--gold)', fontWeight: 500,
           }}>
             {(ws.name || ws.slug || '?').charAt(0).toUpperCase()}
           </div>
+
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--white)' }}>{ws.name || '—'}</div>
+              <div style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--white)' }}>{ws.name || '—'}</div>
               <StatusPill status={status} />
             </div>
             {ws.slug && (
-              <div style={{ fontFamily: 'DM Mono,monospace', fontSize: 9, color: 'var(--muted)', marginTop: 2 }}>
+              <div style={{ fontFamily: 'DM Mono,monospace', fontSize: 9, color: 'var(--muted)', marginTop: 1 }}>
                 @{ws.slug}
               </div>
             )}
           </div>
-          <div style={{ fontFamily: 'DM Mono,monospace', fontSize: 9, color: 'var(--muted)', flexShrink: 0 }}>
-            Joined {fmtDate(ws.created_at)}
+
+          <div style={{ fontFamily: 'DM Mono,monospace', fontSize: 9, color: 'var(--muted)', flexShrink: 0, textAlign: 'right' }}>
+            <div>{fmtDate(ws.created_at)}</div>
+            <div style={{ color: expanded ? 'var(--gold)' : 'var(--muted)', marginTop: 2, transition: 'color 0.2s' }}>
+              {expanded ? '▴ collapse' : '▾ expand'}
+            </div>
           </div>
         </div>
 
-        {/* Stats row */}
-        <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
-          {[
-            { label: 'Last activity', value: ws.last_appointment_at ? timeAgo(ws.last_appointment_at) : 'No activity yet' },
-            { label: 'Clients',       value: ws.client_count ?? '—' },
-            { label: 'Appointments',  value: ws.appointment_count ?? '—' },
-            { label: 'This week',     value: ws.appointments_this_week ?? '—' },
-          ].map(({ label, value }) => (
-            <div key={label}>
-              <div style={{ fontFamily: 'DM Mono,monospace', fontSize: 8, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 2 }}>{label}</div>
-              <div style={{ fontFamily: 'DM Mono,monospace', fontSize: 11, color: 'var(--muted2)' }}>{value}</div>
+        {/* Expanded details */}
+        {expanded && (
+          <div style={{ borderTop: `1px solid ${borderColor}`, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {/* Stats row */}
+            <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
+              {[
+                { label: 'Last activity', value: ws.last_appointment_at ? timeAgo(ws.last_appointment_at) : 'No activity yet' },
+                { label: 'Clients',       value: ws.client_count ?? '—' },
+                { label: 'Appointments',  value: ws.appointment_count ?? '—' },
+                { label: 'This week',     value: ws.appointments_this_week ?? '—' },
+              ].map(({ label, value }) => (
+                <div key={label}>
+                  <div style={{ fontFamily: 'DM Mono,monospace', fontSize: 8, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 2 }}>{label}</div>
+                  <div style={{ fontFamily: 'DM Mono,monospace', fontSize: 11, color: 'var(--muted2)' }}>{value}</div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
 
-        {/* Notes */}
-        <NoteField wsId={ws.id} initial={ws.beta_notes} />
+            {/* Notes */}
+            <NoteField wsId={ws.id} initial={ws.beta_notes} />
 
-        {/* Action buttons */}
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {ws.email && (
-            <button className="x-btn-ghost" onClick={() => window.open(`mailto:${ws.email}`, '_blank')}>
-              📧 Reach out
-            </button>
-          )}
-          {ws.slug && (
-            <button className="x-btn-ghost" onClick={() => window.open(`/book/${ws.slug}`, '_blank')}>
-              🔗 View page
-            </button>
-          )}
-          <button
-            className="x-btn-danger"
-            style={{ marginLeft: 'auto' }}
-            disabled={busy}
-            onClick={() => setConfirm(true)}
-          >
-            Remove Beta
-          </button>
-        </div>
+            {/* Action buttons */}
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {ws.email && (
+                <button className="x-btn-ghost" onClick={() => window.open(`mailto:${ws.email}`, '_blank')}>
+                  📧 Reach out
+                </button>
+              )}
+              {ws.slug && (
+                <button className="x-btn-ghost" onClick={() => window.open(`/book/${ws.slug}`, '_blank')}>
+                  🔗 View page
+                </button>
+              )}
+              <button
+                className="x-btn-danger"
+                style={{ marginLeft: 'auto' }}
+                disabled={busy}
+                onClick={() => setConfirm(true)}
+              >
+                Remove Beta
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       <ConfirmModal
