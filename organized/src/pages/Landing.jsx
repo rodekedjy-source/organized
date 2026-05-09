@@ -286,7 +286,7 @@ footer { background:#090907; padding:2.5rem 3rem; border-top:1px solid rgba(255,
 .f-logo { font-family:'Playfair Display',serif; font-size:1.15rem; color:rgba(255,255,255,.25); }
 .f-logo span { color:var(--gold); }
 .f-links { display:flex; gap:2rem; }
-.f-link { font-size:.7rem; color:rgba(255,255,255,.18); cursor:pointer; transition:color .15s; }
+.f-link { font-size:.7rem; color:rgba(255,255,255,.18); cursor:pointer; transition:color .15s; text-decoration:none; }
 .f-link:hover { color:rgba(255,255,255,.45); }
 .f-bottom { width:100%; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem; border-top:1px solid rgba(255,255,255,.04); padding-top:1.5rem; }
 .f-copy { font-size:.68rem; color:rgba(255,255,255,.1); }
@@ -1484,7 +1484,9 @@ export default function Landing() {
         <div className="f-top">
           <div className="f-logo"><span translate="no">Organized</span><span>.</span></div>
           <div className="f-links">
-            {t.footer_links.map(l=><span key={l} className="f-link">{l}</span>)}
+            <a href="/legal?tab=terms" className="f-link">{lang==='fr'?'Conditions':'Terms'}</a>
+            <a href="/legal?tab=privacy" className="f-link">{lang==='fr'?'Confidentialité':'Privacy'}</a>
+            <a href="mailto:hello@beorganized.io" className="f-link">Contact</a>
           </div>
         </div>
         <div className="f-bottom">
