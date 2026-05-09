@@ -25,6 +25,48 @@ function ConfirmModal({ open, title, message, confirmLabel = 'Confirm', danger =
   )
 }
 
+function ViolationsPanel({ wsId }) {
+  const [logs,    setLogs]    = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    supabase.rpc('admin_get_workspace_violations', { p_workspace_id: wsId })
+      .then(({ data }) => { setLogs(data || []); setLoading(false) })
+  }, [wsId])
+
+  return (
+    <div style={{ marginTop: 12 }}>
+      <div style={{ fontFamily: 'DM Mono,monospace', fontSize: 9, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
+        Recent activity (last 10)
+      </div>
+      {loading ? (
+        <div style={{ fontFamily: 'DM Mono,monospace', fontSize: 9, color: 'var(--muted)' }}>Loading…</div>
+      ) : logs.length === 0 ? (
+        <div style={{ fontFamily: 'DM Mono,monospace', fontSize: 9, color: 'var(--muted)' }}>No audit entries found.</div>
+      ) : (
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr>
+              {['Action', 'Table', 'When'].map(h => (
+                <th key={h} style={{ fontFamily: 'DM Mono,monospace', fontSize: 8, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', textAlign: 'left', paddingBottom: 4, borderBottom: '1px solid var(--border2)' }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {logs.map((row, i) => (
+              <tr key={i}>
+                <td style={{ fontFamily: 'DM Mono,monospace', fontSize: 9, color: 'var(--muted2)', padding: '4px 0' }}>{row.action}</td>
+                <td style={{ fontFamily: 'DM Mono,monospace', fontSize: 9, color: 'var(--muted)', padding: '4px 8px' }}>{row.table_name || '—'}</td>
+                <td style={{ fontFamily: 'DM Mono,monospace', fontSize: 9, color: 'var(--muted)', padding: '4px 0' }}>{timeAgo(row.changed_at)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  )
+}
+
 function DetailPanel({ ws, onAction }) {
   const [busy,    setBusy]    = useState(false)
   const [confirm, setConfirm] = useState(null)
@@ -33,8 +75,10 @@ function DetailPanel({ ws, onAction }) {
     setBusy(true)
     setConfirm(null)
     let error = null
-    if (type === 'ban') {
-      ({ error } = await supabase.rpc('admin_ban_workspace', { p_id: ws.id }))
+    if (type === 'temp_ban') {
+      ({ error } = await supabase.rpc('admin_temp_ban_workspace', { p_id: ws.id }))
+    } else if (type === 'perm_ban') {
+      ({ error } = await supabase.rpc('admin_perm_ban_workspace', { p_id: ws.id }))
     } else if (type === 'unban') {
       ({ error } = await supabase.rpc('admin_restore_workspace', { p_id: ws.id }))
     } else if (type === 'essential') {
@@ -46,29 +90,7 @@ function DetailPanel({ ws, onAction }) {
     onAction(type, error)
   }
 
-  const ACTIONS = {
-    ban: {
-      type: 'ban',
-      title: 'Ban workspace',
-      message: `"${ws.name}" will be hidden from public. No data is deleted.`,
-      label: 'Ban workspace',
-      danger: true,
-    },
-    unban: {
-      type: 'unban',
-      title: 'Restore workspace',
-      message: `"${ws.name}" will be visible again immediately.`,
-      label: 'Restore',
-      danger: false,
-    },
-    essential: {
-      type: 'essential',
-      title: 'Force Essential plan',
-      message: `This removes ${ws.name}'s Pro subscription. They keep all data but lose Pro features.`,
-      label: 'Downgrade to Essential',
-      danger: true,
-    },
-  }
+  const isSuspended = ws.beta_suspended || !ws.is_published
 
   return (
     <>
@@ -105,26 +127,64 @@ function DetailPanel({ ws, onAction }) {
                 </button>
               )}
 
-              {ws.is_published ? (
-                <button className="x-btn-danger" disabled={busy} onClick={() => setConfirm(ACTIONS.ban)}>
-                  {busy ? '…' : 'Ban'}
-                </button>
-              ) : (
+              {isSuspended ? (
                 <button
                   className="x-btn-action"
                   disabled={busy}
                   style={{ color: 'var(--green)', borderColor: 'rgba(34,197,94,0.3)' }}
-                  onClick={() => setConfirm(ACTIONS.unban)}
+                  onClick={() => setConfirm({
+                    type: 'unban',
+                    title: 'Restore workspace',
+                    message: `"${ws.name}" will be visible and accessible again immediately.`,
+                    label: 'Restore',
+                    danger: false,
+                  })}
                 >
                   {busy ? '…' : 'Unban'}
                 </button>
+              ) : (
+                <>
+                  <button
+                    className="x-btn-action"
+                    disabled={busy}
+                    style={{ color: 'var(--amber)', borderColor: 'rgba(245,158,11,0.3)' }}
+                    onClick={() => setConfirm({
+                      type: 'temp_ban',
+                      title: 'Temporary Ban',
+                      message: `"${ws.name}" will be suspended. They'll see the /suspended page. Click Unban to restore at any time.`,
+                      label: 'Suspend',
+                      danger: true,
+                    })}
+                  >
+                    Temp Ban
+                  </button>
+                  <button
+                    className="x-btn-danger"
+                    disabled={busy}
+                    onClick={() => setConfirm({
+                      type: 'perm_ban',
+                      title: 'Permanent Ban',
+                      message: `"${ws.name}" will be permanently banned and suspended. Requires manual override to restore.`,
+                      label: 'Permanently Ban',
+                      danger: true,
+                    })}
+                  >
+                    Perm Ban
+                  </button>
+                </>
               )}
 
               <button
                 className="x-btn-danger"
                 disabled={busy}
                 data-tooltip="Removes Pro plan. User keeps all their data but loses Pro features (AI photos, formations, products)."
-                onClick={() => setConfirm(ACTIONS.essential)}
+                onClick={() => setConfirm({
+                  type: 'essential',
+                  title: 'Force Essential plan',
+                  message: `This removes ${ws.name}'s Pro subscription. They keep all data but lose Pro features.`,
+                  label: 'Downgrade to Essential',
+                  danger: true,
+                })}
               >
                 Force Essential
               </button>
@@ -144,6 +204,9 @@ function DetailPanel({ ws, onAction }) {
                 </button>
               )}
             </div>
+
+            {/* Violations */}
+            <ViolationsPanel wsId={ws.id} />
           </div>
         </td>
       </tr>
@@ -160,6 +223,12 @@ function DetailPanel({ ws, onAction }) {
       />
     </>
   )
+}
+
+function StatusPill({ ws }) {
+  if (ws.banned_permanently) return <span className="x-pill red">Banned</span>
+  if (ws.beta_suspended || !ws.is_published) return <span className="x-pill pnd">Suspended</span>
+  return <span className="x-pill act">Active</span>
 }
 
 export default function AdminUsers({ onNavigate }) {
@@ -181,7 +250,8 @@ export default function AdminUsers({ onNavigate }) {
       return
     }
     const messages = {
-      ban:       'Workspace banned — no data deleted. Click Unban to restore.',
+      temp_ban:  'Workspace suspended — click Unban to restore.',
+      perm_ban:  'Workspace permanently banned.',
       unban:     'Workspace restored — fully active again.',
       essential: 'Plan reset to Essential. User retains all data.',
       beta:      'Tagged as beta tester. Visible in Beta section.',
@@ -189,8 +259,9 @@ export default function AdminUsers({ onNavigate }) {
     showToast(messages[type] || 'Done')
     setWorkspaces(prev => prev.map(w => {
       if (w.id !== wsId) return w
-      if (type === 'ban')       return { ...w, is_published: false }
-      if (type === 'unban')     return { ...w, is_published: true }
+      if (type === 'temp_ban')  return { ...w, is_published: false, beta_suspended: true }
+      if (type === 'perm_ban')  return { ...w, is_published: false, beta_suspended: true, banned_permanently: true }
+      if (type === 'unban')     return { ...w, is_published: true,  beta_suspended: false }
       if (type === 'essential') return { ...w, stripe_onboarded: false }
       if (type === 'beta')      return { ...w, is_beta: true, beta_tagged_at: new Date().toISOString(), is_published: true, beta_suspended: false }
       return w
@@ -199,23 +270,25 @@ export default function AdminUsers({ onNavigate }) {
 
   if (loading) return <CenterSpinner />
 
-  const active   = workspaces.filter(w => w.is_published).length
-  const inactive = workspaces.length - active
+  const active    = workspaces.filter(w => w.is_published && !w.beta_suspended).length
+  const suspended = workspaces.filter(w => w.beta_suspended || !w.is_published).length
+  const banned    = workspaces.filter(w => w.banned_permanently).length
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <InfoBanner id="workspaces" text="Tous les comptes pros sur Organized. Cliquez sur une ligne pour voir les détails et agir. Ban = retire la visibilité publique sans supprimer les données. Unban = restaure immédiatement. Force Essential = retire le plan Pro." />
+      <InfoBanner id="workspaces" text="Tous les comptes pros sur Organized. Temp Ban = suspension temporaire, Unban restaure immédiatement. Perm Ban = banni définitivement, nécessite une override manuelle. Force Essential = retire le plan Pro." />
 
       <div className="x-g4">
         <KpiCard label="Total Workspaces" value={workspaces.length} change="— Pre-beta" changeType="nn" />
         <KpiCard label="Active" value={active}
           change={active > 0 ? `${Math.round(active / Math.max(workspaces.length, 1) * 100)}% of total` : '— None yet'}
           changeType={active > 0 ? 'up' : 'nn'} gold />
-        <KpiCard label="Inactive" value={inactive}
-          change={inactive > 0 ? `${Math.round(inactive / Math.max(workspaces.length, 1) * 100)}% of total` : '— All active'}
-          changeType="nn" />
-        <KpiCard label="Stripe Onboarded" value={workspaces.filter(w => w.stripe_onboarded).length}
-          change="— Payments ready" changeType="nn" />
+        <KpiCard label="Suspended" value={suspended}
+          change={suspended > 0 ? 'Temp or beta suspended' : '— None'}
+          changeType={suspended > 0 ? 'wn' : 'nn'} />
+        <KpiCard label="Banned" value={banned}
+          change={banned > 0 ? 'Permanently banned' : '— None'}
+          changeType={banned > 0 ? 'wn' : 'nn'} />
       </div>
 
       <Card>
@@ -250,11 +323,7 @@ export default function AdminUsers({ onNavigate }) {
                   <td style={{ fontFamily: 'DM Mono,monospace', fontSize: 9, color: 'var(--muted)' }}>
                     {w.client_count ?? '—'} clients · {w.appointment_count ?? '—'} appts
                   </td>
-                  <td>
-                    <span className={`x-pill ${w.is_published ? 'act' : 'inn'}`}>
-                      {w.is_published ? 'Active' : 'Inactive'}
-                    </span>
-                  </td>
+                  <td><StatusPill ws={w} /></td>
                   <td style={{ fontFamily: 'DM Mono,monospace', fontSize: 9, color: 'var(--muted)' }}>{fmtDate(w.created_at)}</td>
                 </tr>
                 {expanded === w.id && (

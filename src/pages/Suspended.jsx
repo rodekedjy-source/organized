@@ -31,7 +31,7 @@ export default function Suspended() {
 
         if (!ws) return
 
-        if (ws.beta_suspended === false && ws.is_published === true) {
+        if (ws.beta_suspended === false) {
           clearInterval(interval)
           window.location.href = '/dashboard'
         }

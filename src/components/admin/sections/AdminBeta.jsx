@@ -197,6 +197,7 @@ function BetaCard({ ws, status, onRemoved }) {
 
 export default function AdminBeta() {
   const [betaUsers,       setBetaUsers]       = useState([])
+  const [alumni,          setAlumni]          = useState([])
   const [loading,         setLoading]         = useState(true)
   const [waitlist,        setWaitlist]        = useState([])
   const [waitlistLoading, setWaitlistLoading] = useState(true)
@@ -206,7 +207,10 @@ export default function AdminBeta() {
 
   useEffect(() => {
     supabase.rpc('get_workspaces_admin').then(({ data }) => {
-      setBetaUsers((data || []).filter(w => w.is_beta))
+      const all = data || []
+      setBetaUsers(all.filter(w => w.is_beta))
+      // Alumni = was in beta (beta_tagged_at set), no longer beta, not suspended, has stripe
+      setAlumni(all.filter(w => w.beta_tagged_at && !w.is_beta && !w.beta_suspended && w.stripe_onboarded))
       setLoading(false)
     })
     loadWaitlist()
@@ -320,6 +324,42 @@ export default function AdminBeta() {
           </div>
         </div>
       </Card>
+
+      {/* Alumni card */}
+      {alumni.length > 0 && (
+        <Card>
+          <SecHd title="Alumni ✓" right={
+            <div style={{ fontFamily: 'DM Mono,monospace', fontSize: 9, color: 'var(--gold)' }}>
+              Former beta → paying customers
+            </div>
+          } />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
+            {alumni.map(w => (
+              <div key={w.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0', borderBottom: '1px solid var(--border2)' }}>
+                <div style={{
+                  width: 28, height: 28, borderRadius: 6, flexShrink: 0,
+                  background: 'linear-gradient(135deg,rgba(201,168,76,0.2),rgba(201,168,76,0.05))',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontFamily: 'Cormorant Garamond,serif', fontSize: 13, color: 'var(--gold)',
+                }}>
+                  {(w.name || w.slug || '?').charAt(0).toUpperCase()}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--white)' }}>{w.name || '—'}</div>
+                  {w.slug && <div style={{ fontFamily: 'DM Mono,monospace', fontSize: 9, color: 'var(--muted)' }}>@{w.slug}</div>}
+                </div>
+                <span style={{
+                  fontFamily: 'DM Mono,monospace', fontSize: 9, color: 'var(--gold)',
+                  padding: '3px 8px', border: '1px solid rgba(201,168,76,0.35)', borderRadius: 4,
+                  background: 'rgba(201,168,76,0.06)',
+                }}>
+                  Alumni ✓
+                </span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {/* Waitlist card */}
       <Card>
