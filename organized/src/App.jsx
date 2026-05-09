@@ -8,7 +8,7 @@ import ClientPage        from './pages/ClientPage'
 import CancelAppointment from './pages/CancelAppointment'
 import ReviewPage        from './pages/ReviewPage'
 import Legal               from './pages/Legal'
-import AdminPanel          from './pages/AdminPanel'
+import AdminConsole        from './pages/AdminConsole'
 import { WorkspaceProvider } from './contexts/WorkspaceContext'
 import { ToastProvider }     from './contexts/ToastContext'
 
@@ -67,7 +67,7 @@ export default function App() {
       {/* Founder Console — secret, no link in UI */}
       <Route
         path="/x"
-        element={session ? <AdminPanel session={session} /> : <Navigate to="/auth" replace />}
+        element={session ? <AdminConsole /> : <Navigate to="/auth" replace />}
       />
 
       {/* Client booking page — public, must be last */}
