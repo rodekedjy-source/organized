@@ -174,13 +174,6 @@ export default function ClientPage() {
   const canvasRef = useRef(null)
   useCanvas(canvasRef, theme)
 
-  // ── Scroll lock for all modals (BUG 3) ───────────────────────────────────
-  useEffect(() => {
-    const anyOpen = bkOpen || portfolioOpen || policyOpen || cartOpen
-    document.body.style.overflow = anyOpen ? 'hidden' : ''
-    return () => { document.body.style.overflow = '' }
-  }, [bkOpen, portfolioOpen, policyOpen, cartOpen])
-
   // ── UI State ──────────────────────────────────────────────────────────────
   const [activeTab,      setActiveTab]      = useState('book')
   const [heroFading,     setHeroFading]     = useState(false)
@@ -211,6 +204,13 @@ export default function ClientPage() {
   const [bkSubmitting,   setBkSubmitting]   = useState(false)
   const [bkAppointment,  setBkAppointment]  = useState(null)
   const [bkSubmitErr,    setBkSubmitErr]    = useState(null)
+
+  // ── Scroll lock for all modals ────────────────────────────────────────────
+  useEffect(() => {
+    const anyOpen = bkOpen || portfolioOpen || policyOpen || cartOpen
+    document.body.style.overflow = anyOpen ? 'hidden' : ''
+    return () => { document.body.style.overflow = '' }
+  }, [bkOpen, portfolioOpen, policyOpen, cartOpen])
 
   // ── Fetch all data ────────────────────────────────────────────────────────
   useEffect(() => {
