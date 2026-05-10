@@ -110,20 +110,23 @@ function EnhanceModal({ imageUrl, imagePreview, workspace, onSelect, onClose, to
   const [saving, setSaving] = useState(false)
   const EDGE = 'https://bwfpioxvfqwnwzkvtebg.supabase.co/functions/v1/enhance-product-image'
 
+  const FALLBACK_TEMPLATES = [
+    { id: 'studio_white',   label: 'Studio Blanc',     emoji: '⬜', url: 'https://v3b.fal.media/files/b/0a98fac8/C9DokWdUT0u69qqaDgR_9.jpg' },
+    { id: 'marble_luxe',    label: 'Marbre Luxe',       emoji: '🧇', url: 'https://v3b.fal.media/files/b/0a98fac8/5z50B-ImghTkqTO0j6Eoj.jpg' },
+    { id: 'bokeh_gold',     label: 'Bokeh Doré',        emoji: '✨', url: 'https://v3b.fal.media/files/b/0a98fac8/42ZN6OhGvPsYAVaY0KSqI.jpg' },
+    { id: 'noir_dramatique',label: 'Nuit Dramatique',   emoji: '🌑', url: 'https://v3b.fal.media/files/b/0a98fac8/gi_jVMyiTa9YJBYjU_SMu.jpg' },
+    { id: 'rose_poudre',    label: 'Rose Poudré',       emoji: '🌸', url: 'https://v3b.fal.media/files/b/0a98fac8/VmNTUlN8iy0eObxGLJTAJ.jpg' },
+    { id: 'botanique',      label: 'Botanique',         emoji: '🌿', url: 'https://v3b.fal.media/files/b/0a98fac8/uCsXKl3V_WiABW9oVevBi.jpg' },
+  ]
+
   useEffect(() => {
-    fetch(EDGE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) })
-      .then(r => r.json())
-      .then(d => { if (d?.templates) setTemplates(d.templates) })
-      .catch(() => {
-        setTemplates([
-          { id: 'studio_white', label: 'Studio Blanc', emoji: '⬜', url: 'https://v3b.fal.media/files/b/0a98fac8/C9DokWdUT0u69qqaDgR_9.jpg' },
-          { id: 'marble_luxe', label: 'Marbre Luxe', emoji: '🧇', url: 'https://v3b.fal.media/files/b/0a98fac8/5z50B-ImghTkqTO0j6Eoj.jpg' },
-          { id: 'bokeh_gold', label: 'Bokeh Doré', emoji: '✨', url: 'https://v3b.fal.media/files/b/0a98fac8/42ZN6OhGvPsYAVaY0KSqI.jpg' },
-          { id: 'noir_dramatique', label: 'Nuit Dramatique', emoji: '🌑', url: 'https://v3b.fal.media/files/b/0a98fac8/gi_jVMyiTa9YJBYjU_SMu.jpg' },
-          { id: 'rose_poudre', label: 'Rose Poudré', emoji: '🌸', url: 'https://v3b.fal.media/files/b/0a98fac8/VmNTUlN8iy0eObxGLJTAJ.jpg' },
-          { id: 'botanique', label: 'Botanique', emoji: '🌿', url: 'https://v3b.fal.media/files/b/0a98fac8/uCsXKl3V_WiABW9oVevBi.jpg' },
-        ])
+    // Use supabase.functions.invoke so the auth JWT is included automatically
+    supabase.functions.invoke('enhance-product-image', { body: {} })
+      .then(({ data, error }) => {
+        if (!error && data?.templates) setTemplates(data.templates)
+        else setTemplates(FALLBACK_TEMPLATES)
       })
+      .catch(() => setTemplates(FALLBACK_TEMPLATES))
   }, [])
 
   async function generate(template) {

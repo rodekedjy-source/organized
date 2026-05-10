@@ -35,19 +35,21 @@ function useScrollLock() {
   }, [])
 }
 
-const PERIODS = ['week', 'month', 'year']
+const PERIODS = ['all', 'month', 'year']
 const PERIOD_LABELS = {
-  en: { week: 'This Week', month: 'This Month', year: 'This Year' },
-  fr: { week: 'Cette semaine', month: 'Ce mois', year: 'Cette année' },
-  es: { week: 'Esta semana', month: 'Este mes', year: 'Este año' },
+  en: { all: 'All', week: 'This Week', month: 'This Month', year: 'This Year' },
+  fr: { all: 'Tous', week: 'Cette semaine', month: 'Ce mois', year: 'Cette année' },
+  es: { all: 'Todos', week: 'Esta semana', month: 'Este mes', year: 'Este año' },
 }
 function startOfPeriod(period) {
+  if (period === 'all') return new Date(0)
   const now = new Date()
   if (period === 'week') { const d = new Date(now); d.setDate(now.getDate() - now.getDay()); d.setHours(0, 0, 0, 0); return d }
   if (period === 'month') return new Date(now.getFullYear(), now.getMonth(), 1)
   return new Date(now.getFullYear(), 0, 1)
 }
 function filterByPeriod(arr, period, dateKey = 'scheduled_at') {
+  if (period === 'all') return arr
   const start = startOfPeriod(period)
   return arr.filter(r => new Date(r[dateKey]) >= start)
 }
@@ -308,7 +310,7 @@ export default function ClientsSection({ lang = 'en' }) {
   const { data, loading, refresh } = useClients(workspace?.id)
   const [selected, setSelected] = useState(null)
   const [search, setSearch] = useState('')
-  const [period, setPeriod] = useState('month')
+  const [period, setPeriod] = useState('all')
   const [importRows, setImportRows] = useState(null)
   const [importing, setImporting] = useState(false)
   const fileInputRef = useRef(null)
@@ -345,7 +347,8 @@ export default function ClientsSection({ lang = 'en' }) {
 
   const totalRevenue = displayData.reduce((s, c) => s + Number(c.total_spent || 0), 0)
   const totalVisits = displayData.reduce((s, c) => s + Number(c.total_visits || 0), 0)
-  const newClients = displayData.filter(c => c.created_at && new Date(c.created_at) >= startOfPeriod(period)).length
+  const newStart = period === 'all' ? new Date(Date.now() - 30 * 86400000) : startOfPeriod(period)
+  const newClients = displayData.filter(c => c.created_at && new Date(c.created_at) >= newStart).length
 
   return (
     <div>

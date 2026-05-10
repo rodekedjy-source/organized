@@ -411,6 +411,82 @@ function SettingsAutomationsForm({ workspace, toast, refetch, lang='en' }) {
   )
 }
 
+function SettingsNotificationsForm({ workspace, toast, refetch }) {
+  const [form, setForm] = useState({
+    sms_notifications_phone: workspace?.sms_notifications_phone || '',
+    sms_on_new_booking:      workspace?.sms_on_new_booking      ?? false,
+    sms_on_cancel:           workspace?.sms_on_cancel           ?? false,
+    sms_reminder_24h:        workspace?.sms_reminder_24h        ?? false,
+  })
+  useEffect(() => {
+    if (workspace) setForm({
+      sms_notifications_phone: workspace.sms_notifications_phone || '',
+      sms_on_new_booking:      workspace.sms_on_new_booking      ?? false,
+      sms_on_cancel:           workspace.sms_on_cancel           ?? false,
+      sms_reminder_24h:        workspace.sms_reminder_24h        ?? false,
+    })
+  }, [workspace?.id])
+  const [loading, setLoading] = useState(false), [saved, setSaved] = useState(false)
+  const iS = {border:'1px solid var(--border-2)',borderRadius:8,padding:'.55rem .85rem',fontSize:'.88rem',fontFamily:'inherit',color:'var(--ink)',background:'var(--surface)',outline:'none',transition:'border .15s',width:'100%'}
+  const foc = e => e.target.style.borderColor='var(--gold)'
+  const blu = e => e.target.style.borderColor='var(--border-2)'
+
+  async function save() {
+    if (!workspace?.id) return
+    setLoading(true); setSaved(false)
+    const { error } = await supabase.from('workspaces').update({
+      sms_notifications_phone: form.sms_notifications_phone.trim() || null,
+      sms_on_new_booking:      form.sms_on_new_booking,
+      sms_on_cancel:           form.sms_on_cancel,
+      sms_reminder_24h:        form.sms_reminder_24h,
+    }).eq('id', workspace.id)
+    if (error) toast(`Error: ${error.message}`)
+    else { setSaved(true); toast('Notification preferences saved.'); if (refetch) await refetch() }
+    setLoading(false)
+  }
+
+  const Toggle = ({ field, label, sub }) => (
+    <div className="settings-row">
+      <div>
+        <div className="settings-row-label">{label}</div>
+        {sub && <div style={{fontSize:'.73rem',color:'var(--ink-3)',marginTop:2}}>{sub}</div>}
+      </div>
+      <label className="toggle-wrap">
+        <input type="checkbox" checked={form[field]} onChange={e => setForm(f => ({...f, [field]: e.target.checked}))}/>
+        <div className="toggle-track"/><div className="toggle-thumb"/>
+      </label>
+    </div>
+  )
+
+  return (
+    <div className="card">
+      <div className="card-body" style={{display:'flex',flexDirection:'column',gap:'1.1rem'}}>
+        <div className="field">
+          <label style={{fontSize:'.72rem',fontWeight:600,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'.08em',display:'block',marginBottom:'.4rem'}}>SMS Phone Number</label>
+          <input style={iS} type="tel" value={form.sms_notifications_phone}
+            onChange={e => setForm(f => ({...f, sms_notifications_phone: e.target.value}))}
+            onFocus={foc} onBlur={blu} placeholder="+1 (514) 000-0000"/>
+          <div style={{fontSize:'.72rem',color:'var(--ink-3)',marginTop:'.35rem'}}>Receive text alerts at this number. Leave empty to disable SMS.</div>
+        </div>
+        <div style={{height:1,background:'var(--border)'}}/>
+        <Toggle field="sms_on_new_booking" label="SMS on new booking received"   sub="Get a text when a client books an appointment"/>
+        <div style={{height:1,background:'var(--border)'}}/>
+        <Toggle field="sms_on_cancel"      label="SMS on booking cancelled"       sub="Get a text when a client cancels"/>
+        <div style={{height:1,background:'var(--border)'}}/>
+        <Toggle field="sms_reminder_24h"   label="SMS reminder 24h before"        sub="Daily digest of tomorrow's appointments"/>
+        <div style={{height:1,background:'var(--border)'}}/>
+        <div style={{background:'var(--bg)',borderRadius:10,border:'1px solid var(--border)',padding:'1rem'}}>
+          <div style={{fontSize:'.62rem',fontWeight:700,textTransform:'uppercase',letterSpacing:'.12em',color:'var(--gold)',marginBottom:'.5rem'}}>Email notifications</div>
+          <div style={{fontSize:'.78rem',color:'var(--ink-2)',lineHeight:1.55}}>Email confirmations are sent automatically for every new booking. Configure review request emails in <strong>Automations</strong>.</div>
+        </div>
+        <button className="btn btn-primary" style={{justifyContent:'center',padding:'.75rem'}} onClick={save} disabled={loading}>
+          {loading ? 'Saving…' : saved ? 'Saved ✓' : 'Save notifications'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function SettingsLanguageForm({ ownerData, toast, refetch, lang='en' }) {
   const [selectedLang,setSelectedLang]=useState(ownerData?.language||'en')
   const [saved,setSaved]=useState(false),[loading,setLoading]=useState(false)
@@ -449,6 +525,7 @@ export default function SettingsSection({ workspace, toast, refetch, theme, setT
     {key:'appearance',label:t(lang,'appearance'),sub:t(lang,'appearance_sub')},
     {key:'coach',label:'Coach',sub:'Daily inspiration and faith preferences'},
     {key:'automations',label:'Automations',sub:'Review requests and smart follow-ups'},
+    {key:'notifications',label:'Notifications',sub:'SMS and email alerts for bookings'},
     {key:'language',label:t(lang,'language'),sub:t(lang,'language_sub')},
   ]
   if(section==='profile') return (
@@ -564,6 +641,12 @@ export default function SettingsSection({ workspace, toast, refetch, theme, setT
       <div className="page-head"><div><BackBtn/><div className="page-title" style={{marginTop:'.4rem'}}>Automations</div></div></div>
       <div style={{fontSize:'.68rem',fontWeight:700,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'.1em',marginBottom:'.65rem'}}>Review Requests</div>
       <SettingsAutomationsForm workspace={workspace} toast={toast} refetch={refetch} lang={lang}/>
+    </div>
+  )
+  if(section==='notifications') return (
+    <div>
+      <div className="page-head"><div><BackBtn/><div className="page-title" style={{marginTop:'.4rem'}}>Notifications</div></div></div>
+      <SettingsNotificationsForm workspace={workspace} toast={toast} refetch={refetch}/>
     </div>
   )
   if(section==='language') return (

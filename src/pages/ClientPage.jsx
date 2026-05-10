@@ -59,18 +59,20 @@ function useCanvas(canvasRef, theme) {
     const canvas = canvasRef.current
     if (!canvas) return
     const ctx = canvas.getContext('2d')
-    let raf, t = 0, dpr = window.devicePixelRatio || 1
+    let raf, initRaf, t = 0, dpr = window.devicePixelRatio || 1
 
     function resize() {
       const p = canvas.parentElement; if (!p) return
       dpr = window.devicePixelRatio || 1
       const r = p.getBoundingClientRect()
+      if (!r.width || !r.height) return   // guard: skip 0×0 frames
       canvas.width = Math.round(r.width * dpr); canvas.height = Math.round(r.height * dpr)
       canvas.style.width = r.width + 'px'; canvas.style.height = r.height + 'px'
     }
 
     function draw() {
       const w = canvas.width / dpr, h = canvas.height / dpr
+      if (!w || !h) { raf = requestAnimationFrame(draw); return }  // wait for dimensions
       const {bg, blobs} = getBlobs(theme)
       ctx.setTransform(dpr,0,0,dpr,0,0)
       ctx.clearRect(0,0,w,h); ctx.fillStyle = bg; ctx.fillRect(0,0,w,h)
@@ -91,12 +93,25 @@ function useCanvas(canvasRef, theme) {
     }
 
     function start() { cancelAnimationFrame(raf); resize(); draw() }
-    const onResize = () => resize()
+    const onResize = () => { resize() }
     const onVis = () => { if (document.hidden) cancelAnimationFrame(raf); else start() }
-    start()
+
+    // Defer initial start to next frame so DOM layout is committed
+    initRaf = requestAnimationFrame(start)
+
+    // ResizeObserver catches when parent element gains real dimensions
+    const ro = new ResizeObserver(() => { if (!canvas.width) start() })
+    if (canvas.parentElement) ro.observe(canvas.parentElement)
+
     window.addEventListener('resize', onResize)
     document.addEventListener('visibilitychange', onVis)
-    return () => { cancelAnimationFrame(raf); window.removeEventListener('resize',onResize); document.removeEventListener('visibilitychange',onVis) }
+    return () => {
+      cancelAnimationFrame(raf)
+      cancelAnimationFrame(initRaf)
+      ro.disconnect()
+      window.removeEventListener('resize', onResize)
+      document.removeEventListener('visibilitychange', onVis)
+    }
   }, [canvasRef, theme])
 }
 
@@ -158,6 +173,13 @@ export default function ClientPage() {
   // ── Canvas ────────────────────────────────────────────────────────────────
   const canvasRef = useRef(null)
   useCanvas(canvasRef, theme)
+
+  // ── Scroll lock for all modals (BUG 3) ───────────────────────────────────
+  useEffect(() => {
+    const anyOpen = bkOpen || portfolioOpen || policyOpen || cartOpen
+    document.body.style.overflow = anyOpen ? 'hidden' : ''
+    return () => { document.body.style.overflow = '' }
+  }, [bkOpen, portfolioOpen, policyOpen, cartOpen])
 
   // ── UI State ──────────────────────────────────────────────────────────────
   const [activeTab,      setActiveTab]      = useState('book')
@@ -258,9 +280,9 @@ export default function ClientPage() {
     setBkSlots([]); setBkCalY(TODAY.getFullYear()); setBkCalM(TODAY.getMonth())
     setBkForm({fname:'',lname:'',email:'',phone:'',source:'',notes:''})
     setBkErrors({}); setBkAppointment(null); setBkSubmitErr(null)
-    setBkPage(1); setBkOpen(true); document.body.style.overflow = 'hidden'
+    setBkPage(1); setBkOpen(true)
   }
-  const closeBooking = () => { setBkOpen(false); document.body.style.overflow = '' }
+  const closeBooking = () => { setBkOpen(false) }
 
   // ── Go to page ────────────────────────────────────────────────────────────
   const goToPage = (n) => {
@@ -375,7 +397,6 @@ export default function ClientPage() {
       <nav className="cb-nav">
         <div className="cb-nav-logo">{workspace.name}<span>via Organized.</span></div>
         <div className="cb-nav-right">
-          <button className="cb-icon-btn" onClick={toggleTheme} title="Toggle theme">{theme==='dark'?'☀':'☾'}</button>
           <button className="cb-icon-btn" onClick={()=>setCartOpen(true)} style={{position:'relative'}}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
             {cartCount>0&&<span className="cb-cart-badge">{cartCount}</span>}
@@ -861,7 +882,11 @@ const CSS = `
 .fc-lbl{font-size:8px;color:var(--text-muted);letter-spacing:.2em;text-transform:uppercase;margin-bottom:6px}
 .fc-val{font-family:'Playfair Display',serif;font-size:17px;color:var(--gold-light)}
 .fc-sub{font-size:10px;color:var(--text-soft);margin-top:3px}
-@media(max-width:768px){.cb-hero{grid-template-columns:1fr}.hero-left{padding:80px 24px 52px}.hero-left::after{display:none}.hero-right{display:none}}
+@media(max-width:768px){.cb-hero{grid-template-columns:1fr}.hero-left{padding:80px 24px 52px;align-items:center;text-align:center}.hero-left::after{display:none}.hero-right{display:none}.hero-bio{max-width:100%}.hero-stats{justify-content:center}.hero-cta-row{justify-content:center}.hero-socials{justify-content:center}}
+.cb-section-hd{text-align:center;margin-bottom:48px}
+.cb-section-hd .cb-eyebrow{display:block}
+.cb-section-hd .cb-heading,.cb-section-hd .cb-sub{text-align:center}
+@media(max-width:640px){.cb-section{padding:48px 20px}.cb-inner{padding:0}.cb-services-grid{grid-template-columns:1fr}.cb-products-grid{grid-template-columns:repeat(2,1fr)}.cb-reviews-grid{grid-template-columns:1fr}}
 
 /* ── BUTTONS ── */
 .cb-btn-primary{background:var(--gold);color:#141210;border:none;padding:14px 28px;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;border-radius:1px;transition:all .25s}
