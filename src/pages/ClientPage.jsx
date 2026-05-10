@@ -158,6 +158,9 @@ export default function ClientPage() {
   const [activeTab,      setActiveTab]      = useState('book')
   const [heroFading,     setHeroFading]     = useState(false)
   const [portfolioOpen,  setPortfolioOpen]  = useState(false)
+  const [lbOpen,         setLbOpen]         = useState(false)
+  const [lbIdx,          setLbIdx]          = useState(0)
+  const lbTouchX = useRef(0)
   const [policyOpen,     setPolicyOpen]     = useState(false)
   const [cartOpen,       setCartOpen]       = useState(false)
   const [cartItems,      setCartItems]      = useState([])
@@ -201,7 +204,7 @@ export default function ClientPage() {
         const [
           {data:svc},{data:avail},{data:blk},{data:prod},{data:offer},{data:rev},{data:port}
         ] = await Promise.all([
-          supabase.from('services').select('id,name,description,duration_min,price,is_free,display_order,addons,deposit_amount,category').eq('workspace_id',ws.id).eq('is_active',true).is('deleted_at',null).order('display_order',{ascending:true}),
+          supabase.from('services').select('id,name,description,duration_min,price,is_free,display_order,addons,deposit_amount,category,image_url').eq('workspace_id',ws.id).eq('is_active',true).is('deleted_at',null).order('display_order',{ascending:true}),
           supabase.from('availability').select('day_of_week,is_open,open_time,close_time').eq('workspace_id',ws.id).order('day_of_week',{ascending:true}),
           supabase.from('blocked_dates').select('blocked_date').eq('workspace_id',ws.id).gte('blocked_date',today),
           supabase.from('products').select('id,name,description,price,currency,stock,image_url,images').eq('workspace_id',ws.id).eq('is_active',true).is('deleted_at',null).order('created_at',{ascending:false}),
@@ -325,6 +328,14 @@ export default function ClientPage() {
   }
 
   // ── Cart ──────────────────────────────────────────────────────────────────
+  // ── Lightbox ──────────────────────────────────────────────────────────────
+  const lbPhotos = portfolio.filter(p => p.url)
+  const openLb  = (p) => { const i = lbPhotos.findIndex(ph=>ph.id===p.id); if(i<0) return; setLbIdx(i); setLbOpen(true); document.body.style.overflow='hidden' }
+  const closeLb = () => { setLbOpen(false); document.body.style.overflow='' }
+  const lbPrev  = () => setLbIdx(i => (i - 1 + lbPhotos.length) % lbPhotos.length)
+  const lbNext  = () => setLbIdx(i => (i + 1) % lbPhotos.length)
+
+  // ── Cart ──────────────────────────────────────────────────────────────────
   const cartCount = cartItems.reduce((s,i)=>s+i.qty,0)
   const cartTotal = cartItems.reduce((s,i)=>s+i.price*i.qty,0)
   const addToCart = (p) => setCartItems(prev => { const ex=prev.find(i=>i.id===p.id); return ex ? prev.map(i=>i.id===p.id?{...i,qty:i.qty+1}:i) : [...prev,{...p,qty:1}] })
@@ -350,7 +361,7 @@ export default function ClientPage() {
 
   // ── Hero content per tab ─────────────────────────────────────────────────
   const HERO_CONTENT = {
-    book:  { tag:'Accepting New Clients', eyebrow:workspace.tagline||workspace.location||'Beauty Professional', bio:workspace.bio||'Expert beauty services — crafting confidence one appointment at a time.', stats:[['200+','Clients'],['10','Years'],['4.9','Rating']], ctas:['Book your Service','See our Portfolio'], pills:['Color & Highlights','Precision Cut','Keratin Treatment'], edLabel:'Portfolio · Studio' },
+    book:  { tag:'Accepting New Clients', eyebrow:workspace.tagline||workspace.location||'Beauty Professional', bio:workspace.bio||'Expert beauty services — crafting confidence one appointment at a time.', stats:[['200+','Clients'],['10','Years'],['4.9','Rating']], ctas:['Book your Service','View our portfolio'], pills:['Color & Highlights','Precision Cut','Keratin Treatment'], edLabel:'Portfolio · Studio' },
     shop:  { tag:'Studio Curated Products', eyebrow:`${workspace.name} · Hair & Beauty Edit`, bio:'Products personally tested and used in the studio. Every item on this shelf is a recommendation.', stats:[[String(products.length),'Products'],['$29+','Starting'],['Free','Advice']], ctas:['Browse Products','Open my Bag'], pills:['Hair Care','Styling','Treatment'], edLabel:'The Edit · Shop' },
     learn: { tag:'Workshops & Online Courses', eyebrow:'Education · All Levels Welcome', bio:'From intensive in-person workshops to self-paced online programs — grow on your terms.', stats:[[String(offerings.length),'Programs'],['120+','Graduates'],['4.8','Rating']], ctas:['View Workshops','Browse Online'], pills:['In-Person','Online Courses','All Levels'], edLabel:'Knowledge · Learn' }
   }
@@ -397,7 +408,7 @@ export default function ClientPage() {
           </div>
           <div className={`hero-cta-row${heroFading?' hero-fading':''}`}>
             <button className="cb-btn-primary" onClick={()=>document.querySelector('.tab-bar-wrap')?.scrollIntoView({behavior:'smooth'})}>{hc.ctas[0]}</button>
-            <button className="cb-btn-ghost" onClick={()=>setPortfolioOpen(true)}>{hc.ctas[1]}</button>
+            <button className="cb-btn-ghost" onClick={()=>setPortfolioOpen(true)} style={activeTab==='book'?{borderColor:'rgba(201,168,76,0.4)',color:'var(--gold-light)'}:{}}>{hc.ctas[1]}</button>
           </div>
           <div className="hero-socials">
             {workspace.instagram&&<a href={`https://instagram.com/${workspace.instagram.replace('@','')}`} target="_blank" rel="noreferrer"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>{workspace.instagram}</a>}
@@ -450,6 +461,7 @@ export default function ClientPage() {
             <div className="cb-services-grid" style={{marginTop:32}}>
               {services.map(svc=>(
                 <div key={svc.id} className="cb-svc-card" onClick={()=>openBooking(svc)}>
+                  {svc.image_url&&<div style={{margin:'-32px -28px 24px',height:180,overflow:'hidden',flexShrink:0}}><img src={svc.image_url} alt={svc.name} style={{width:'100%',height:'100%',objectFit:'cover'}}/></div>}
                   <div className="cb-svc-cat">{svc.category||'Service'}</div>
                   <div className="cb-svc-name">{svc.name}</div>
                   <div className="cb-svc-dur">{svc.duration_min} min</div>
@@ -741,7 +753,11 @@ export default function ClientPage() {
         <div style={{padding:'48px 24px 80px',flex:1}}>
           <div className="cb-eyebrow" style={{marginBottom:8}}>The Work</div><h2 className="cb-heading" style={{marginBottom:28}}>Crafted with <em>intention</em></h2>
           <div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:4}}>
-            {(portfolio.length>0?portfolio:Array(6).fill(null)).map((p,i)=><div key={p?.id||i} style={{aspectRatio:'3/4',background:'var(--dark-3)',overflow:'hidden'}}>{p?.url&&<img src={p.url} alt={p.caption||''} style={{width:'100%',height:'100%',objectFit:'cover'}}/>}</div>)}
+            {(portfolio.length>0?portfolio:Array(6).fill(null)).map((p,i)=>(
+              <div key={p?.id||i} style={{aspectRatio:'3/4',background:'var(--dark-3)',overflow:'hidden',cursor:p?.url?'pointer':'default'}} onClick={p?.url?()=>openLb(p):undefined}>
+                {p?.url&&<img src={p.url} alt={p.caption||''} style={{width:'100%',height:'100%',objectFit:'cover',transition:'transform .4s ease'}} onMouseEnter={e=>e.currentTarget.style.transform='scale(1.04)'} onMouseLeave={e=>e.currentTarget.style.transform='scale(1)'}/>}
+              </div>
+            ))}
           </div>
         </div>
       </div>
@@ -754,6 +770,22 @@ export default function ClientPage() {
         </div>
         <div style={{position:'sticky',bottom:0,padding:'16px 24px 28px',background:'rgba(10,5,2,.97)',borderTop:'1px solid var(--dark-4)'}}><button className="cb-btn-primary" style={{width:'100%',padding:14}} onClick={()=>{setBkPolicy(true);setPolicyOpen(false)}}>I have read — Return to booking</button></div>
       </div>
+
+      {/* LIGHTBOX */}
+      {lbOpen&&lbPhotos.length>0&&(
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.96)',zIndex:2000,display:'flex',alignItems:'center',justifyContent:'center'}}
+          onClick={closeLb}
+          onTouchStart={e=>{lbTouchX.current=e.touches[0].clientX}}
+          onTouchEnd={e=>{const dx=e.changedTouches[0].clientX-lbTouchX.current;if(dx>50)lbPrev();else if(dx<-50)lbNext()}}
+        >
+          <button onClick={closeLb} style={{position:'absolute',top:20,right:20,background:'transparent',border:'1px solid rgba(201,168,76,.3)',color:'var(--gold)',width:40,height:40,borderRadius:2,cursor:'pointer',fontSize:20,display:'flex',alignItems:'center',justifyContent:'center',zIndex:10}}>×</button>
+          <div style={{position:'absolute',top:22,left:'50%',transform:'translateX(-50%)',fontSize:10,letterSpacing:'.2em',color:'rgba(201,168,76,.55)',textTransform:'uppercase',userSelect:'none'}}>{lbIdx+1} / {lbPhotos.length}</div>
+          {lbPhotos.length>1&&<button onClick={e=>{e.stopPropagation();lbPrev()}} style={{position:'absolute',left:16,background:'transparent',border:'1px solid rgba(201,168,76,.3)',color:'var(--gold)',width:44,height:44,borderRadius:2,cursor:'pointer',fontSize:22,display:'flex',alignItems:'center',justifyContent:'center',zIndex:10}}>←</button>}
+          <img src={lbPhotos[lbIdx].url} alt={lbPhotos[lbIdx].caption||''} style={{maxHeight:'88vh',maxWidth:'88vw',objectFit:'contain',borderRadius:2,userSelect:'none'}} onClick={e=>e.stopPropagation()} draggable={false}/>
+          {lbPhotos.length>1&&<button onClick={e=>{e.stopPropagation();lbNext()}} style={{position:'absolute',right:16,background:'transparent',border:'1px solid rgba(201,168,76,.3)',color:'var(--gold)',width:44,height:44,borderRadius:2,cursor:'pointer',fontSize:22,display:'flex',alignItems:'center',justifyContent:'center',zIndex:10}}>→</button>}
+          {lbPhotos[lbIdx].caption&&<div style={{position:'absolute',bottom:24,left:'50%',transform:'translateX(-50%)',fontSize:11,color:'rgba(240,234,224,.5)',letterSpacing:'.1em',whiteSpace:'nowrap',userSelect:'none'}}>{lbPhotos[lbIdx].caption}</div>}
+        </div>
+      )}
 
       {/* CART DRAWER */}
       {cartOpen&&<div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.7)',zIndex:700}} onClick={()=>setCartOpen(false)}/>}
