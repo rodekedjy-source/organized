@@ -579,9 +579,13 @@ export default function SettingsSection({ workspace, toast, refetch, theme, setT
         <div className="card-body">
           <div style={{fontSize:'.8rem',color:'var(--ink-3)',marginBottom:'1rem',lineHeight:1.55}}>Controls how <strong style={{color:'var(--ink)'}}>your public client page</strong> looks. Clients see this when they book.</div>
           <div className="theme-options">
-            <div className={`theme-option${workspace?.theme!=='dark'?' selected':''}`} onClick={async()=>{await supabase.from('workspaces').update({theme:'light'}).eq('id',workspace.id);if(refetch)await refetch();toast('Business page set to Light.')}}>
+            <div className={`theme-option${(!workspace?.theme||workspace?.theme==='warm')?' selected':''}`} onClick={async()=>{await supabase.from('workspaces').update({theme:'warm'}).eq('id',workspace.id);if(refetch)await refetch();toast('Business page set to Warm.')}}>
+              <div className="theme-preview" style={{background:'linear-gradient(135deg,#1A1208 0%,#2C1F0A 100%)'}}><div style={{position:'absolute',inset:0,background:'radial-gradient(circle at 40% 60%,rgba(201,168,76,.35) 0%,transparent 65%)',borderRadius:4}}/></div>
+              <div className="theme-label">Warm {(!workspace?.theme||workspace?.theme==='warm')&&<div className="theme-check">{I.check}</div>}</div>
+            </div>
+            <div className={`theme-option${workspace?.theme==='light'?' selected':''}`} onClick={async()=>{await supabase.from('workspaces').update({theme:'light'}).eq('id',workspace.id);if(refetch)await refetch();toast('Business page set to Light.')}}>
               <div className="theme-preview"><div className="tp-ls"/><div className="tp-lm"><div className="tp-lb"/><div className="tp-lb"/></div></div>
-              <div className="theme-label">Light {workspace?.theme!=='dark'&&<div className="theme-check">{I.check}</div>}</div>
+              <div className="theme-label">Light {workspace?.theme==='light'&&<div className="theme-check">{I.check}</div>}</div>
             </div>
             <div className={`theme-option${workspace?.theme==='dark'?' selected':''}`} onClick={async()=>{await supabase.from('workspaces').update({theme:'dark'}).eq('id',workspace.id);if(refetch)await refetch();toast('Business page set to Dark.')}}>
               <div className="theme-preview"><div className="tp-ds"/><div className="tp-dm"><div className="tp-db"/><div className="tp-db"/></div></div>

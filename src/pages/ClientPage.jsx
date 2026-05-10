@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, useCallback } from 'react'
+import { useRef, useState, useEffect, useLayoutEffect, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
@@ -55,7 +55,7 @@ function getBlobs(theme) {
 }
 
 function useCanvas(canvasRef, theme) {
-  useEffect(() => {
+  useLayoutEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
     const ctx = canvas.getContext('2d')
@@ -141,19 +141,14 @@ export default function ClientPage() {
   const [loading,      setLoading]      = useState(true)
   const [notFound,     setNotFound]     = useState(false)
 
-  // ── Theme ─────────────────────────────────────────────────────────────────
-  const [theme, setTheme] = useState('dark')
+  // ── Theme — driven by workspace.theme, no user override ──────────────────
+  const [theme, setTheme] = useState('warm')
   useEffect(() => {
     if (!workspace) return
-    const saved = localStorage.getItem('organized_theme')
-    const t = saved || workspace.theme || 'dark'
-    setTheme(t); document.documentElement.setAttribute('data-theme', t)
+    const t = workspace.theme || 'warm'
+    setTheme(t)
+    document.documentElement.setAttribute('data-theme', t === 'warm' ? 'dark' : t)
   }, [workspace])
-  const toggleTheme = () => {
-    const next = theme === 'dark' ? 'light' : 'dark'
-    setTheme(next); document.documentElement.setAttribute('data-theme', next)
-    localStorage.setItem('organized_theme', next)
-  }
 
   // ── Canvas ────────────────────────────────────────────────────────────────
   const canvasRef = useRef(null)
@@ -383,8 +378,8 @@ export default function ClientPage() {
       </nav>
 
       {/* HERO */}
-      <section className="cb-hero">
-        <div className="hero-blob-bg"><canvas ref={canvasRef} style={{position:'absolute',inset:0,width:'100%',height:'100%',display:'block'}}/></div>
+      <section className="cb-hero" style={theme!=='warm'?{background:theme==='dark'?'#0A0A0A':'#FAFAF8'}:{}}>
+        <div className="hero-blob-bg" style={{display:theme==='warm'?'block':'none'}}><canvas ref={canvasRef} style={{position:'absolute',inset:0,width:'100%',height:'100%',display:'block'}}/></div>
         <div className="hero-left">
           <div className={`hero-context-tag${heroFading?' hero-fading':''}`}>
             <span className="hero-tag-dot"/><span>{hc.tag}</span>
@@ -871,8 +866,8 @@ const CSS = `
 
 /* ── TAB BAR ── */
 .tab-bar-wrap{position:sticky;top:64px;z-index:400;background:rgba(10,5,2,.99);border-bottom:1px solid rgba(201,168,76,.10);backdrop-filter:blur(20px)}
-.tab-bar{max-width:1200px;margin:0 auto;padding:0 40px;display:flex;align-items:stretch;gap:0;overflow-x:auto}
-.tab-btn{background:transparent;border:none;color:var(--text-muted);font-family:'DM Sans',sans-serif;font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;padding:20px 24px;cursor:pointer;position:relative;transition:color .25s;display:flex;align-items:center;gap:8px;white-space:nowrap}
+.tab-bar{width:100%;display:flex;align-items:stretch;overflow:hidden}
+.tab-btn{background:transparent;border:none;color:var(--text-muted);font-family:'DM Sans',sans-serif;font-size:10px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;padding:12px 4px;cursor:pointer;position:relative;transition:color .25s;display:flex;align-items:center;justify-content:center;gap:6px;flex:1;min-width:0;text-align:center}
 .tab-btn::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;background:var(--gold);transform:scaleX(0);transition:transform .3s var(--ease)}
 .tab-btn:hover{color:var(--text-soft)}
 .tab-btn.active{color:var(--gold-light)}
