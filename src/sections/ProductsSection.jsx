@@ -108,7 +108,8 @@ function EnhanceModal({ imageUrl, imagePreview, workspace, onSelect, onClose, to
   const [selected, setSelected] = useState(null)
   const [resultUrl, setResultUrl] = useState(null)
   const [saving, setSaving] = useState(false)
-  const EDGE = 'https://bwfpioxvfqwnwzkvtebg.supabase.co/functions/v1/enhance-product-image'
+  const [usageUsed, setUsageUsed] = useState(0)
+  const DAILY_LIMIT = 10
 
   const FALLBACK_TEMPLATES = [
     { id: 'studio_white',   label: 'Studio Blanc',     emoji: '⬜', url: 'https://v3b.fal.media/files/b/0a98fac8/C9DokWdUT0u69qqaDgR_9.jpg' },
@@ -120,31 +121,50 @@ function EnhanceModal({ imageUrl, imagePreview, workspace, onSelect, onClose, to
   ]
 
   useEffect(() => {
-    // Use supabase.functions.invoke so the auth JWT is included automatically
-    supabase.functions.invoke('enhance-product-image', { body: {} })
-      .then(({ data, error }) => {
+    async function loadTemplates() {
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        const { data, error } = await supabase.functions.invoke('enhance-product-image', {
+          body: {},
+          headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
+        })
         if (!error && data?.templates) setTemplates(data.templates)
         else setTemplates(FALLBACK_TEMPLATES)
-      })
-      .catch(() => setTemplates(FALLBACK_TEMPLATES))
+        if (data?.used != null) setUsageUsed(data.used)
+      } catch { setTemplates(FALLBACK_TEMPLATES) }
+    }
+    loadTemplates()
   }, [])
 
   async function generate(template) {
+    if (usageUsed >= DAILY_LIMIT) {
+      toast(`Daily limit reached (${DAILY_LIMIT}/day). Resets at midnight UTC.`)
+      return
+    }
     setSelected(template); setPhase('loading')
     try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.access_token) { toast('Please log in to use AI enhancement.'); setPhase('templates'); return }
       const { data, error } = await supabase.functions.invoke('enhance-product-image', {
         body: { image_url: imageUrl, template_id: template.id },
+        headers: { Authorization: `Bearer ${session.access_token}` },
       })
       if (error) {
         const msg = error.message || ''
-        if (msg.includes('key') || msg.includes('API') || msg.includes('auth') || msg.includes('401') || msg.includes('403')) {
-          toast('AI enhancement unavailable — contact support')
+        if (msg.includes('limit') || msg.includes('429')) {
+          toast(`Daily AI enhancement limit reached (${DAILY_LIMIT}/day). Resets at midnight UTC.`)
         } else {
           toast('Enhancement failed — ' + msg)
         }
         setPhase('templates'); return
       }
-      if (data?.error) throw new Error(data.error)
+      if (data?.error) {
+        if (data.error.includes('limit')) {
+          toast(data.error); setPhase('templates'); return
+        }
+        throw new Error(data.error)
+      }
+      if (data?.used != null) setUsageUsed(data.used)
       if (data?.url) { setResultUrl(data.url); setPhase('result'); return }
       throw new Error('No image returned.')
     } catch (e) { toast('Enhancement failed — ' + e.message); setPhase('templates') }
@@ -173,7 +193,9 @@ function EnhanceModal({ imageUrl, imagePreview, workspace, onSelect, onClose, to
         <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
           <div>
             <div style={{ fontSize: '.95rem', fontWeight: 700, fontFamily: "'Playfair Display',serif" }}>✨ AI Photo Enhancement</div>
-            <div style={{ fontSize: '.72rem', color: 'var(--ink-3)', marginTop: '.1rem' }}>Choose a background template</div>
+            <div style={{ fontSize: '.72rem', color: usageUsed >= DAILY_LIMIT ? 'var(--red)' : 'var(--ink-3)', marginTop: '.1rem' }}>
+              {usageUsed}/{DAILY_LIMIT} enhancements used today
+            </div>
           </div>
           <button onClick={onClose} style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '8px', width: 28, height: 28, cursor: 'pointer', color: 'var(--ink-3)', fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
         </div>

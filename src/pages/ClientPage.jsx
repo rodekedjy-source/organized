@@ -67,6 +67,10 @@ function useCanvas(canvasRef, theme) {
       const r = p.getBoundingClientRect()
       canvas.width = Math.round(r.width * dpr); canvas.height = Math.round(r.height * dpr)
       canvas.style.width = r.width + 'px'; canvas.style.height = r.height + 'px'
+      // Paint background immediately to prevent white flash
+      const { bg } = getBlobs(theme)
+      ctx.setTransform(dpr,0,0,dpr,0,0)
+      ctx.fillStyle = bg; ctx.fillRect(0, 0, r.width, r.height)
     }
 
     function draw() {
@@ -411,7 +415,7 @@ export default function ClientPage() {
       </nav>
 
       {/* HERO */}
-      <section className="cb-hero" style={theme!=='warm'?{background:theme==='dark'?'#0A0A0A':'#FAFAF8'}:{}}>
+      <section className="cb-hero" style={theme!=='warm'?{background:theme==='dark'?'#080808':'#FAFAF8'}:{}}>
         <div className="hero-blob-bg" style={{display:theme==='warm'?'block':'none'}}><canvas ref={canvasRef} style={{position:'absolute',inset:0,width:'100%',height:'100%',display:'block'}}/></div>
         <div className="hero-left">
           <div className={`hero-context-tag${heroFading?' hero-fading':''}`}>
@@ -543,6 +547,39 @@ export default function ClientPage() {
                 </div>}
                 {workspace.address_visibility==='full'&&<a className="cb-directions-btn" href={mapsUrl} target="_blank" rel="noreferrer">Get Directions →</a>}
               </div>
+            </div>
+            {/* Google Maps embed */}
+            {workspace.location&&<div style={{marginTop:24}}>
+              <div style={{fontSize:12,color:'var(--text-muted)',marginBottom:8}}>📍 Notre emplacement</div>
+              <iframe
+                src={`https://www.google.com/maps?q=${encodeURIComponent(workspace.location)}&output=embed`}
+                width="100%"
+                height="200"
+                style={{border:0,borderRadius:12,display:'block'}}
+                allowFullScreen
+                loading="lazy"
+                title="Studio location"
+              />
+            </div>}
+          </div>
+        </section>}
+
+        {/* Google Maps — show when location set but no structured address */}
+        {!workspace.address_street&&workspace.location&&<section className="cb-section">
+          <div className="cb-inner">
+            <div className="cb-eyebrow">Find Us</div>
+            <h2 className="cb-heading">The <em>Studio</em></h2>
+            <div style={{marginTop:24}}>
+              <div style={{fontSize:12,color:'var(--text-muted)',marginBottom:8}}>📍 Notre emplacement</div>
+              <iframe
+                src={`https://www.google.com/maps?q=${encodeURIComponent(workspace.location)}&output=embed`}
+                width="100%"
+                height="200"
+                style={{border:0,borderRadius:12,display:'block'}}
+                allowFullScreen
+                loading="lazy"
+                title="Studio location"
+              />
             </div>
           </div>
         </section>}
@@ -921,7 +958,7 @@ const CSS = `
 /* ── TAB BAR ── */
 .tab-bar-wrap{position:sticky;top:64px;z-index:400;background:rgba(10,5,2,.99);border-bottom:1px solid rgba(201,168,76,.10);backdrop-filter:blur(20px)}
 .tab-bar{width:100%;display:flex;align-items:stretch;overflow:hidden}
-.tab-btn{background:transparent;border:none;color:var(--text-muted);font-family:'DM Sans',sans-serif;font-size:10px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;padding:12px 4px;cursor:pointer;position:relative;transition:color .25s;display:flex;align-items:center;justify-content:center;gap:6px;flex:1;min-width:0;text-align:center}
+.tab-btn{background:transparent;border:none;color:var(--text-muted);font-family:'DM Sans',sans-serif;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:14px 2px;cursor:pointer;position:relative;transition:color .25s;display:flex;align-items:center;justify-content:center;gap:6px;flex:1;min-width:0;text-align:center;white-space:nowrap;overflow:hidden}
 .tab-btn::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;background:var(--gold);transform:scaleX(0);transition:transform .3s var(--ease)}
 .tab-btn:hover{color:var(--text-soft)}
 .tab-btn.active{color:var(--gold-light)}
