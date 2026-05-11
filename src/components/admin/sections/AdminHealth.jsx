@@ -22,9 +22,8 @@ export default function AdminHealth() {
 
   async function fetchLastBackup() {
     try {
-      const { data } = await supabase.functions.invoke('backup-database', { method: 'GET' })
-      const raw = data?.lastBackupDate ?? null
-      setLastBackup(raw ? new Date(raw) : null)
+      const { data } = await supabase.rpc('get_last_backup_info')
+      setLastBackup(data?.created_at ? new Date(data.created_at) : null)
     } catch (_) {
       setLastBackup(null)
     }
