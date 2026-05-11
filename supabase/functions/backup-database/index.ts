@@ -10,22 +10,42 @@ const TABLES = [
 const BUCKET = 'db-backups'
 const MAX_BACKUPS = 4
 
-Deno.serve(async () => {
-  try {
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-      { auth: { persistSession: false } }
-    )
+Deno.serve(async (req) => {
+  const supabase = createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    { auth: { persistSession: false } }
+  )
 
-    // ── 1. Export all tables ────────────────────────────────────────────────
+  // ── GET — return last backup metadata (used by AdminHealth) ───────────────
+  if (req.method === 'GET') {
+    try {
+      const { data: files, error } = await supabase.storage
+        .from(BUCKET)
+        .list('', { limit: 100, sortBy: { column: 'created_at', order: 'desc' } })
+
+      if (error) throw error
+
+      const last = files?.[0] ?? null
+      return Response.json({
+        lastBackup:     last?.name        ?? null,
+        lastBackupDate: last?.created_at  ?? null,
+        count:          files?.length     ?? 0,
+      })
+    } catch (err) {
+      return Response.json({ lastBackup: null, lastBackupDate: null, count: 0, error: String(err) }, { status: 500 })
+    }
+  }
+
+  // ── POST — run full backup ────────────────────────────────────────────────
+  try {
+    // 1. Export all tables
     const snapshot: Record<string, unknown[]> = {}
     let totalRows = 0
 
     for (const table of TABLES) {
       const { data, error } = await supabase.from(table).select('*')
       if (error) {
-        // Table may not exist — record empty and continue
         snapshot[table] = []
       } else {
         snapshot[table] = data ?? []
@@ -33,9 +53,9 @@ Deno.serve(async () => {
       }
     }
 
-    // ── 2. Build file ───────────────────────────────────────────────────────
+    // 2. Build file
     const now = new Date()
-    const dateStr = now.toISOString().split('T')[0]           // YYYY-MM-DD
+    const dateStr = now.toISOString().split('T')[0]   // YYYY-MM-DD
     const filename = `backup_${dateStr}.json`
 
     const payload = {
@@ -45,35 +65,28 @@ Deno.serve(async () => {
       data: snapshot,
     }
 
-    const json = JSON.stringify(payload)
+    const json  = JSON.stringify(payload)
     const bytes = new TextEncoder().encode(json)
 
-    // ── 3. Upload ───────────────────────────────────────────────────────────
+    // 3. Upload
     const { error: uploadErr } = await supabase.storage
       .from(BUCKET)
-      .upload(filename, bytes, {
-        contentType: 'application/json',
-        upsert: true,
-      })
+      .upload(filename, bytes, { contentType: 'application/json', upsert: true })
 
     if (uploadErr) throw uploadErr
 
-    // ── 4. Prune — keep only last MAX_BACKUPS ───────────────────────────────
+    // 4. Prune — keep only last MAX_BACKUPS
     const { data: files } = await supabase.storage.from(BUCKET).list('', {
       limit: 100,
       sortBy: { column: 'created_at', order: 'asc' },
     })
 
     if (files && files.length > MAX_BACKUPS) {
-      const toDelete = files
-        .slice(0, files.length - MAX_BACKUPS)
-        .map(f => f.name)
-      if (toDelete.length > 0) {
-        await supabase.storage.from(BUCKET).remove(toDelete)
-      }
+      const toDelete = files.slice(0, files.length - MAX_BACKUPS).map(f => f.name)
+      if (toDelete.length > 0) await supabase.storage.from(BUCKET).remove(toDelete)
     }
 
-    // ── 5. Summary ──────────────────────────────────────────────────────────
+    // 5. Summary
     return Response.json({
       ok: true,
       filename,
