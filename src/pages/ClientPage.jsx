@@ -156,7 +156,13 @@ export default function ClientPage() {
 
   // ── Canvas ────────────────────────────────────────────────────────────────
   const canvasRef = useRef(null)
+  const heroRef   = useRef(null)
   useCanvas(canvasRef, theme)
+  // BUG 2 — paint hero background before first browser frame to avoid white flash
+  useLayoutEffect(() => {
+    if (!heroRef.current) return
+    heroRef.current.style.backgroundColor = theme === 'light' ? '#FAFAF8' : theme === 'dark' ? '#080808' : '#080706'
+  }, [theme])
 
   // ── UI State ──────────────────────────────────────────────────────────────
   const [activeTab,      setActiveTab]      = useState('book')
@@ -191,6 +197,12 @@ export default function ClientPage() {
   const [bkSubmitting,   setBkSubmitting]   = useState(false)
   const [bkAppointment,  setBkAppointment]  = useState(null)
   const [bkSubmitErr,    setBkSubmitErr]    = useState(null)
+  // Deposit / Stripe
+  const [bkDepositPi,    setBkDepositPi]    = useState(null)   // { client_secret, payment_intent_id }
+  const [bkPaymentLoading, setBkPaymentLoading] = useState(false)
+  const [bkPaymentErr,   setBkPaymentErr]   = useState(null)
+  const stripeRef   = useRef(null)
+  const elementsRef = useRef(null)
 
   // ── Fetch all data ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -200,7 +212,7 @@ export default function ClientPage() {
       setLoading(true); setNotFound(false)
       try {
         const { data: ws } = await supabase.from('workspaces')
-          .select('id,name,slug,tagline,bio,avatar_url,instagram,tiktok,phone,email,location,timezone,currency,is_published,theme,offers_domicile,domicile_fee,domicile_radius_km,domicile_notes,address_visibility,neighborhood,address_street,address_city,address_province,address_postal,share_address,faq_settings,featured_product_id,featured_product_note,working_hours')
+          .select('id,name,slug,tagline,bio,avatar_url,instagram,tiktok,phone,email,location,timezone,currency,is_published,theme,offers_domicile,domicile_fee,domicile_radius_km,domicile_notes,address_visibility,neighborhood,address_street,address_city,address_province,address_postal,share_address,faq_settings,featured_product_id,featured_product_note,working_hours,deposit_required,deposit_type,deposit_value')
           .eq('slug', slug).eq('is_published', true).maybeSingle()
         if (!ws) { if (!cancelled) { setNotFound(true); setLoading(false) }; return }
         if (!cancelled) setWorkspace(ws)
@@ -250,6 +262,48 @@ export default function ClientPage() {
     return () => { supabase.removeChannel(channel) }
   }, [workspace?.id])
 
+  // ── BUG 9 — scroll lock for all overlays ─────────────────────────────────
+  useEffect(() => {
+    document.body.style.overflow = (bkOpen||portfolioOpen||cartOpen||policyOpen||lbOpen) ? 'hidden' : ''
+    return () => { document.body.style.overflow = '' }
+  }, [bkOpen, portfolioOpen, cartOpen, policyOpen, lbOpen])
+
+  // ── BUG 6 — init Stripe on deposit page ───────────────────────────────────
+  useEffect(() => {
+    if (bkPage !== 4 || !workspace || !bkService) return
+    const depositAmt = (() => {
+      if (workspace.deposit_required) {
+        if (workspace.deposit_type === 'percentage') return Math.round(Number(bkService.price) * Number(workspace.deposit_value) / 100 * 100) / 100
+        return Number(workspace.deposit_value) || 0
+      }
+      return Number(bkService.deposit_amount) > 0 ? Number(bkService.deposit_amount) : 0
+    })()
+    if (depositAmt < 0.50) return
+    setBkPaymentLoading(true); setBkPaymentErr(null); setBkDepositPi(null)
+    async function initStripe() {
+      if (!window.Stripe) {
+        await new Promise((res, rej) => {
+          const s = document.createElement('script'); s.src = 'https://js.stripe.com/v3/'
+          s.onload = res; s.onerror = rej; document.head.appendChild(s)
+        })
+      }
+      const pk = import.meta.env.VITE_STRIPE_PK
+      if (!pk) { setBkPaymentErr('Payment not configured. Please contact the studio directly.'); setBkPaymentLoading(false); return }
+      stripeRef.current = window.Stripe(pk)
+      const { data, error } = await supabase.functions.invoke('create-payment-intent', {
+        body: { workspace_id: workspace.id, amount: depositAmt, currency: workspace.currency?.toLowerCase()||'cad', client_name: `${bkForm.fname} ${bkForm.lname}`, client_email: bkForm.email, description: `Deposit — ${bkService.name}` }
+      })
+      if (error || !data?.client_secret) { setBkPaymentErr(data?.error || 'Could not initialize payment. Please try again.'); setBkPaymentLoading(false); return }
+      setBkDepositPi(data)
+      const elements = stripeRef.current.elements({ clientSecret: data.client_secret })
+      elementsRef.current = elements
+      const card = elements.create('card', { style: { base: { color:'#F0EAE0', fontFamily:'DM Sans,sans-serif', fontSize:'14px', '::placeholder':{ color:'#6B5B4E' } } } })
+      card.mount('#bk-card-element')
+      setBkPaymentLoading(false)
+    }
+    initStripe().catch(e => { setBkPaymentErr('Payment initialization failed. Try again.'); setBkPaymentLoading(false) })
+  }, [bkPage]) // eslint-disable-line
+
   // ── isDateAvailable ───────────────────────────────────────────────────────
   const isDateAvailable = useCallback((y, m, d) => {
     const dateStr = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`
@@ -298,15 +352,19 @@ export default function ClientPage() {
     setBkErrors({}); setBkPage(n)
   }
 
-  // ── Submit ────────────────────────────────────────────────────────────────
-  const submitBooking = async () => {
-    const errs = {}
-    if (!bkForm.fname.trim()) errs.fname = true
-    if (!bkForm.lname.trim()) errs.lname = true
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(bkForm.email)) errs.email = true
-    if (bkForm.phone.replace(/\D/g,'').length < 7) errs.phone = true
-    setBkErrors(errs)
-    if (Object.keys(errs).length || !bkService || !bkDay || !bkTime || !workspace) return
+  // ── Deposit amount (computed) ─────────────────────────────────────────────
+  const depositAmount = (() => {
+    if (!workspace || !bkService) return 0
+    if (workspace.deposit_required) {
+      if (workspace.deposit_type === 'percentage') return Math.round(Number(bkService.price) * Number(workspace.deposit_value) / 100 * 100) / 100
+      return Number(workspace.deposit_value) || 0
+    }
+    return Number(bkService?.deposit_amount) > 0 ? Number(bkService.deposit_amount) : 0
+  })()
+  const depositRequired = depositAmount >= 0.50
+
+  // ── Create appointment (shared by direct and post-deposit flows) ──────────
+  const createAppointment = async (paymentIntentId = null) => {
     setBkSubmitting(true); setBkSubmitErr(null)
     try {
       const dateStr = `${bkCalY}-${String(bkCalM+1).padStart(2,'0')}-${String(bkDay).padStart(2,'0')}`
@@ -318,13 +376,16 @@ export default function ClientPage() {
       const { data, error } = await supabase.from('appointments').insert({
         workspace_id: workspace.id,
         client_name: `${bkForm.fname.trim()} ${bkForm.lname.trim()}`,
-        client_email: bkForm.email.trim(),
-        client_phone: bkForm.phone.trim()||null,
+        client_email: bkForm.email.trim() || null,
+        client_phone: bkForm.phone.trim() || null,
         service_id: bkService.id, service_name: bkService.name,
         scheduled_at: scheduledAt.toISOString(), ends_at: endsAt.toISOString(),
         duration_min: bkService.duration_min,
         amount: bkService.is_free ? 0 : Number(bkService.price),
-        currency: workspace.currency||'CAD', status:'pending', payment_status:'unpaid',
+        currency: workspace.currency||'CAD',
+        status: 'pending',
+        payment_status: paymentIntentId ? 'deposit_paid' : 'unpaid',
+        deposit_amount: paymentIntentId ? depositAmount : 0,
         notes: bkForm.notes.trim()||null, how_found: bkForm.source||null,
         visit_type: bkVisit,
         travel_fee: bkVisit==='home' ? Number(workspace.domicile_fee||45) : 0,
@@ -333,14 +394,45 @@ export default function ClientPage() {
         addons: addonsJson,
       }).select('id,cancellation_token,scheduled_at,service_name,client_name,client_email').single()
       if (error) throw error
-      setBkAppointment(data); setBkPage(4)
+      setBkAppointment(data); setBkPage(5)
     } catch(err) {
-      const msg = err.message||''
+      const msg = err.message || ''
       if (msg.includes('conflict')||msg.includes('overlap')) {
         setBkSubmitErr('This time slot was just taken. Please choose another.')
         setBkPage(2); setBkTime(null)
-      } else { setBkSubmitErr('Something went wrong. Please try again.') }
+      } else {
+        setBkSubmitErr(msg || 'Something went wrong. Please try again.')
+      }
     } finally { setBkSubmitting(false) }
+  }
+
+  // ── Submit (validate + route to deposit or direct) ────────────────────────
+  const submitBooking = async () => {
+    const errs = {}
+    if (!bkForm.fname.trim()) errs.fname = true
+    if (!bkForm.lname.trim()) errs.lname = true
+    // BUG 8 — email OR phone required (not both)
+    const hasEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(bkForm.email)
+    const hasPhone = bkForm.phone.replace(/\D/g,'').length >= 7
+    if (!hasEmail && !hasPhone) { errs.email = true; errs.phone = true }
+    setBkErrors(errs)
+    if (Object.keys(errs).length || !bkService || !bkDay || !bkTime || !workspace) return
+    // BUG 6 — if deposit required, go to deposit page first
+    if (depositRequired) { setBkPage(4); return }
+    await createAppointment(null)
+  }
+
+  // ── Confirm deposit payment (Stripe) ──────────────────────────────────────
+  const confirmDeposit = async () => {
+    if (!stripeRef.current || !elementsRef.current || !bkDepositPi) return
+    setBkPaymentLoading(true); setBkPaymentErr(null)
+    const { paymentIntent, error } = await stripeRef.current.confirmCardPayment(
+      bkDepositPi.client_secret,
+      { payment_method: { card: elementsRef.current.getElement('card') } }
+    )
+    if (error) { setBkPaymentErr(error.message); setBkPaymentLoading(false); return }
+    await createAppointment(paymentIntent.id)
+    setBkPaymentLoading(false)
   }
 
   // ── Download ICS ──────────────────────────────────────────────────────────
@@ -415,7 +507,7 @@ export default function ClientPage() {
       </nav>
 
       {/* HERO */}
-      <section className="cb-hero" style={theme!=='warm'?{background:theme==='dark'?'#080808':'#FAFAF8'}:{}}>
+      <section ref={heroRef} className="cb-hero" style={theme!=='warm'?{background:theme==='dark'?'#080808':'#FAFAF8'}:{}}>
         <div className="hero-blob-bg" style={{display:theme==='warm'?'block':'none'}}><canvas ref={canvasRef} style={{position:'absolute',inset:0,width:'100%',height:'100%',display:'block'}}/></div>
         <div className="hero-left">
           <div className={`hero-context-tag${heroFading?' hero-fading':''}`}>
@@ -549,7 +641,7 @@ export default function ClientPage() {
               </div>
             </div>
             {/* Google Maps embed */}
-            {workspace.location&&<div style={{marginTop:24}}>
+            {workspace?.location && workspace.location.length > 0 && <div style={{marginTop:24}}>
               <div style={{fontSize:12,color:'var(--text-muted)',marginBottom:8}}>📍 Notre emplacement</div>
               <iframe
                 src={`https://www.google.com/maps?q=${encodeURIComponent(workspace.location)}&output=embed`}
@@ -565,7 +657,7 @@ export default function ClientPage() {
         </section>}
 
         {/* Google Maps — show when location set but no structured address */}
-        {!workspace.address_street&&workspace.location&&<section className="cb-section">
+        {!workspace.address_street && workspace?.location && workspace.location.length > 0 && <section className="cb-section">
           <div className="cb-inner">
             <div className="cb-eyebrow">Find Us</div>
             <h2 className="cb-heading">The <em>Studio</em></h2>
@@ -662,7 +754,7 @@ export default function ClientPage() {
       {/* ═══════════ BOOKING OVERLAY ═══════════ */}
       <div className={`cb-overlay${bkOpen?' open':''}`}>
         <div className="cb-ov-header">
-          <button className="cb-ov-back" onClick={bkPage===1?closeBooking:()=>setBkPage(p=>p-1)}>{bkPage===1?'✕':'← Back'}</button>
+          <button className="cb-ov-back" onClick={bkPage===1||bkPage===5?closeBooking:()=>setBkPage(p=>p-1)}>{bkPage===1||bkPage===5?'✕':'← Back'}</button>
           <div style={{textAlign:'center'}}><div style={{fontFamily:'Playfair Display,serif',fontSize:14,color:'var(--text)'}}>{bkService?.name||''}</div><div style={{fontSize:10,color:'var(--text-muted)',marginTop:2}}>{bkService?(bkService.is_free?'Free':`$${Number(bkService.price).toFixed(0)}`)+'·'+bkService.duration_min+'min':''}</div></div>
           <button className="cb-ov-back" style={{textAlign:'right'}} onClick={closeBooking}>✕</button>
         </div>
@@ -768,9 +860,10 @@ export default function ClientPage() {
                   <div><input className={`cb-input${bkErrors.lname?' err':''}`} placeholder="Last name" value={bkForm.lname} onChange={e=>setBkForm(f=>({...f,lname:e.target.value}))} autoComplete="family-name"/>{bkErrors.lname&&<div className="cb-err">Required</div>}</div>
                 </div>
                 <input className={`cb-input${bkErrors.email?' err':''}`} placeholder="Email address" type="email" value={bkForm.email} onChange={e=>setBkForm(f=>({...f,email:e.target.value}))} autoComplete="email"/>
-                {bkErrors.email&&<div className="cb-err">Enter a valid email</div>}
+                {bkErrors.email&&!bkErrors.phone&&<div className="cb-err">Enter a valid email</div>}
+                {bkErrors.email&&bkErrors.phone&&<div className="cb-err">Please provide an email or phone number</div>}
                 <input className={`cb-input${bkErrors.phone?' err':''}`} placeholder="Phone number" type="tel" value={bkForm.phone} onChange={e=>setBkForm(f=>({...f,phone:e.target.value}))} autoComplete="tel"/>
-                {bkErrors.phone&&<div className="cb-err">Enter a valid phone number</div>}
+                {bkErrors.phone&&!bkErrors.email&&<div className="cb-err">Enter a valid phone number</div>}
                 <select className="cb-input cb-select" value={bkForm.source} onChange={e=>setBkForm(f=>({...f,source:e.target.value}))}>
                   <option value="">How did you find us? (optional)</option>
                   <option value="instagram">Instagram</option><option value="tiktok">TikTok</option>
@@ -784,16 +877,34 @@ export default function ClientPage() {
               <div className="cb-ov-footer"><button className="cb-btn-primary" style={{width:'100%',padding:16}} disabled={bkSubmitting} onClick={submitBooking}>{bkSubmitting?'Confirming…':'Confirm Booking'}</button></div>
             </div>
 
-            {/* PAGE 4 — Success */}
+            {/* PAGE 4 — Deposit (shown only when depositRequired) */}
+            <div className="cb-ov-page">
+              <div className="cb-ov-content">
+                <div className="cb-page-eye">Secure Deposit</div>
+                <h3 className="cb-page-title">Confirm your<br/>deposit</h3>
+                <div className="cb-recap" style={{marginBottom:20}}>
+                  <div className="cb-recap-row"><span className="cb-recap-key">Service</span><span className="cb-recap-val">{bkService?.name}</span></div>
+                  <div className="cb-recap-row"><span className="cb-recap-key">Deposit</span><span className="cb-recap-val" style={{color:'var(--gold)',fontFamily:'Playfair Display,serif'}}>${depositAmount.toFixed(2)}</span></div>
+                  <div className="cb-recap-row"><span className="cb-recap-key">Note</span><span className="cb-recap-val" style={{fontSize:11,color:'var(--text-muted)'}}>Applied to your total at the studio.</span></div>
+                </div>
+                {bkPaymentLoading&&<div style={{textAlign:'center',padding:'32px 0',color:'var(--text-muted)',fontSize:13}}>Initializing payment…</div>}
+                <div id="bk-card-element" style={{background:'var(--dark-2)',border:`1px solid ${bkPaymentErr?'rgba(208,96,90,.4)':'var(--dark-4)'}`,borderRadius:2,padding:'14px 12px',marginBottom:12,display:bkPaymentLoading?'none':'block'}}/>
+                {bkPaymentErr&&<div style={{fontSize:13,color:'var(--error)',background:'rgba(208,96,90,.08)',border:'1px solid rgba(208,96,90,.2)',padding:'12px 14px',marginTop:8,borderRadius:1}}>{bkPaymentErr}</div>}
+                <div style={{fontSize:11,color:'var(--text-muted)',marginTop:12,lineHeight:1.6}}>🔒 Secured by Stripe. Your card is authorized now and captured only if you cancel inside the non-refundable window.</div>
+              </div>
+              <div className="cb-ov-footer"><button className="cb-btn-primary" style={{width:'100%',padding:16}} disabled={bkPaymentLoading||bkSubmitting||!bkDepositPi} onClick={confirmDeposit}>{bkSubmitting?'Booking…':bkPaymentLoading?'Initializing…':`Pay Deposit · $${depositAmount.toFixed(2)}`}</button></div>
+            </div>
+
+            {/* PAGE 5 — Success */}
             <div className="cb-ov-page">
               <div className="cb-ov-content" style={{display:'flex',flexDirection:'column',alignItems:'center',textAlign:'center',paddingTop:32}}>
                 <div style={{width:56,height:56,border:'1px solid rgba(86,187,134,.2)',background:'rgba(86,187,134,.06)',borderRadius:2,display:'flex',alignItems:'center',justifyContent:'center',color:'var(--success)',fontSize:22,marginBottom:22}}>✓</div>
                 <h3 style={{fontFamily:'Playfair Display,serif',fontSize:26,fontStyle:'italic',color:'var(--text)',marginBottom:10}}>You are booked, <em>{bkForm.fname}</em></h3>
-                <p style={{fontSize:13,color:'var(--text-muted)',fontWeight:300,lineHeight:1.75,marginBottom:28,maxWidth:260}}>A confirmation has been sent to <strong style={{color:'var(--text-soft)'}}>{bkForm.email}</strong></p>
+                <p style={{fontSize:13,color:'var(--text-muted)',fontWeight:300,lineHeight:1.75,marginBottom:28,maxWidth:260}}>A confirmation has been sent to <strong style={{color:'var(--text-soft)'}}>{bkForm.email||bkForm.phone}</strong></p>
                 {bkAppointment&&<div style={{width:'100%',maxWidth:320,background:'var(--dark-2)',border:'1px solid var(--dark-4)',textAlign:'left',marginBottom:24}}>
                   <div style={{padding:'12px 18px',borderBottom:'1px solid var(--dark-4)',display:'flex',justifyContent:'space-between'}}><span style={{fontSize:8,letterSpacing:'0.22em',textTransform:'uppercase',color:'var(--text-muted)'}}>Appointment</span><span style={{fontSize:10,color:'var(--success)'}}>Confirmed</span></div>
                   <div>
-                    {[['Service',bkService?.name],['Visit',bkVisit==='home'?'Home Visit':'Studio Visit'],['Date',bkDay?formatDateLabel(bkCalY,bkCalM,bkDay):''],['Time',bkTime],['Total',bkService?.is_free?'Free':`$${Number(bkService?.price||0).toFixed(0)}`+(bkVisit==='home'?` + $${workspace.domicile_fee||45}`:'')]].map(([k,v])=><div key={k} className="cb-recap-row"><span className="cb-recap-key">{k}</span><span className="cb-recap-val">{v}</span></div>)}
+                    {[['Service',bkService?.name],['Visit',bkVisit==='home'?'Home Visit':'Studio Visit'],['Date',bkDay?formatDateLabel(bkCalY,bkCalM,bkDay):''],['Time',bkTime],['Total',bkService?.is_free?'Free':`$${Number(bkService?.price||0).toFixed(0)}`+(bkVisit==='home'?` + $${workspace.domicile_fee||45}`:'')+( depositAmount>0?` (deposit $${depositAmount.toFixed(2)} paid)`:'')]].map(([k,v])=><div key={k} className="cb-recap-row"><span className="cb-recap-key">{k}</span><span className="cb-recap-val">{v}</span></div>)}
                   </div>
                 </div>}
                 <div style={{display:'flex',flexDirection:'column',gap:8,width:'100%',maxWidth:320}}>
@@ -958,7 +1069,8 @@ const CSS = `
 /* ── TAB BAR ── */
 .tab-bar-wrap{position:sticky;top:64px;z-index:400;background:rgba(10,5,2,.99);border-bottom:1px solid rgba(201,168,76,.10);backdrop-filter:blur(20px)}
 .tab-bar{width:100%;display:flex;align-items:stretch;overflow:hidden}
-.tab-btn{background:transparent;border:none;color:var(--text-muted);font-family:'DM Sans',sans-serif;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:14px 2px;cursor:pointer;position:relative;transition:color .25s;display:flex;align-items:center;justify-content:center;gap:6px;flex:1;min-width:0;text-align:center;white-space:nowrap;overflow:hidden}
+.tab-btn{background:transparent;border:none;color:var(--text-muted);font-family:'DM Sans',sans-serif;font-size:9.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:14px 6px;cursor:pointer;position:relative;transition:color .25s;display:flex;align-items:center;justify-content:center;gap:6px;flex:1;min-width:0;text-align:center;white-space:nowrap;overflow:hidden}
+.tab-btn:not(:last-child){border-right:1px solid rgba(255,255,255,0.1)}
 .tab-btn::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;background:var(--gold);transform:scaleX(0);transition:transform .3s var(--ease)}
 .tab-btn:hover{color:var(--text-soft)}
 .tab-btn.active{color:var(--gold-light)}
