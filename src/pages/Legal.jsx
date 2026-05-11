@@ -364,6 +364,38 @@ function TermsContent() {
       <Divider/>
 
       <div className="legal-section">
+        <div className="legal-section-num">Section 12</div>
+        <h2>Responsabilité des Vendeurs et Expédition</h2>
+        <p>{COMPANY} est une plateforme technologique qui permet aux professionnels indépendants de gérer leur business. Les produits, services et formations listés sur les pages des professionnels sont vendus PAR ces professionnels, et non par {COMPANY}.</p>
+        <p>{COMPANY} n'est pas partie prenante dans les transactions commerciales entre les professionnels et leurs clients. À ce titre :</p>
+        <ul>
+          <li>La livraison, les délais d'expédition et les frais de port sont sous l'entière responsabilité du professionnel vendeur.</li>
+          <li>Les politiques de retour et de remboursement sont définies par chaque professionnel indépendamment.</li>
+          <li>{COMPANY} ne peut être tenu responsable des retards, pertes, dommages ou litiges relatifs aux commandes de produits physiques.</li>
+          <li>En cas de litige, le client doit contacter directement le professionnel concerné.</li>
+        </ul>
+        <p>{COMPANY} fournit uniquement l'infrastructure technique permettant aux professionnels de gérer leurs paiements via Stripe. Les fonds sont transférés directement au professionnel vendeur.</p>
+      </div>
+
+      <Divider/>
+
+      <div className="legal-section">
+        <div className="legal-section-num">Section 12 — EN</div>
+        <h2>Vendor Responsibility &amp; Shipping</h2>
+        <p>{COMPANY} is a technology platform that enables independent professionals to manage their business. Products, services and formations listed on professional pages are sold BY those professionals, not by {COMPANY}.</p>
+        <p>{COMPANY} is not a party to commercial transactions between professionals and their clients. Therefore:</p>
+        <ul>
+          <li>Shipping, delivery timelines and shipping fees are the sole responsibility of the selling professional.</li>
+          <li>Return and refund policies are defined by each professional independently.</li>
+          <li>{COMPANY} cannot be held liable for delays, losses, damages or disputes related to physical product orders.</li>
+          <li>In case of dispute, clients must contact the professional directly.</li>
+        </ul>
+        <p>{COMPANY} only provides the technical infrastructure allowing professionals to manage their payments via Stripe. Funds are transferred directly to the selling professional.</p>
+      </div>
+
+      <Divider/>
+
+      <div className="legal-section">
         <div className="legal-section-num">Contact</div>
         <h2>Questions</h2>
         <div className="legal-contact-box">
