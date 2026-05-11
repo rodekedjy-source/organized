@@ -44,7 +44,7 @@ const PERIOD_LABELS = {
 function startOfPeriod(period) {
   if (period === 'all') return new Date(0)
   const now = new Date()
-  if (period === 'week') { const d = new Date(now); d.setDate(now.getDate() - now.getDay()); d.setHours(0, 0, 0, 0); return d }
+  if (period === 'week') { return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) }
   if (period === 'month') return new Date(now.getFullYear(), now.getMonth(), 1)
   return new Date(now.getFullYear(), 0, 1)
 }
@@ -341,7 +341,7 @@ export default function ClientsSection({ lang = 'en' }) {
     refresh()
   }
 
-  const periodClients = filterByPeriod(data, period, 'last_visit').filter(c => c.full_name?.toLowerCase().includes(search.toLowerCase()))
+  const periodClients = filterByPeriod(data, period, 'last_visit_at').filter(c => c.full_name?.toLowerCase().includes(search.toLowerCase()))
   const allFiltered = data.filter(c => c.full_name?.toLowerCase().includes(search.toLowerCase()))
   const displayData = search ? allFiltered : periodClients
 

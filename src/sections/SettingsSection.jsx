@@ -186,11 +186,11 @@ function SettingsProfileForm({ session, ownerData, toast, refetch, lang='en' }) 
 }
 
 function SettingsPasswordForm({ session, toast, lang='en' }) {
-  const [pw,setPw]=useState(''),[loading,setLoading]=useState(false)
+  const [pw,setPw]=useState(''),[loading,setLoading]=useState(false),[showPw,setShowPw]=useState(false)
   async function save(e){e.preventDefault();setLoading(true);const{error}=await supabase.auth.updateUser({password:pw});if(error)toast(`Error: ${error.message}`);else{toast('Confirmation link sent to your email.');setPw('')};setLoading(false)}
   return (
     <form onSubmit={save} className="card-body" style={{display:'flex',flexDirection:'column',gap:'1rem'}}>
-      <div className="field"><label>New password</label><input type="password" value={pw} onChange={e=>setPw(e.target.value)} placeholder="Minimum 8 characters" minLength={8} required/></div>
+      <div className="field"><label>New password</label><div style={{position:'relative'}}><input type={showPw?'text':'password'} value={pw} onChange={e=>setPw(e.target.value)} placeholder="Minimum 8 characters" minLength={8} required style={{paddingRight:'2.5rem'}}/><button type="button" onClick={()=>setShowPw(v=>!v)} style={{position:'absolute',right:'.6rem',top:'50%',transform:'translateY(-50%)',background:'none',border:'none',cursor:'pointer',fontSize:'1rem',lineHeight:1,color:'var(--ink-3)',padding:0}}>{showPw?'🙈':'👁'}</button></div></div>
       <div style={{fontSize:'.76rem',color:'var(--ink-3)',lineHeight:1.55,padding:'.6rem .85rem',background:'var(--bg)',borderRadius:8}}>A confirmation link will be sent to your email before the change takes effect.</div>
       <button type="submit" className="btn btn-primary" style={{justifyContent:'center',padding:'.75rem'}} disabled={loading}>{loading?t(lang,'saving'):t(lang,'update_pw')}</button>
     </form>
@@ -508,6 +508,55 @@ function SettingsLanguageForm({ ownerData, toast, refetch, lang='en' }) {
   )
 }
 
+// ── PHONE + NOTIFICATION CHANNEL FORM ────────────────────────────────────────
+function SettingsPhoneNotifForm({ workspace, toast, refetch, lang='en' }) {
+  const [phone,setPhone]=useState(workspace?.phone||'')
+  const [channel,setChannel]=useState(workspace?.notification_channel||'email')
+  const [phoneErr,setPhoneErr]=useState(false)
+  const [loading,setLoading]=useState(false),[saved,setSaved]=useState(false)
+  const iS={border:'1px solid var(--border-2)',borderRadius:8,padding:'.55rem .85rem',fontSize:'.88rem',fontFamily:'inherit',color:'var(--ink)',background:'var(--surface)',outline:'none',transition:'border .15s',width:'100%'}
+  useEffect(()=>{if(workspace){setPhone(workspace.phone||'');setChannel(workspace.notification_channel||'email')}},[workspace?.id])
+  async function save(){
+    if(!phone.trim()){setPhoneErr(true);return}
+    setPhoneErr(false)
+    if(!workspace?.id)return
+    setLoading(true);setSaved(false)
+    const{error}=await supabase.from('workspaces').update({phone:phone.trim(),notification_channel:channel}).eq('id',workspace.id)
+    if(error)toast(`Error: ${error.message}`)
+    else{setSaved(true);toast('Contact & notifications saved.');if(refetch)await refetch()}
+    setLoading(false)
+  }
+  return (
+    <div className="card" style={{marginBottom:'1.25rem'}}>
+      <div className="card-head"><div className="card-title">Phone & Notifications</div></div>
+      <div className="card-body" style={{display:'flex',flexDirection:'column',gap:'1rem'}}>
+        <div className="field">
+          <label>Phone number <span style={{color:'var(--red)'}}>*</span></label>
+          <input style={{...iS,borderColor:phoneErr?'var(--red)':'var(--border-2)'}} type="tel" value={phone}
+            onChange={e=>{setPhone(e.target.value);setPhoneErr(false)}} placeholder="+1 (514) 000-0000"
+            onFocus={e=>e.target.style.borderColor='var(--gold)'}
+            onBlur={e=>e.target.style.borderColor=phoneErr?'var(--red)':'var(--border-2)'}/>
+          {phoneErr&&<div style={{fontSize:'.75rem',color:'var(--red)',marginTop:'.25rem'}}>Phone number is required.</div>}
+        </div>
+        <div>
+          <div style={{fontSize:'.72rem',fontWeight:600,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'.6rem'}}>Booking notification preference</div>
+          <div style={{display:'flex',flexDirection:'column',gap:'.45rem'}}>
+            {[{v:'email',label:'Email only'},{v:'sms',label:'SMS only'},{v:'both',label:'Email & SMS'}].map(opt=>(
+              <label key={opt.v} style={{display:'flex',alignItems:'center',gap:'.65rem',cursor:'pointer',padding:'.5rem .75rem',borderRadius:8,border:`1.5px solid ${channel===opt.v?'var(--gold)':'var(--border)'}`,background:channel===opt.v?'rgba(197,169,106,.06)':'var(--surface)',transition:'all .15s'}}>
+                <input type="radio" name="notif_channel" value={opt.v} checked={channel===opt.v} onChange={()=>setChannel(opt.v)} style={{accentColor:'var(--gold)',flexShrink:0}}/>
+                <span style={{fontSize:'.85rem',color:'var(--ink)',fontWeight:channel===opt.v?600:400}}>{opt.label}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+        <button className="btn btn-primary" style={{justifyContent:'center',padding:'.75rem'}} onClick={save} disabled={loading}>
+          {loading?t(lang,'saving'):saved?t(lang,'saved'):t(lang,'save')}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // ── SETTINGS ──────────────────────────────────────────────────────────────────
 export default function SettingsSection({ workspace, toast, refetch, theme, setTheme, session, ownerData, lang='en' }) {
   const [section,setSection]=useState(null)
@@ -525,7 +574,6 @@ export default function SettingsSection({ workspace, toast, refetch, theme, setT
     {key:'appearance',label:t(lang,'appearance'),sub:t(lang,'appearance_sub')},
     {key:'coach',label:'Coach',sub:'Daily inspiration and faith preferences'},
     {key:'automations',label:'Automations',sub:'Review requests and smart follow-ups'},
-    {key:'notifications',label:'Notifications',sub:'SMS and email alerts for bookings'},
     {key:'language',label:t(lang,'language'),sub:t(lang,'language_sub')},
   ]
   if(section==='profile') return (
@@ -539,7 +587,7 @@ export default function SettingsSection({ workspace, toast, refetch, theme, setT
         <div className="card-head"><div className="card-title">Password</div></div>
         <SettingsPasswordForm session={session} toast={toast} lang={lang}/>
       </div>
-      <CancelSubscriptionCard toast={toast} lang={lang}/>
+      <SettingsPhoneNotifForm workspace={workspace} toast={toast} refetch={refetch} lang={lang}/>
     </div>
   )
   if(section==='business') return (
@@ -549,6 +597,8 @@ export default function SettingsSection({ workspace, toast, refetch, theme, setT
         <button className="btn btn-secondary btn-sm" onClick={async()=>{await supabase.from('workspaces').update({is_published:!workspace.is_published}).eq('id',workspace.id);toast(workspace.is_published?'Profile unpublished.':'Profile is now live!');refetch()}}>{workspace?.is_published?t(lang,'unpublish'):t(lang,'publish')}</button>
       </div>
       <SettingsBusinessForm workspace={workspace} toast={toast} refetch={refetch} lang={lang}/>
+      <div style={{height:1,background:'var(--border)',margin:'1.5rem 0'}}/>
+      <CancelSubscriptionCard toast={toast} lang={lang}/>
     </div>
   )
   if(section==='appearance') return (
@@ -557,7 +607,7 @@ export default function SettingsSection({ workspace, toast, refetch, theme, setT
       <div style={{fontSize:'.68rem',fontWeight:700,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'.1em',marginBottom:'.65rem'}}>Dashboard Theme</div>
       <div className="card" style={{marginBottom:'1.75rem'}}>
         <div className="card-body">
-          <div style={{fontSize:'.8rem',color:'var(--ink-3)',marginBottom:'1rem',lineHeight:1.55}}>Controls how <strong style={{color:'var(--ink)'}}>your dashboard</strong> looks. Only you see this.</div>
+          <div style={{fontSize:'.8rem',color:'var(--ink-3)',marginBottom:'1rem',lineHeight:1.55}}>Controls how <strong style={{color:'var(--ink)'}}>your dashboard</strong> looks. Only you see this. Light or Dark.</div>
           <div className="theme-options">
             <div className={`theme-option${theme!=='dark'?' selected':''}`} onClick={()=>setTheme('light')}>
               <div className="theme-preview"><div className="tp-ls"/><div className="tp-lm"><div className="tp-lb"/><div className="tp-lb"/></div></div>
@@ -579,10 +629,6 @@ export default function SettingsSection({ workspace, toast, refetch, theme, setT
         <div className="card-body">
           <div style={{fontSize:'.8rem',color:'var(--ink-3)',marginBottom:'1rem',lineHeight:1.55}}>Controls how <strong style={{color:'var(--ink)'}}>your public client page</strong> looks. Clients see this when they book.</div>
           <div className="theme-options">
-            <div className={`theme-option${(!workspace?.theme||workspace?.theme==='warm')?' selected':''}`} onClick={async()=>{await supabase.from('workspaces').update({theme:'warm'}).eq('id',workspace.id);if(refetch)await refetch();toast('Business page set to Warm.')}}>
-              <div className="theme-preview" style={{background:'linear-gradient(135deg,#1A1208 0%,#2C1F0A 100%)'}}><div style={{position:'absolute',inset:0,background:'radial-gradient(circle at 40% 60%,rgba(201,168,76,.35) 0%,transparent 65%)',borderRadius:4}}/></div>
-              <div className="theme-label">Warm {(!workspace?.theme||workspace?.theme==='warm')&&<div className="theme-check">{I.check}</div>}</div>
-            </div>
             <div className={`theme-option${workspace?.theme==='light'?' selected':''}`} onClick={async()=>{await supabase.from('workspaces').update({theme:'light'}).eq('id',workspace.id);if(refetch)await refetch();toast('Business page set to Light.')}}>
               <div className="theme-preview"><div className="tp-ls"/><div className="tp-lm"><div className="tp-lb"/><div className="tp-lb"/></div></div>
               <div className="theme-label">Light {workspace?.theme==='light'&&<div className="theme-check">{I.check}</div>}</div>
@@ -645,12 +691,6 @@ export default function SettingsSection({ workspace, toast, refetch, theme, setT
       <div className="page-head"><div><BackBtn/><div className="page-title" style={{marginTop:'.4rem'}}>Automations</div></div></div>
       <div style={{fontSize:'.68rem',fontWeight:700,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'.1em',marginBottom:'.65rem'}}>Review Requests</div>
       <SettingsAutomationsForm workspace={workspace} toast={toast} refetch={refetch} lang={lang}/>
-    </div>
-  )
-  if(section==='notifications') return (
-    <div>
-      <div className="page-head"><div><BackBtn/><div className="page-title" style={{marginTop:'.4rem'}}>Notifications</div></div></div>
-      <SettingsNotificationsForm workspace={workspace} toast={toast} refetch={refetch}/>
     </div>
   )
   if(section==='language') return (

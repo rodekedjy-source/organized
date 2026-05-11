@@ -132,8 +132,18 @@ function EnhanceModal({ imageUrl, imagePreview, workspace, onSelect, onClose, to
   async function generate(template) {
     setSelected(template); setPhase('loading')
     try {
-      const res = await fetch(EDGE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image_url: imageUrl, template_id: template.id }) })
-      const data = await res.json()
+      const { data, error } = await supabase.functions.invoke('enhance-product-image', {
+        body: { image_url: imageUrl, template_id: template.id },
+      })
+      if (error) {
+        const msg = error.message || ''
+        if (msg.includes('key') || msg.includes('API') || msg.includes('auth') || msg.includes('401') || msg.includes('403')) {
+          toast('AI enhancement unavailable — contact support')
+        } else {
+          toast('Enhancement failed — ' + msg)
+        }
+        setPhase('templates'); return
+      }
       if (data?.error) throw new Error(data.error)
       if (data?.url) { setResultUrl(data.url); setPhase('result'); return }
       throw new Error('No image returned.')

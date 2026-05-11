@@ -224,6 +224,28 @@ export default function ClientPage() {
     return () => { cancelled = true }
   }, [slug])
 
+  // ── Realtime — live sync for workspace, services, products ────────────────
+  useEffect(() => {
+    if (!workspace?.id) return
+    const wsId = workspace.id
+
+    const channel = supabase.channel(`cp_realtime_${wsId}`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'workspaces', filter: `id=eq.${wsId}` }, payload => {
+        setWorkspace(prev => prev ? { ...prev, ...payload.new } : prev)
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'services', filter: `workspace_id=eq.${wsId}` }, async () => {
+        const { data } = await supabase.from('services').select('id,name,description,duration_min,price,is_free,display_order,addons,deposit_amount,category,image_url').eq('workspace_id', wsId).eq('is_active', true).is('deleted_at', null).order('display_order', { ascending: true })
+        if (data) setServices(data)
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'products', filter: `workspace_id=eq.${wsId}` }, async () => {
+        const { data } = await supabase.from('products').select('id,name,description,price,currency,stock,image_url,images').eq('workspace_id', wsId).eq('is_active', true).is('deleted_at', null).order('created_at', { ascending: false })
+        if (data) setProducts(data)
+      })
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [workspace?.id])
+
   // ── isDateAvailable ───────────────────────────────────────────────────────
   const isDateAvailable = useCallback((y, m, d) => {
     const dateStr = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`
@@ -568,7 +590,7 @@ export default function ClientPage() {
         <div className="cb-products-grid">
           {otherProducts.map(p=>(
             <div key={p.id} className={`cb-product-card${p.stock===0?' sold-out':''}`}>
-              <div className="cb-product-img">{p.image_url?<img src={p.image_url} alt={p.name} style={{width:'100%',height:'100%',objectFit:'cover'}}/>:<div className="cb-ph">✦</div>}
+              <div className="cb-product-img">{p.image_url?<img src={p.image_url} alt={p.name} style={{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'cover'}}/>:<div className="cb-ph">✦</div>}
                 {p.stock===0&&<div className="cb-badge cb-badge-so">Sold Out</div>}
                 {p.stock>0&&p.stock<=3&&<div className="cb-badge cb-badge-lim">Only {p.stock} left</div>}
               </div>
