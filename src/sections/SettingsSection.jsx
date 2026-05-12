@@ -628,14 +628,39 @@ export default function SettingsSection({ workspace, toast, refetch, theme, setT
       <div className="card">
         <div className="card-body">
           <div style={{fontSize:'.8rem',color:'var(--ink-3)',marginBottom:'1rem',lineHeight:1.55}}>Controls how <strong style={{color:'var(--ink)'}}>your public client page</strong> looks. Clients see this when they book.</div>
-          <div className="theme-options">
-            <div className={`theme-option${workspace?.theme==='light'?' selected':''}`} onClick={async()=>{await supabase.from('workspaces').update({theme:'light'}).eq('id',workspace.id);if(refetch)await refetch();toast('Business page set to Light.')}}>
-              <div className="theme-preview"><div className="tp-ls"/><div className="tp-lm"><div className="tp-lb"/><div className="tp-lb"/></div></div>
-              <div className="theme-label">Light {workspace?.theme==='light'&&<div className="theme-check">{I.check}</div>}</div>
+          <div className="theme-options" style={{gridTemplateColumns:'repeat(3,1fr)'}}>
+            <div className={`theme-option${workspace?.theme==='warm'?' selected':''}`} onClick={async()=>{await supabase.from('workspaces').update({theme:'warm'}).eq('id',workspace.id);if(refetch)await refetch();toast('Business page set to Warm Beige.')}}>
+              <div className="theme-preview" style={{background:'#F0E6D3',gap:3}}>
+                <div style={{width:'100%',height:10,borderRadius:2,background:'#1A1208'}}/>
+                <div style={{display:'flex',gap:3,marginTop:2}}>
+                  <div style={{flex:1,height:28,borderRadius:2,background:'#FFFFFF',border:'1px solid #E8D5B5'}}/>
+                  <div style={{flex:1,height:28,borderRadius:2,background:'#FFFFFF',border:'1px solid #E8D5B5'}}/>
+                </div>
+                <div style={{width:48,height:8,borderRadius:2,background:'#C9A84C',marginTop:3,alignSelf:'flex-start'}}/>
+              </div>
+              <div className="theme-label">Warm Beige {workspace?.theme==='warm'&&<div className="theme-check">{I.check}</div>}</div>
             </div>
-            <div className={`theme-option${workspace?.theme==='dark'?' selected':''}`} onClick={async()=>{await supabase.from('workspaces').update({theme:'dark'}).eq('id',workspace.id);if(refetch)await refetch();toast('Business page set to Dark.')}}>
-              <div className="theme-preview"><div className="tp-ds"/><div className="tp-dm"><div className="tp-db"/><div className="tp-db"/></div></div>
-              <div className="theme-label">Dark {workspace?.theme==='dark'&&<div className="theme-check">{I.check}</div>}</div>
+            <div className={`theme-option${workspace?.theme==='dark'?' selected':''}`} onClick={async()=>{await supabase.from('workspaces').update({theme:'dark'}).eq('id',workspace.id);if(refetch)await refetch();toast('Business page set to Midnight Luxe.')}}>
+              <div className="theme-preview" style={{background:'#080808',gap:3}}>
+                <div style={{width:'100%',height:10,borderRadius:2,background:'#050505'}}/>
+                <div style={{display:'flex',gap:3,marginTop:2}}>
+                  <div style={{flex:1,height:28,borderRadius:2,background:'#161616',border:'1px solid #2A2A2A'}}/>
+                  <div style={{flex:1,height:28,borderRadius:2,background:'#161616',border:'1px solid #2A2A2A'}}/>
+                </div>
+                <div style={{width:48,height:8,borderRadius:2,background:'#C9A84C',marginTop:3,alignSelf:'flex-start'}}/>
+              </div>
+              <div className="theme-label">Midnight Luxe {workspace?.theme==='dark'&&<div className="theme-check">{I.check}</div>}</div>
+            </div>
+            <div className={`theme-option${workspace?.theme==='rose'?' selected':''}`} onClick={async()=>{await supabase.from('workspaces').update({theme:'rose'}).eq('id',workspace.id);if(refetch)await refetch();toast('Business page set to Rose Blossom.')}}>
+              <div className="theme-preview" style={{background:'#F8E8EC',gap:3}}>
+                <div style={{width:'100%',height:10,borderRadius:2,background:'#1A0A0D'}}/>
+                <div style={{display:'flex',gap:3,marginTop:2}}>
+                  <div style={{flex:1,height:28,borderRadius:2,background:'#FFFFFF',border:'1px solid #F0D5DC'}}/>
+                  <div style={{flex:1,height:28,borderRadius:2,background:'#FFFFFF',border:'1px solid #F0D5DC'}}/>
+                </div>
+                <div style={{width:48,height:8,borderRadius:2,background:'#C4547A',marginTop:3,alignSelf:'flex-start'}}/>
+              </div>
+              <div className="theme-label">Rose Blossom 🌸 {workspace?.theme==='rose'&&<div className="theme-check">{I.check}</div>}</div>
             </div>
           </div>
           <div style={{fontSize:'.73rem',color:'var(--ink-3)',marginTop:'1rem',lineHeight:1.55}}>

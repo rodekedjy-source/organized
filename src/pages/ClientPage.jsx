@@ -43,15 +43,53 @@ const BLOB_PARAMS = [
 ]
 const BLOB_BASE = [{bx:0.15,by:0.20},{bx:0.75,by:0.65},{bx:0.50,by:0.45},{bx:0.30,by:0.75}]
 
+// ─────────────────────────────────────────────────────────────────────────────
+// TEMPLATES — 3 visual themes for the public page
+// ─────────────────────────────────────────────────────────────────────────────
+const TEMPLATES = {
+  warm: {
+    '--hero-bg-from':'#F0E6D3','--hero-bg-to':'#E8D5B5','--body-bg':'#FAF6F0',
+    '--text-primary':'#1A1208','--text-secondary':'#6B5744','--accent':'#C9A84C',
+    '--btn-bg':'#C9A84C','--btn-text':'#1A1208','--nav-bg':'#1A1208','--nav-text':'#F0E6D3',
+    '--tab-bg':'#1A1208','--tab-text':'#C9A84C','--tab-active-border':'#C9A84C',
+    '--card-bg':'#FFFFFF','--card-border':'#E8D5B5','--price-color':'#C9A84C',
+    waveColors:['#F0E6D3','#E8D5B5','#C9A84C','#FAF6F0','#DFC99A']
+  },
+  dark: {
+    '--hero-bg-from':'#080808','--hero-bg-to':'#0F0F0F','--body-bg':'#0A0A0A',
+    '--text-primary':'#F5F5F5','--text-secondary':'#888888','--accent':'#C9A84C',
+    '--btn-bg':'#C9A84C','--btn-text':'#080808','--nav-bg':'#050505','--nav-text':'#C9A84C',
+    '--tab-bg':'#050505','--tab-text':'#C9A84C','--tab-active-border':'#C9A84C',
+    '--card-bg':'#161616','--card-border':'#2A2A2A','--price-color':'#C9A84C',
+    waveColors:['#080808','#0F0F0F','#1A1208','#C9A84C','#111111']
+  },
+  rose: {
+    '--hero-bg-from':'#F8E8EC','--hero-bg-to':'#FDF0F3','--body-bg':'#FFFFFF',
+    '--text-primary':'#1A0A0D','--text-secondary':'#8B5A6A','--accent':'#D4698A',
+    '--btn-bg':'#C4547A','--btn-text':'#FFFFFF','--nav-bg':'#1A0A0D','--nav-text':'#F8E8EC',
+    '--tab-bg':'#C4547A','--tab-text':'#FFFFFF','--tab-active-border':'#FFFFFF',
+    '--card-bg':'#FFFFFF','--card-border':'#F0D5DC','--price-color':'#D4698A',
+    waveColors:['#F8E8EC','#FDF0F3','#F0D5DC','#FFFFFF','#FAE0E6']
+  }
+}
+
+function hexToRgb(hex) {
+  const h = hex.replace('#','').slice(0,6)
+  return { r:parseInt(h.slice(0,2),16), g:parseInt(h.slice(2,4),16), b:parseInt(h.slice(4,6),16) }
+}
+
 function getBlobs(theme) {
-  if (theme === 'light') return {
-    bg:'#B5A594',
-    blobs:[{r:218,g:198,b:172,a:0.72,s:0.62},{r:152,g:122,b:95,a:0.60,s:0.48},{r:200,g:180,b:155,a:0.58,s:0.55},{r:105,g:82,b:62,a:0.45,s:0.36}]
-  }
-  return {
-    bg:'#080706',
-    blobs:[{r:235,g:228,b:218,a:0.11,s:0.55},{r:201,g:168,b:76,a:0.07,s:0.42},{r:255,g:245,b:230,a:0.06,s:0.35},{r:180,g:150,b:80,a:0.05,s:0.28}]
-  }
+  const tpl = TEMPLATES[theme] || TEMPLATES.dark
+  const colors = tpl.waveColors
+  const alphas = [0.72, 0.60, 0.58, 0.45]
+  const sizes  = [0.62, 0.48, 0.55, 0.36]
+  const bg = colors[0]
+  const blobs = colors.slice(1, 5).map((hex, i) => {
+    const { r, g, b } = hexToRgb(hex)
+    return { r, g, b, a: alphas[i] ?? 0.5, s: sizes[i] ?? 0.4 }
+  })
+  while (blobs.length < 4) blobs.push({ r:200, g:180, b:150, a:0.4, s:0.4 })
+  return { bg, blobs }
 }
 
 function useCanvas(canvasRef, theme) {
@@ -146,23 +184,23 @@ export default function ClientPage() {
   const [notFound,     setNotFound]     = useState(false)
 
   // ── Theme — driven by workspace.theme, no user override ──────────────────
-  const [theme, setTheme] = useState('warm')
+  const [theme, setTheme] = useState('dark')
   useEffect(() => {
     if (!workspace) return
-    const t = workspace.theme || 'warm'
-    setTheme(t)
-    document.documentElement.setAttribute('data-theme', t === 'warm' ? 'dark' : t)
+    setTheme(workspace.theme || 'warm')
   }, [workspace])
+  // Apply template CSS vars synchronously before paint to avoid flash
+  useLayoutEffect(() => {
+    const root = document.getElementById('client-page-root')
+    if (!root) return
+    const tpl = TEMPLATES[theme] || TEMPLATES.warm
+    Object.entries(tpl).forEach(([k, v]) => { if (k.startsWith('--')) root.style.setProperty(k, v) })
+  }, [theme])
 
   // ── Canvas ────────────────────────────────────────────────────────────────
   const canvasRef = useRef(null)
   const heroRef   = useRef(null)
   useCanvas(canvasRef, theme)
-  // BUG 2 — paint hero background before first browser frame to avoid white flash
-  useLayoutEffect(() => {
-    if (!heroRef.current) return
-    heroRef.current.style.backgroundColor = theme === 'light' ? '#FAFAF8' : theme === 'dark' ? '#080808' : '#080706'
-  }, [theme])
 
   // ── UI State ──────────────────────────────────────────────────────────────
   const [activeTab,      setActiveTab]      = useState('book')
@@ -494,7 +532,7 @@ export default function ClientPage() {
 
   // ─────────────────────────────────────────────────────────────────────────
   return (
-    <>
+    <div id="client-page-root">
       <style>{CSS}</style>
 
       {/* NAV */}
@@ -509,8 +547,8 @@ export default function ClientPage() {
       </nav>
 
       {/* HERO */}
-      <section ref={heroRef} className="cb-hero" style={{backgroundColor:workspace?.theme==='dark'?'#080808':workspace?.theme==='light'?'#FAFAF8':'#f0e6d3'}}>
-        <div className="hero-blob-bg" style={{display:theme==='warm'?'block':'none'}}><canvas ref={canvasRef} style={{position:'absolute',inset:0,width:'100%',height:'100%',display:'block'}}/></div>
+      <section ref={heroRef} className="cb-hero">
+        <div className="hero-blob-bg"><canvas ref={canvasRef} style={{position:'absolute',inset:0,width:'100%',height:'100%',display:'block'}}/></div>
         <div className="hero-left">
           <div className={`hero-context-tag${heroFading?' hero-fading':''}`}>
             <span className="hero-tag-dot"/><span>{hc.tag}</span>
@@ -651,8 +689,8 @@ export default function ClientPage() {
           </div>
         </section>}
 
-        {/* Google Maps — show whenever mapAddress exists and no structured address block above */}
-        {!workspace.address_street && mapAddress && <section className="cb-section">
+        {/* Google Maps — show when show_address_on_page is enabled and no structured address block above */}
+        {workspace?.show_address_on_page && mapAddress && <section className="cb-section">
           <div className="cb-inner">
             <div className="cb-eyebrow">Find Us</div>
             <h2 className="cb-heading">The <em>Studio</em></h2>
@@ -971,7 +1009,7 @@ export default function ClientPage() {
         </div>}
         <button onClick={()=>setFloatOpen(f=>!f)} style={{width:48,height:48,borderRadius:2,background:'var(--gold)',color:'#141210',border:'none',cursor:'pointer',fontSize:18,display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 4px 20px rgba(201,168,76,.28)',transition:'all .25s'}}>{floatOpen?'✕':'✦'}</button>
       </div>
-    </>
+    </div>
   )
 }
 
@@ -983,10 +1021,12 @@ const CSS = `
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}html{overflow-x:clip}body{overflow-x:clip}
 :root{--gold:#C9A84C;--gold-light:#E8C97A;--gold-dim:rgba(201,168,76,0.12);--gold-border:rgba(201,168,76,0.25);--dark:#090909;--dark-2:#101010;--dark-3:#181818;--dark-4:#242424;--dark-5:#333;--text:#F0EAE0;--text-muted:#9A8E7E;--text-soft:#CCC0A8;--error:#d0605a;--success:#56bb86;--ease:cubic-bezier(.25,.46,.45,.94)}
 [data-theme="light"]{--gold:#9A6E10;--gold-light:#B88A28;--gold-dim:rgba(154,110,16,0.08);--gold-border:rgba(154,110,16,0.20);--dark:#FFFFFF;--dark-2:#F7F7F7;--dark-3:#F0F0F0;--dark-4:#E4E4E4;--dark-5:#CCC;--text:#141210;--text-muted:#6B6158;--text-soft:#3A342E}
+/* ── TEMPLATE VARS — defaults (dark); overridden per-theme via JS ── */
+#client-page-root{--hero-bg-from:#080808;--hero-bg-to:#0F0F0F;--body-bg:#0A0A0A;--text-primary:#F5F5F5;--text-secondary:#888888;--accent:#C9A84C;--btn-bg:#C9A84C;--btn-text:#080808;--nav-bg:#050505;--nav-text:#C9A84C;--tab-bg:#050505;--tab-text:#C9A84C;--tab-active-border:#C9A84C;--card-bg:#161616;--card-border:#2A2A2A;--price-color:#C9A84C}
 *,*::before,*::after{transition:background-color .4s ease,color .4s ease,border-color .4s ease}
 .cb-overlay,.cb-portfolio-overlay,.cb-ov-inner,.cb-cart-drawer{transition:none!important}
 
-.cb-nav{position:fixed;top:0;left:0;right:0;z-index:500;padding:0 20px;height:64px;display:flex;align-items:center;justify-content:space-between;background:rgba(10,5,2,0.98);border-bottom:1px solid rgba(201,168,76,0.1);backdrop-filter:blur(20px)}
+.cb-nav{position:fixed;top:0;left:0;right:0;z-index:500;padding:0 20px;height:64px;display:flex;align-items:center;justify-content:space-between;background:var(--nav-bg,rgba(10,5,2,0.98));border-bottom:1px solid rgba(201,168,76,0.1);backdrop-filter:blur(20px)}
 [data-theme="light"] .cb-nav{background:rgba(14,7,2,0.98)!important}
 .cb-nav-logo{font-family:'Playfair Display',serif;font-size:17px;color:var(--gold);display:flex;align-items:center;gap:8px}
 .cb-nav-logo span{font-family:'DM Sans',sans-serif;font-size:11px;color:rgba(201,168,76,0.45);font-weight:300}
@@ -996,7 +1036,7 @@ const CSS = `
 .cb-cart-badge{position:absolute;top:-6px;right:-6px;background:var(--gold);color:#141210;font-size:9px;font-weight:700;width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center}
 
 /* ── HERO ── */
-.cb-hero{min-height:100vh;display:grid;grid-template-columns:52% 48%;padding-top:64px;position:relative;overflow:hidden}
+.cb-hero{min-height:100vh;display:grid;grid-template-columns:52% 48%;padding-top:64px;position:relative;overflow:hidden;background:var(--hero-bg-from,#080808)}
 .hero-blob-bg{position:absolute!important;inset:0!important;z-index:0!important}
 .hero-left,.hero-right{position:relative;z-index:1}
 .hero-left{display:flex;flex-direction:column;justify-content:center;padding:80px 60px 60px 40px;position:relative;z-index:2;background:transparent}
@@ -1047,24 +1087,24 @@ const CSS = `
 @media(max-width:768px){.cb-hero{grid-template-columns:1fr}.hero-left{padding:80px 24px 52px}.hero-left::after{display:none}.hero-right{display:none}}
 
 /* ── BUTTONS ── */
-.cb-btn-primary{background:var(--gold);color:#141210;border:none;padding:14px 28px;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;border-radius:1px;transition:all .25s}
+.cb-btn-primary{background:var(--btn-bg,var(--gold));color:var(--btn-text,#141210);border:none;padding:14px 28px;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;border-radius:1px;transition:all .25s}
 .cb-btn-primary:hover{background:var(--gold-light);box-shadow:0 8px 28px rgba(201,168,76,.25)}
 .cb-btn-primary:disabled{background:var(--dark-5);color:var(--text-muted);cursor:not-allowed;box-shadow:none}
 .cb-btn-ghost{background:transparent;color:rgba(250,246,241,.7);border:1px solid rgba(250,246,241,.25);padding:14px 28px;font-family:'DM Sans',sans-serif;font-size:11px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;border-radius:1px;transition:all .25s}
 .cb-btn-ghost:hover{border-color:rgba(250,246,241,.5);color:rgba(250,246,241,.9)}
 
 /* ── TAB BAR ── */
-.tab-bar-wrap{position:sticky;top:64px;z-index:400;background:rgba(10,5,2,.99);border-bottom:1px solid rgba(201,168,76,.10);backdrop-filter:blur(20px)}
+.tab-bar-wrap{position:sticky;top:64px;z-index:400;background:var(--tab-bg,rgba(10,5,2,.99));border-bottom:1px solid rgba(201,168,76,.10);backdrop-filter:blur(20px)}
 .tab-bar{width:100%;display:flex;align-items:stretch;overflow:hidden}
 .tab-btn{background:transparent;border:none;color:var(--text-muted);font-family:'DM Sans',sans-serif;font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;padding:16px 8px;cursor:pointer;position:relative;transition:color .25s;display:flex;align-items:center;justify-content:center;gap:6px;flex:1;min-width:0;text-align:center;white-space:normal}
-.tab-btn::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;background:var(--gold);transform:scaleX(0);transition:transform .3s var(--ease)}
+.tab-btn::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;background:var(--tab-active-border,var(--gold));transform:scaleX(0);transition:transform .3s var(--ease)}
 .tab-btn:hover{color:var(--text-soft)}
-.tab-btn.active{color:var(--gold-light)}
+.tab-btn.active{color:var(--tab-text,var(--gold-light))}
 .tab-btn.active::after{transform:scaleX(1)}
 .tab-dot{width:5px;height:5px;border-radius:50%;background:var(--gold)}
 
-.cb-panel{background:var(--dark)}
-.cb-section{padding:64px 24px;background:var(--dark)}
+.cb-panel{background:var(--body-bg,var(--dark))}
+.cb-section{padding:64px 24px;background:var(--body-bg,var(--dark))}
 .cb-alt{background:var(--dark-2);border-top:1px solid var(--dark-4);border-bottom:1px solid var(--dark-4)}
 .cb-inner{max-width:1100px;margin:0 auto}
 .cb-eyebrow{font-size:9px;letter-spacing:.26em;text-transform:uppercase;color:var(--gold);margin-bottom:10px}
@@ -1072,20 +1112,20 @@ const CSS = `
 .cb-heading em{font-style:italic;color:var(--gold)}
 .cb-sub{font-size:13px;color:var(--text-muted);font-weight:300;line-height:1.75;margin-top:10px}
 
-.cb-services-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1px;background:var(--dark-4);border:1px solid var(--dark-4)}
-.cb-svc-card{background:var(--dark-2);padding:32px 28px;cursor:pointer;transition:background .3s;position:relative;overflow:hidden}
+.cb-services-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1px;background:var(--card-border,var(--dark-4));border:1px solid var(--card-border,var(--dark-4))}
+.cb-svc-card{background:var(--card-bg,var(--dark-2));padding:32px 28px;cursor:pointer;transition:background .3s;position:relative;overflow:hidden}
 .cb-svc-card::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(to right,transparent,var(--gold),transparent);transform:scaleX(0);transform-origin:left;transition:transform .4s var(--ease)}
 .cb-svc-card:hover{background:var(--dark-3)}.cb-svc-card:hover::after{transform:scaleX(1)}
 .cb-svc-cat{font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--text-muted);margin-bottom:16px}
 .cb-svc-name{font-family:'Playfair Display',serif;font-size:20px;color:var(--text);margin-bottom:6px}
 .cb-svc-dur{font-size:12px;color:var(--text-muted);margin-bottom:24px}
 .cb-svc-footer{display:flex;align-items:flex-end;justify-content:space-between}
-.cb-svc-price{font-family:'Playfair Display',serif;font-size:24px;color:var(--gold)}
+.cb-svc-price{font-family:'Playfair Display',serif;font-size:24px;color:var(--price-color,var(--gold))}
 .cb-svc-book{font-size:10px;color:var(--text-muted);letter-spacing:.1em;text-transform:uppercase;border:1px solid var(--dark-5);padding:7px 14px;border-radius:1px;cursor:pointer;background:transparent;font-family:'DM Sans',sans-serif;transition:all .2s}
 .cb-svc-card:hover .cb-svc-book{border-color:var(--gold-border);color:var(--gold-light)}
 
-.cb-reviews-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1px;background:var(--dark-4);border:1px solid var(--dark-4)}
-.cb-review-card{background:var(--dark-2);padding:28px 24px;position:relative;transition:background .3s}
+.cb-reviews-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1px;background:var(--card-border,var(--dark-4));border:1px solid var(--card-border,var(--dark-4))}
+.cb-review-card{background:var(--card-bg,var(--dark-2));padding:28px 24px;position:relative;transition:background .3s}
 .cb-review-card:hover{background:var(--dark-3)}
 .cb-review-quote{position:absolute;top:16px;right:20px;font-family:'Playfair Display',serif;font-size:56px;color:rgba(201,168,76,.05);font-style:italic;line-height:1}
 .cb-review-body{font-size:13px;line-height:1.85;color:var(--text-soft);margin:12px 0 20px;font-style:italic;font-family:'Playfair Display',serif}
