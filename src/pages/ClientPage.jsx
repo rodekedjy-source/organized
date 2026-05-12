@@ -33,133 +33,63 @@ function generateSlots(openTime, closeTime, durationMin, existingAppts) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CANVAS ANIMATION
-// ─────────────────────────────────────────────────────────────────────────────
-const BLOB_PARAMS = [
-  [0.00031,0.00019,0.22,0.18,0.0,1.2,0.0],
-  [0.00022,0.00028,0.18,0.24,2.1,0.8,1.8],
-  [0.00017,0.00023,0.26,0.20,4.3,3.1,3.5],
-  [0.00025,0.00015,0.20,0.28,1.7,5.0,5.2],
-]
-const BLOB_BASE = [{bx:0.15,by:0.20},{bx:0.75,by:0.65},{bx:0.50,by:0.45},{bx:0.30,by:0.75}]
-
-// ─────────────────────────────────────────────────────────────────────────────
 // TEMPLATES — 3 visual themes for the public page
 // ─────────────────────────────────────────────────────────────────────────────
 const TEMPLATES = {
   warm: {
+    // ── hero animation ─────────────────────────────────────────────────────
+    '--hero-base':'#C8A882','--hero-base-2':'#B8925A',
+    '--hero-orb':'rgba(245,230,200,0.4)','--hero-duration':'12s',
     // ── template vars ──────────────────────────────────────────────────────
-    '--hero-bg-from':'#C8A882','--hero-bg-to':'#B8926A','--body-bg':'#F5EDE0',
-    '--text-primary':'#1A0F00','--text-secondary':'#5C3D1E','--accent':'#8B5E2A',
-    '--btn-bg':'#8B5E2A','--btn-text':'#FFFFFF','--nav-bg':'#1A0F00','--nav-text':'#F5EDE0',
-    '--tab-bg':'#1A0F00','--tab-text':'#C8A882','--tab-active-border':'#C8A882',
-    '--card-bg':'#FDF6EC','--card-border':'#D4B896','--price-color':'#8B5E2A',
+    '--body-bg':'#FAF5EE',
+    '--text-primary':'#1A0E00','--text-secondary':'#6B5030','--accent':'#B8924A',
+    '--btn-bg':'#B8924A','--btn-text':'#1A0E00',
+    '--nav-bg':'#2C1A0E','--nav-text':'#F0E0C0',
+    '--tab-bg':'#2C1A0E','--tab-text':'#F0E0C0','--tab-active-border':'#B8924A',
+    '--card-bg':'#FFFFFF','--card-border':'#E8DDD0','--price-color':'#B8924A',
     // ── remap global vars so ALL existing CSS auto-adapts ─────────────────
-    '--dark':'#F5EDE0','--dark-2':'#FDF6EC','--dark-3':'#F0E8D8',
-    '--dark-4':'#D4B896','--dark-5':'#C4A87A',
-    '--text':'#1A0F00','--text-muted':'#5C3D1E','--text-soft':'#7A5030',
-    '--gold':'#8B5E2A','--gold-light':'#A07040',
-    '--gold-dim':'rgba(139,94,42,0.10)','--gold-border':'rgba(139,94,42,0.25)',
-    // ── canvas ─────────────────────────────────────────────────────────────
-    waveColors:['#C8A882','#6B3A10','#8B5E2A','#A07040','#4A2008'],
-    waveAlphas:[0.55, 0.45, 0.38, 0.30], waveSizes:[0.65, 0.50, 0.58, 0.38]
+    '--dark':'#FAF5EE','--dark-2':'#FFFFFF','--dark-3':'#F5F0E8',
+    '--dark-4':'#E8DDD0','--dark-5':'#D4C4A8',
+    '--text':'#1A0E00','--text-muted':'#6B5030','--text-soft':'#8B6840',
+    '--gold':'#B8924A','--gold-light':'#D4A860',
+    '--gold-dim':'rgba(184,146,74,0.10)','--gold-border':'rgba(184,146,74,0.25)',
   },
   dark: {
-    '--hero-bg-from':'#080808','--hero-bg-to':'#0F0F0F','--body-bg':'#0A0A0A',
-    '--text-primary':'#F5F5F5','--text-secondary':'#888888','--accent':'#C9A84C',
-    '--btn-bg':'#C9A84C','--btn-text':'#080808','--nav-bg':'#050505','--nav-text':'#C9A84C',
-    '--tab-bg':'#050505','--tab-text':'#C9A84C','--tab-active-border':'#C9A84C',
-    '--card-bg':'#161616','--card-border':'#2A2A2A','--price-color':'#C9A84C',
-    // remap global vars — same as :root defaults
-    '--dark':'#090909','--dark-2':'#101010','--dark-3':'#181818',
-    '--dark-4':'#242424','--dark-5':'#333',
-    '--text':'#F0EAE0','--text-muted':'#9A8E7E','--text-soft':'#CCC0A8',
+    // ── hero animation ─────────────────────────────────────────────────────
+    '--hero-base':'#080808','--hero-base-2':'#0F0A04',
+    '--hero-orb':'rgba(201,168,76,0.08)','--hero-duration':'16s',
+    // ── template vars ──────────────────────────────────────────────────────
+    '--body-bg':'#FFFFFF',
+    '--text-primary':'#0A0A0A','--text-secondary':'#555555','--accent':'#C9A84C',
+    '--btn-bg':'#C9A84C','--btn-text':'#080808',
+    '--nav-bg':'#000000','--nav-text':'#C9A84C',
+    '--tab-bg':'#000000','--tab-text':'#C9A84C','--tab-active-border':'#C9A84C',
+    '--card-bg':'#FFFFFF','--card-border':'#E8E0D0','--price-color':'#C9A84C',
+    // ── remap global vars ─────────────────────────────────────────────────
+    '--dark':'#F8F8F8','--dark-2':'#FFFFFF','--dark-3':'#F0F0F0',
+    '--dark-4':'#E8E0D0','--dark-5':'#CCC',
+    '--text':'#0A0A0A','--text-muted':'#555555','--text-soft':'#888888',
     '--gold':'#C9A84C','--gold-light':'#E8C97A',
     '--gold-dim':'rgba(201,168,76,0.12)','--gold-border':'rgba(201,168,76,0.25)',
-    waveColors:['#080808','#C9A84C','#F0EAD0','#8B6A20','#1A1408'],
-    waveAlphas:[0.08, 0.05, 0.04, 0.03], waveSizes:[0.55, 0.42, 0.35, 0.28]
   },
   rose: {
-    '--hero-bg-from':'#DD6387','--hero-bg-to':'#C94E72','--body-bg':'#FFF5F7',
-    '--text-primary':'#1A0008','--text-secondary':'#6B1030','--accent':'#CD2C5C',
-    '--btn-bg':'#CD2C5C','--btn-text':'#FFFFFF','--nav-bg':'#1A0008','--nav-text':'#FFD6E3',
-    '--tab-bg':'#CD2C5C','--tab-text':'#FFFFFF','--tab-active-border':'#FFFFFF',
-    '--card-bg':'#FFFFFF','--card-border':'#F5C0D0','--price-color':'#CD2C5C',
-    '--dark':'#FFF5F7','--dark-2':'#FFFFFF','--dark-3':'#FEF0F3',
-    '--dark-4':'#F5C0D0','--dark-5':'#E8A0B8',
-    '--text':'#1A0008','--text-muted':'#6B1030','--text-soft':'#8B2848',
-    '--gold':'#CD2C5C','--gold-light':'#E0456F',
-    '--gold-dim':'rgba(205,44,92,0.10)','--gold-border':'rgba(205,44,92,0.22)',
-    waveColors:['#DD6387','#8B1A3A','#A02050','#6B0A28','#C94E72'],
-    waveAlphas:[0.55, 0.45, 0.38, 0.30], waveSizes:[0.65, 0.50, 0.58, 0.38]
-  }
-}
-
-function hexToRgb(hex) {
-  const h = hex.replace('#','').slice(0,6)
-  return { r:parseInt(h.slice(0,2),16), g:parseInt(h.slice(2,4),16), b:parseInt(h.slice(4,6),16) }
-}
-
-function getBlobs(theme) {
-  const tpl = TEMPLATES[theme] || TEMPLATES.warm   // default to warm, not dark
-  const { waveColors, waveAlphas, waveSizes } = tpl
-  const bg = waveColors[0]
-  const blobs = waveColors.slice(1, 5).map((hex, i) => {
-    const { r, g, b } = hexToRgb(hex)
-    return { r, g, b, a: waveAlphas[i] ?? 0.5, s: waveSizes[i] ?? 0.4 }
-  })
-  while (blobs.length < 4) blobs.push({ r:200, g:180, b:150, a:0.3, s:0.4 })
-  return { bg, blobs }
-}
-
-function useCanvas(canvasRef, theme) {
-  useLayoutEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const ctx = canvas.getContext('2d')
-    let raf, t = 0, dpr = window.devicePixelRatio || 1
-
-    function resize() {
-      const p = canvas.parentElement; if (!p) return
-      dpr = window.devicePixelRatio || 1
-      const r = p.getBoundingClientRect()
-      canvas.width = Math.round(r.width * dpr); canvas.height = Math.round(r.height * dpr)
-      canvas.style.width = r.width + 'px'; canvas.style.height = r.height + 'px'
-      // Paint background immediately to prevent white flash
-      const { bg } = getBlobs(theme)
-      ctx.setTransform(dpr,0,0,dpr,0,0)
-      ctx.fillStyle = bg; ctx.fillRect(0, 0, r.width, r.height)
-    }
-
-    function draw() {
-      const w = canvas.width / dpr, h = canvas.height / dpr
-      const {bg, blobs} = getBlobs(theme)
-      ctx.setTransform(dpr,0,0,dpr,0,0)
-      ctx.clearRect(0,0,w,h); ctx.fillStyle = bg; ctx.fillRect(0,0,w,h)
-      blobs.forEach((blob, i) => {
-        const p = BLOB_PARAMS[i], base = BLOB_BASE[i]
-        const xt = Math.sin(t*p[0]+p[4])*p[2] + Math.sin(t*p[0]*0.6+p[4]+1.3)*p[2]*0.4
-        const yt = Math.cos(t*p[1]+p[5])*p[3] + Math.cos(t*p[1]*0.7+p[5]+0.9)*p[3]*0.35
-        const size = blob.s * (1 + 0.08 * Math.sin(t*0.00018+p[6]))
-        const cx = (base.bx+xt)*w, cy = (base.by+yt)*h, radius = size*Math.max(w,h)
-        const grad = ctx.createRadialGradient(cx,cy,0,cx,cy,radius)
-        const c = `${blob.r},${blob.g},${blob.b}`
-        grad.addColorStop(0,`rgba(${c},${blob.a})`); grad.addColorStop(0.4,`rgba(${c},${blob.a*0.55})`)
-        grad.addColorStop(0.75,`rgba(${c},${blob.a*0.15})`); grad.addColorStop(1,`rgba(${c},0)`)
-        ctx.save(); ctx.translate(cx,cy); ctx.scale(1,0.75+0.12*Math.sin(t*0.00014+i)); ctx.translate(-cx,-cy)
-        ctx.beginPath(); ctx.arc(cx,cy,radius,0,Math.PI*2); ctx.fillStyle=grad; ctx.fill(); ctx.restore()
-      })
-      t += 16; raf = requestAnimationFrame(draw)
-    }
-
-    function start() { cancelAnimationFrame(raf); resize(); draw() }
-    const onResize = () => resize()
-    const onVis = () => { if (document.hidden) cancelAnimationFrame(raf); else start() }
-    start()
-    window.addEventListener('resize', onResize)
-    document.addEventListener('visibilitychange', onVis)
-    return () => { cancelAnimationFrame(raf); window.removeEventListener('resize',onResize); document.removeEventListener('visibilitychange',onVis) }
-  }, [canvasRef, theme])
+    // ── hero animation ─────────────────────────────────────────────────────
+    '--hero-base':'#F2C4CE','--hero-base-2':'#E8A8B8',
+    '--hero-orb':'rgba(255,240,243,0.35)','--hero-duration':'14s',
+    // ── template vars ──────────────────────────────────────────────────────
+    '--body-bg':'#FFF8FA',
+    '--text-primary':'#2A0E18','--text-secondary':'#8B4A60','--accent':'#C4607A',
+    '--btn-bg':'#FFFFFF','--btn-text':'#3D1A24',
+    '--nav-bg':'#3D1A24','--nav-text':'#FFE4EC',
+    '--tab-bg':'#3D1A24','--tab-text':'#FFE4EC','--tab-active-border':'#C4849A',
+    '--card-bg':'#FFFFFF','--card-border':'#F5DCE4','--price-color':'#C4607A',
+    // ── remap global vars ─────────────────────────────────────────────────
+    '--dark':'#FFF8FA','--dark-2':'#FFFFFF','--dark-3':'#FFF0F4',
+    '--dark-4':'#F5DCE4','--dark-5':'#E8C0D0',
+    '--text':'#2A0E18','--text-muted':'#8B4A60','--text-soft':'#6B3048',
+    '--gold':'#C4607A','--gold-light':'#DC7A94',
+    '--gold-dim':'rgba(196,96,122,0.10)','--gold-border':'rgba(196,96,122,0.22)',
+  },
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -207,9 +137,7 @@ export default function ClientPage() {
   const [theme, setTheme] = useState('warm')   // default warm avoids dark flash on first paint
   useEffect(() => {
     if (!workspace) return
-    const t = workspace.theme || 'warm'
-    console.log('[ClientPage] workspace.theme from DB:', workspace.theme, '→ applying template:', t)
-    setTheme(t)
+    setTheme(workspace.theme || 'warm')
   }, [workspace])
   // Apply template CSS vars synchronously before paint.
   // IMPORTANT: also depends on `loading` so the effect re-fires when the full
@@ -218,24 +146,14 @@ export default function ClientPage() {
   // never fire once #client-page-root actually exists in the DOM.
   useLayoutEffect(() => {
     const template = TEMPLATES[theme] || TEMPLATES.warm
-    console.log('[ClientPage] useLayoutEffect — theme:', theme, 'loading:', loading)
     const root = document.getElementById('client-page-root')
-    console.log('[ClientPage] root element found:', !!root)
     if (!root) return
     Object.entries(template).forEach(([key, val]) => {
-      if (key.startsWith('--')) {
-        root.style.setProperty(key, val)
-        console.log('[ClientPage] set', key, '=', val)
-      }
+      if (key.startsWith('--')) root.style.setProperty(key, val)
     })
-    console.log('[ClientPage] --hero-bg-from now:', root.style.getPropertyValue('--hero-bg-from'))
-    console.log('[ClientPage] --body-bg now:', root.style.getPropertyValue('--body-bg'))
   }, [theme, loading])
 
-  // ── Canvas ────────────────────────────────────────────────────────────────
-  const canvasRef = useRef(null)
-  const heroRef   = useRef(null)
-  useCanvas(canvasRef, theme)
+  // (hero background is pure CSS animation — no canvas needed)
 
   // ── UI State ──────────────────────────────────────────────────────────────
   const [activeTab,      setActiveTab]      = useState('book')
@@ -546,7 +464,6 @@ export default function ClientPage() {
   const faqItems        = buildFAQ(workspace, services)
   const mapsUrl         = workspace ? `https://maps.google.com/?q=${encodeURIComponent([workspace.address_street,workspace.address_city,workspace.address_province].filter(Boolean).join(', '))}` : '#'
   const mapAddress      = [workspace?.address_street,workspace?.address_city,workspace?.address_province,workspace?.address_postal].filter(Boolean).join(', ') || workspace?.location || ''
-  console.log('mapAddress:', mapAddress, '| location:', workspace?.location, '| address_street:', workspace?.address_street, '| show_address_on_page:', workspace?.show_address_on_page)
 
   // ─────────────────────────────────────────────────────────────────────────
   if (loading) return <div style={{minHeight:'100vh',background:'#080706',display:'flex',alignItems:'center',justifyContent:'center'}}><div style={{fontFamily:'Playfair Display,serif',fontSize:24,color:'#C9A84C'}}>Organized.</div></div>
@@ -582,8 +499,7 @@ export default function ClientPage() {
       </nav>
 
       {/* HERO */}
-      <section ref={heroRef} className="cb-hero" style={{backgroundColor:'var(--hero-bg-from)',position:'relative'}}>
-        <div className="hero-blob-bg"><canvas ref={canvasRef} style={{position:'absolute',inset:0,width:'100%',height:'100%',display:'block'}}/></div>
+      <section className="cb-hero">
         <div className="hero-left">
           <div className={`hero-context-tag${heroFading?' hero-fading':''}`}>
             <span className="hero-tag-dot"/><span>{hc.tag}</span>
@@ -1057,7 +973,7 @@ const CSS = `
 :root{--gold:#C9A84C;--gold-light:#E8C97A;--gold-dim:rgba(201,168,76,0.12);--gold-border:rgba(201,168,76,0.25);--dark:#090909;--dark-2:#101010;--dark-3:#181818;--dark-4:#242424;--dark-5:#333;--text:#F0EAE0;--text-muted:#9A8E7E;--text-soft:#CCC0A8;--error:#d0605a;--success:#56bb86;--ease:cubic-bezier(.25,.46,.45,.94)}
 [data-theme="light"]{--gold:#9A6E10;--gold-light:#B88A28;--gold-dim:rgba(154,110,16,0.08);--gold-border:rgba(154,110,16,0.20);--dark:#FFFFFF;--dark-2:#F7F7F7;--dark-3:#F0F0F0;--dark-4:#E4E4E4;--dark-5:#CCC;--text:#141210;--text-muted:#6B6158;--text-soft:#3A342E}
 /* ── TEMPLATE VARS — defaults (dark); overridden per-theme via JS ── */
-#client-page-root{--hero-bg-from:#080808;--hero-bg-to:#0F0F0F;--body-bg:#0A0A0A;--text-primary:#F5F5F5;--text-secondary:#888888;--accent:#C9A84C;--btn-bg:#C9A84C;--btn-text:#080808;--nav-bg:#050505;--nav-text:#C9A84C;--tab-bg:#050505;--tab-text:#C9A84C;--tab-active-border:#C9A84C;--card-bg:#161616;--card-border:#2A2A2A;--price-color:#C9A84C}
+#client-page-root{--hero-base:#080808;--hero-base-2:#0F0A04;--hero-orb:rgba(201,168,76,0.08);--hero-duration:16s;--body-bg:#FFFFFF;--text-primary:#0A0A0A;--text-secondary:#555555;--accent:#C9A84C;--btn-bg:#C9A84C;--btn-text:#080808;--nav-bg:#000000;--nav-text:#C9A84C;--tab-bg:#000000;--tab-text:#C9A84C;--tab-active-border:#C9A84C;--card-bg:#FFFFFF;--card-border:#E8E0D0;--price-color:#C9A84C}
 *,*::before,*::after{transition:background-color .4s ease,color .4s ease,border-color .4s ease}
 .cb-overlay,.cb-portfolio-overlay,.cb-ov-inner,.cb-cart-drawer{transition:none!important}
 
@@ -1071,8 +987,8 @@ const CSS = `
 .cb-cart-badge{position:absolute;top:-6px;right:-6px;background:var(--gold);color:#141210;font-size:9px;font-weight:700;width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center}
 
 /* ── HERO ── */
-.cb-hero{min-height:100vh;display:grid;grid-template-columns:52% 48%;padding-top:64px;position:relative;overflow:hidden;background:var(--hero-bg-from,#080808)}
-.hero-blob-bg{position:absolute!important;inset:0!important;z-index:0!important}
+@keyframes heroLightDrift{0%{background-position:0% 0%}33%{background-position:100% 50%}66%{background-position:50% 100%}100%{background-position:0% 0%}}
+.cb-hero{min-height:100vh;display:grid;grid-template-columns:52% 48%;padding-top:64px;position:relative;overflow:hidden;background:radial-gradient(ellipse at 20% 30%,var(--hero-orb,rgba(201,168,76,0.08)) 0%,transparent 60%),linear-gradient(135deg,var(--hero-base,#080808),var(--hero-base-2,#0F0A04));background-size:300% 300%;animation:heroLightDrift var(--hero-duration,16s) ease-in-out infinite}
 .hero-left,.hero-right{position:relative;z-index:1}
 .hero-left{display:flex;flex-direction:column;justify-content:center;padding:80px 60px 60px 40px;position:relative;z-index:2;background:transparent}
 .hero-left::after{content:'';position:absolute;right:0;top:12%;bottom:12%;width:1px;background:linear-gradient(to bottom,transparent,rgba(201,168,76,0.18),transparent)}

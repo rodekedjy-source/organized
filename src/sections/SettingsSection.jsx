@@ -630,9 +630,7 @@ export default function SettingsSection({ workspace, toast, refetch, theme, setT
           <div style={{fontSize:'.8rem',color:'var(--ink-3)',marginBottom:'1rem',lineHeight:1.55}}>Controls how <strong style={{color:'var(--ink)'}}>your public client page</strong> looks. Clients see this when they book.</div>
           <div className="theme-options" style={{gridTemplateColumns:'repeat(3,1fr)'}}>
             <div className={`theme-option${workspace?.theme==='warm'?' selected':''}`} onClick={async()=>{
-              const val='warm'; console.log('[Settings] saving theme:', val, 'workspace.id:', workspace?.id)
-              const{error}=await supabase.from('workspaces').update({theme:val}).eq('id',workspace.id)
-              console.log('[Settings] save result error:', error)
+              const{error}=await supabase.from('workspaces').update({theme:'warm'}).eq('id',workspace.id)
               if(!error){if(refetch)await refetch();toast('Business page set to Warm Beige.')}else{toast('Error saving theme: '+error.message)}
             }}>
               <div className="theme-preview" style={{background:'#F0E6D3',gap:3}}>
@@ -646,9 +644,7 @@ export default function SettingsSection({ workspace, toast, refetch, theme, setT
               <div className="theme-label">Warm Beige {workspace?.theme==='warm'&&<div className="theme-check">{I.check}</div>}</div>
             </div>
             <div className={`theme-option${workspace?.theme==='dark'?' selected':''}`} onClick={async()=>{
-              const val='dark'; console.log('[Settings] saving theme:', val, 'workspace.id:', workspace?.id)
-              const{error}=await supabase.from('workspaces').update({theme:val}).eq('id',workspace.id)
-              console.log('[Settings] save result error:', error)
+              const{error}=await supabase.from('workspaces').update({theme:'dark'}).eq('id',workspace.id)
               if(!error){if(refetch)await refetch();toast('Business page set to Midnight Luxe.')}else{toast('Error saving theme: '+error.message)}
             }}>
               <div className="theme-preview" style={{background:'#080808',gap:3}}>
@@ -662,9 +658,7 @@ export default function SettingsSection({ workspace, toast, refetch, theme, setT
               <div className="theme-label">Midnight Luxe {workspace?.theme==='dark'&&<div className="theme-check">{I.check}</div>}</div>
             </div>
             <div className={`theme-option${workspace?.theme==='rose'?' selected':''}`} onClick={async()=>{
-              const val='rose'; console.log('[Settings] saving theme:', val, 'workspace.id:', workspace?.id)
-              const{error}=await supabase.from('workspaces').update({theme:val}).eq('id',workspace.id)
-              console.log('[Settings] save result error:', error)
+              const{error}=await supabase.from('workspaces').update({theme:'rose'}).eq('id',workspace.id)
               if(!error){if(refetch)await refetch();toast('Business page set to Rose Blossom.')}else{toast('Error saving theme: '+error.message)}
             }}>
               <div className="theme-preview" style={{background:'#F8E8EC',gap:3}}>
