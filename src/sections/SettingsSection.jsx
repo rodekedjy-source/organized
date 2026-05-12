@@ -629,7 +629,12 @@ export default function SettingsSection({ workspace, toast, refetch, theme, setT
         <div className="card-body">
           <div style={{fontSize:'.8rem',color:'var(--ink-3)',marginBottom:'1rem',lineHeight:1.55}}>Controls how <strong style={{color:'var(--ink)'}}>your public client page</strong> looks. Clients see this when they book.</div>
           <div className="theme-options" style={{gridTemplateColumns:'repeat(3,1fr)'}}>
-            <div className={`theme-option${workspace?.theme==='warm'?' selected':''}`} onClick={async()=>{await supabase.from('workspaces').update({theme:'warm'}).eq('id',workspace.id);if(refetch)await refetch();toast('Business page set to Warm Beige.')}}>
+            <div className={`theme-option${workspace?.theme==='warm'?' selected':''}`} onClick={async()=>{
+              const val='warm'; console.log('[Settings] saving theme:', val, 'workspace.id:', workspace?.id)
+              const{error}=await supabase.from('workspaces').update({theme:val}).eq('id',workspace.id)
+              console.log('[Settings] save result error:', error)
+              if(!error){if(refetch)await refetch();toast('Business page set to Warm Beige.')}else{toast('Error saving theme: '+error.message)}
+            }}>
               <div className="theme-preview" style={{background:'#F0E6D3',gap:3}}>
                 <div style={{width:'100%',height:10,borderRadius:2,background:'#1A1208'}}/>
                 <div style={{display:'flex',gap:3,marginTop:2}}>
@@ -640,7 +645,12 @@ export default function SettingsSection({ workspace, toast, refetch, theme, setT
               </div>
               <div className="theme-label">Warm Beige {workspace?.theme==='warm'&&<div className="theme-check">{I.check}</div>}</div>
             </div>
-            <div className={`theme-option${workspace?.theme==='dark'?' selected':''}`} onClick={async()=>{await supabase.from('workspaces').update({theme:'dark'}).eq('id',workspace.id);if(refetch)await refetch();toast('Business page set to Midnight Luxe.')}}>
+            <div className={`theme-option${workspace?.theme==='dark'?' selected':''}`} onClick={async()=>{
+              const val='dark'; console.log('[Settings] saving theme:', val, 'workspace.id:', workspace?.id)
+              const{error}=await supabase.from('workspaces').update({theme:val}).eq('id',workspace.id)
+              console.log('[Settings] save result error:', error)
+              if(!error){if(refetch)await refetch();toast('Business page set to Midnight Luxe.')}else{toast('Error saving theme: '+error.message)}
+            }}>
               <div className="theme-preview" style={{background:'#080808',gap:3}}>
                 <div style={{width:'100%',height:10,borderRadius:2,background:'#050505'}}/>
                 <div style={{display:'flex',gap:3,marginTop:2}}>
@@ -651,7 +661,12 @@ export default function SettingsSection({ workspace, toast, refetch, theme, setT
               </div>
               <div className="theme-label">Midnight Luxe {workspace?.theme==='dark'&&<div className="theme-check">{I.check}</div>}</div>
             </div>
-            <div className={`theme-option${workspace?.theme==='rose'?' selected':''}`} onClick={async()=>{await supabase.from('workspaces').update({theme:'rose'}).eq('id',workspace.id);if(refetch)await refetch();toast('Business page set to Rose Blossom.')}}>
+            <div className={`theme-option${workspace?.theme==='rose'?' selected':''}`} onClick={async()=>{
+              const val='rose'; console.log('[Settings] saving theme:', val, 'workspace.id:', workspace?.id)
+              const{error}=await supabase.from('workspaces').update({theme:val}).eq('id',workspace.id)
+              console.log('[Settings] save result error:', error)
+              if(!error){if(refetch)await refetch();toast('Business page set to Rose Blossom.')}else{toast('Error saving theme: '+error.message)}
+            }}>
               <div className="theme-preview" style={{background:'#F8E8EC',gap:3}}>
                 <div style={{width:'100%',height:10,borderRadius:2,background:'#1A0A0D'}}/>
                 <div style={{display:'flex',gap:3,marginTop:2}}>

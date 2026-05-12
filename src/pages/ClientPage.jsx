@@ -53,7 +53,9 @@ const TEMPLATES = {
     '--btn-bg':'#C9A84C','--btn-text':'#1A1208','--nav-bg':'#1A1208','--nav-text':'#F0E6D3',
     '--tab-bg':'#1A1208','--tab-text':'#C9A84C','--tab-active-border':'#C9A84C',
     '--card-bg':'#FFFFFF','--card-border':'#E8D5B5','--price-color':'#C9A84C',
-    waveColors:['#F0E6D3','#E8D5B5','#C9A84C','#FAF6F0','#DFC99A']
+    waveColors:['#F0E6D3','#E8D5B5','#C9A84C','#FAF6F0','#DFC99A'],
+    waveAlphas:[0.72, 0.60, 0.58, 0.45],
+    waveSizes: [0.62, 0.48, 0.55, 0.36]
   },
   dark: {
     '--hero-bg-from':'#080808','--hero-bg-to':'#0F0F0F','--body-bg':'#0A0A0A',
@@ -61,7 +63,9 @@ const TEMPLATES = {
     '--btn-bg':'#C9A84C','--btn-text':'#080808','--nav-bg':'#050505','--nav-text':'#C9A84C',
     '--tab-bg':'#050505','--tab-text':'#C9A84C','--tab-active-border':'#C9A84C',
     '--card-bg':'#161616','--card-border':'#2A2A2A','--price-color':'#C9A84C',
-    waveColors:['#080808','#0F0F0F','#1A1208','#C9A84C','#111111']
+    waveColors:['#080808','#F0EAE0','#C9A84C','#E8D5B5','#1A1208'],
+    waveAlphas:[0.10, 0.06, 0.05, 0.04],
+    waveSizes: [0.55, 0.42, 0.35, 0.28]
   },
   rose: {
     '--hero-bg-from':'#F8E8EC','--hero-bg-to':'#FDF0F3','--body-bg':'#FFFFFF',
@@ -69,7 +73,9 @@ const TEMPLATES = {
     '--btn-bg':'#C4547A','--btn-text':'#FFFFFF','--nav-bg':'#1A0A0D','--nav-text':'#F8E8EC',
     '--tab-bg':'#C4547A','--tab-text':'#FFFFFF','--tab-active-border':'#FFFFFF',
     '--card-bg':'#FFFFFF','--card-border':'#F0D5DC','--price-color':'#D4698A',
-    waveColors:['#F8E8EC','#FDF0F3','#F0D5DC','#FFFFFF','#FAE0E6']
+    waveColors:['#F8E8EC','#F0D5DC','#D4698A','#FDF0F3','#FAE0E6'],
+    waveAlphas:[0.55, 0.40, 0.35, 0.28],
+    waveSizes: [0.62, 0.48, 0.55, 0.36]
   }
 }
 
@@ -79,16 +85,14 @@ function hexToRgb(hex) {
 }
 
 function getBlobs(theme) {
-  const tpl = TEMPLATES[theme] || TEMPLATES.dark
-  const colors = tpl.waveColors
-  const alphas = [0.72, 0.60, 0.58, 0.45]
-  const sizes  = [0.62, 0.48, 0.55, 0.36]
-  const bg = colors[0]
-  const blobs = colors.slice(1, 5).map((hex, i) => {
+  const tpl = TEMPLATES[theme] || TEMPLATES.warm   // default to warm, not dark
+  const { waveColors, waveAlphas, waveSizes } = tpl
+  const bg = waveColors[0]
+  const blobs = waveColors.slice(1, 5).map((hex, i) => {
     const { r, g, b } = hexToRgb(hex)
-    return { r, g, b, a: alphas[i] ?? 0.5, s: sizes[i] ?? 0.4 }
+    return { r, g, b, a: waveAlphas[i] ?? 0.5, s: waveSizes[i] ?? 0.4 }
   })
-  while (blobs.length < 4) blobs.push({ r:200, g:180, b:150, a:0.4, s:0.4 })
+  while (blobs.length < 4) blobs.push({ r:200, g:180, b:150, a:0.3, s:0.4 })
   return { bg, blobs }
 }
 
@@ -184,16 +188,19 @@ export default function ClientPage() {
   const [notFound,     setNotFound]     = useState(false)
 
   // ── Theme — driven by workspace.theme, no user override ──────────────────
-  const [theme, setTheme] = useState('dark')
+  const [theme, setTheme] = useState('warm')   // default warm avoids dark flash on first paint
   useEffect(() => {
     if (!workspace) return
-    setTheme(workspace.theme || 'warm')
+    const t = workspace.theme || 'warm'
+    console.log('[ClientPage] workspace.theme from DB:', workspace.theme, '→ applying template:', t)
+    setTheme(t)
   }, [workspace])
   // Apply template CSS vars synchronously before paint to avoid flash
   useLayoutEffect(() => {
     const root = document.getElementById('client-page-root')
     if (!root) return
     const tpl = TEMPLATES[theme] || TEMPLATES.warm
+    console.log('[ClientPage] applying CSS vars for theme:', theme, '| --hero-bg-from:', tpl['--hero-bg-from'])
     Object.entries(tpl).forEach(([k, v]) => { if (k.startsWith('--')) root.style.setProperty(k, v) })
   }, [theme])
 
