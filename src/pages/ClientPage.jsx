@@ -473,6 +473,7 @@ export default function ClientPage() {
   const faqItems        = buildFAQ(workspace, services)
   const mapsUrl         = workspace ? `https://maps.google.com/?q=${encodeURIComponent([workspace.address_street,workspace.address_city,workspace.address_province].filter(Boolean).join(', '))}` : '#'
   const mapAddress      = [workspace?.address_street,workspace?.address_city,workspace?.address_province,workspace?.address_postal].filter(Boolean).join(', ') || workspace?.location || ''
+  console.log('mapAddress:', mapAddress, '| location:', workspace?.location, '| address_street:', workspace?.address_street, '| show_address_on_page:', workspace?.show_address_on_page)
 
   // ─────────────────────────────────────────────────────────────────────────
   if (loading) return <div style={{minHeight:'100vh',background:'#080706',display:'flex',alignItems:'center',justifyContent:'center'}}><div style={{fontFamily:'Playfair Display,serif',fontSize:24,color:'#C9A84C'}}>Organized.</div></div>
@@ -650,8 +651,8 @@ export default function ClientPage() {
           </div>
         </section>}
 
-        {/* Google Maps — show when location set but no structured address */}
-        {workspace.show_address_on_page!==false && !workspace.address_street && mapAddress && <section className="cb-section">
+        {/* Google Maps — show whenever mapAddress exists and no structured address block above */}
+        {!workspace.address_street && mapAddress && <section className="cb-section">
           <div className="cb-inner">
             <div className="cb-eyebrow">Find Us</div>
             <h2 className="cb-heading">The <em>Studio</em></h2>
@@ -895,8 +896,7 @@ export default function ClientPage() {
                   </div>
                 </div>}
                 <div style={{display:'flex',flexDirection:'column',gap:8,width:'100%',maxWidth:320}}>
-                  <button className="cb-btn-primary" style={{width:'100%',padding:14}} onClick={downloadICS}>Add to Calendar</button>
-                  <button className="cb-btn-ghost" style={{width:'100%',padding:14}} onClick={closeBooking}>Back to Studio</button>
+                  <button className="cb-btn-primary" style={{width:'100%',padding:14}} onClick={()=>{setBkOpen(false);window.scrollTo(0,0)}}>Retour à la page d'accueil</button>
                 </div>
               </div>
             </div>
