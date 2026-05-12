@@ -542,6 +542,11 @@ export default function ClientPage() {
     <div id="client-page-root">
       <style>{CSS}</style>
 
+      {/* DEBUG — remove before ship */}
+      <div style={{position:'fixed',top:0,left:0,background:'red',color:'white',padding:'4px 8px',fontSize:'12px',zIndex:9999}}>
+        Theme: {workspace?.theme || 'none'} | state: {theme}
+      </div>
+
       {/* NAV */}
       <nav className="cb-nav">
         <div className="cb-nav-logo">{workspace.name}<span>via Organized.</span></div>
