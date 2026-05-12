@@ -195,14 +195,26 @@ export default function ClientPage() {
     console.log('[ClientPage] workspace.theme from DB:', workspace.theme, '→ applying template:', t)
     setTheme(t)
   }, [workspace])
-  // Apply template CSS vars synchronously before paint to avoid flash
+  // Apply template CSS vars synchronously before paint.
+  // IMPORTANT: also depends on `loading` so the effect re-fires when the full
+  // page mounts — when theme stays 'warm' (initial) → 'warm' (from DB),
+  // setTheme is a no-op and theme never "changes", so [theme] alone would
+  // never fire once #client-page-root actually exists in the DOM.
   useLayoutEffect(() => {
+    const template = TEMPLATES[theme] || TEMPLATES.warm
+    console.log('[ClientPage] useLayoutEffect — theme:', theme, 'loading:', loading)
     const root = document.getElementById('client-page-root')
+    console.log('[ClientPage] root element found:', !!root)
     if (!root) return
-    const tpl = TEMPLATES[theme] || TEMPLATES.warm
-    console.log('[ClientPage] applying CSS vars for theme:', theme, '| --hero-bg-from:', tpl['--hero-bg-from'])
-    Object.entries(tpl).forEach(([k, v]) => { if (k.startsWith('--')) root.style.setProperty(k, v) })
-  }, [theme])
+    Object.entries(template).forEach(([key, val]) => {
+      if (key.startsWith('--')) {
+        root.style.setProperty(key, val)
+        console.log('[ClientPage] set', key, '=', val)
+      }
+    })
+    console.log('[ClientPage] --hero-bg-from now:', root.style.getPropertyValue('--hero-bg-from'))
+    console.log('[ClientPage] --body-bg now:', root.style.getPropertyValue('--body-bg'))
+  }, [theme, loading])
 
   // ── Canvas ────────────────────────────────────────────────────────────────
   const canvasRef = useRef(null)
@@ -539,13 +551,8 @@ export default function ClientPage() {
 
   // ─────────────────────────────────────────────────────────────────────────
   return (
-    <div id="client-page-root">
+    <div id="client-page-root" style={{backgroundColor:'var(--body-bg)'}}>
       <style>{CSS}</style>
-
-      {/* DEBUG — remove before ship */}
-      <div style={{position:'fixed',top:0,left:0,background:'red',color:'white',padding:'4px 8px',fontSize:'12px',zIndex:9999}}>
-        Theme: {workspace?.theme || 'none'} | state: {theme}
-      </div>
 
       {/* NAV */}
       <nav className="cb-nav">
@@ -559,7 +566,7 @@ export default function ClientPage() {
       </nav>
 
       {/* HERO */}
-      <section ref={heroRef} className="cb-hero">
+      <section ref={heroRef} className="cb-hero" style={{backgroundColor:'var(--hero-bg-from)',position:'relative'}}>
         <div className="hero-blob-bg"><canvas ref={canvasRef} style={{position:'absolute',inset:0,width:'100%',height:'100%',display:'block'}}/></div>
         <div className="hero-left">
           <div className={`hero-context-tag${heroFading?' hero-fading':''}`}>
