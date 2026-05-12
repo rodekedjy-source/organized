@@ -212,7 +212,7 @@ export default function ClientPage() {
       setLoading(true); setNotFound(false)
       try {
         const { data: ws } = await supabase.from('workspaces')
-          .select('id,name,slug,tagline,bio,avatar_url,instagram,tiktok,phone,email,location,timezone,currency,is_published,theme,offers_domicile,domicile_fee,domicile_radius_km,domicile_notes,address_visibility,neighborhood,address_street,address_city,address_province,address_postal,share_address,faq_settings,featured_product_id,featured_product_note,working_hours,deposit_required,deposit_type,deposit_value')
+          .select('id,name,slug,tagline,bio,avatar_url,instagram,tiktok,phone,email,location,timezone,currency,is_published,theme,accepts_bookings,accepts_orders,offers_domicile,domicile_fee,domicile_radius_km,domicile_notes,address_visibility,neighborhood,address_street,address_city,address_province,address_postal,share_address,show_address_on_page,faq_settings,featured_product_id,featured_product_note,working_hours,deposit_required,deposit_type,deposit_value,review_requests_enabled,payment_mode')
           .eq('slug', slug).eq('is_published', true).maybeSingle()
         if (!ws) { if (!cancelled) { setNotFound(true); setLoading(false) }; return }
         if (!cancelled) setWorkspace(ws)
@@ -270,7 +270,7 @@ export default function ClientPage() {
 
   // ── BUG 6 — init Stripe on deposit page ───────────────────────────────────
   useEffect(() => {
-    if (bkPage !== 4 || !workspace || !bkService) return
+    if (bkPage !== 4 || !workspace || !bkService || workspace.payment_mode === 'cash_only') return
     const depositAmt = (() => {
       if (workspace.deposit_required) {
         if (workspace.deposit_type === 'percentage') return Math.round(Number(bkService.price) * Number(workspace.deposit_value) / 100 * 100) / 100
@@ -384,7 +384,7 @@ export default function ClientPage() {
         amount: bkService.is_free ? 0 : Number(bkService.price),
         currency: workspace.currency||'CAD',
         status: 'pending',
-        payment_status: paymentIntentId ? 'deposit_paid' : 'unpaid',
+        payment_status: paymentIntentId ? 'deposit_captured' : 'none',
         deposit_amount: paymentIntentId ? depositAmount : 0,
         notes: bkForm.notes.trim()||null, how_found: bkForm.source||null,
         visit_type: bkVisit,
@@ -417,8 +417,8 @@ export default function ClientPage() {
     if (!hasEmail && !hasPhone) { errs.email = true; errs.phone = true }
     setBkErrors(errs)
     if (Object.keys(errs).length || !bkService || !bkDay || !bkTime || !workspace) return
-    // BUG 6 — if deposit required, go to deposit page first
-    if (depositRequired) { setBkPage(4); return }
+    // BUG 6 — if deposit required AND not cash-only, go to deposit page first
+    if (depositRequired && workspace.payment_mode !== 'cash_only') { setBkPage(4); return }
     await createAppointment(null)
   }
 
@@ -472,6 +472,7 @@ export default function ClientPage() {
   const avgRating       = reviews.length ? (reviews.reduce((s,r)=>s+r.rating,0)/reviews.length).toFixed(1) : null
   const faqItems        = buildFAQ(workspace, services)
   const mapsUrl         = workspace ? `https://maps.google.com/?q=${encodeURIComponent([workspace.address_street,workspace.address_city,workspace.address_province].filter(Boolean).join(', '))}` : '#'
+  const mapAddress      = [workspace?.address_street,workspace?.address_city,workspace?.address_province,workspace?.address_postal].filter(Boolean).join(', ') || workspace?.location || ''
 
   // ─────────────────────────────────────────────────────────────────────────
   if (loading) return <div style={{minHeight:'100vh',background:'#080706',display:'flex',alignItems:'center',justifyContent:'center'}}><div style={{fontFamily:'Playfair Display,serif',fontSize:24,color:'#C9A84C'}}>Organized.</div></div>
@@ -507,7 +508,7 @@ export default function ClientPage() {
       </nav>
 
       {/* HERO */}
-      <section ref={heroRef} className="cb-hero" style={theme!=='warm'?{background:theme==='dark'?'#080808':'#FAFAF8'}:{}}>
+      <section ref={heroRef} className="cb-hero" style={{backgroundColor:workspace?.theme==='dark'?'#080808':workspace?.theme==='light'?'#FAFAF8':'#f0e6d3'}}>
         <div className="hero-blob-bg" style={{display:theme==='warm'?'block':'none'}}><canvas ref={canvasRef} style={{position:'absolute',inset:0,width:'100%',height:'100%',display:'block'}}/></div>
         <div className="hero-left">
           <div className={`hero-context-tag${heroFading?' hero-fading':''}`}>
@@ -576,16 +577,17 @@ export default function ClientPage() {
             <div className="cb-eyebrow">Menu</div>
             <h2 className="cb-heading">Services &amp; <em>Pricing</em></h2>
             <p className="cb-sub">Pricing may vary by hair length. Consultation included in every service.</p>
+            {workspace.accepts_bookings===false&&<div style={{padding:'14px 18px',background:'rgba(201,168,76,.06)',border:'1px solid rgba(201,168,76,.18)',borderRadius:2,marginBottom:20,fontSize:13,color:'var(--text-muted)',letterSpacing:'.04em'}}>Bookings are currently closed. Check back soon or contact us directly.</div>}
             <div className="cb-services-grid" style={{marginTop:32}}>
               {services.map(svc=>(
-                <div key={svc.id} className="cb-svc-card" onClick={()=>openBooking(svc)}>
+                <div key={svc.id} className="cb-svc-card" onClick={()=>workspace.accepts_bookings!==false&&openBooking(svc)} style={workspace.accepts_bookings===false?{cursor:'default'}:{}}>
                   {svc.image_url&&<div style={{margin:'-32px -28px 24px',height:180,overflow:'hidden',flexShrink:0}}><img src={svc.image_url} alt={svc.name} style={{width:'100%',height:'100%',objectFit:'cover'}}/></div>}
                   <div className="cb-svc-cat">{svc.category||'Service'}</div>
                   <div className="cb-svc-name">{svc.name}</div>
                   <div className="cb-svc-dur">{svc.duration_min} min</div>
                   <div className="cb-svc-footer">
                     <div className="cb-svc-price">{svc.is_free?'Free':`$${Number(svc.price).toFixed(0)}`}</div>
-                    <button className="cb-svc-book">Book →</button>
+                    {workspace.accepts_bookings!==false&&<button className="cb-svc-book">Book →</button>}
                   </div>
                 </div>
               ))}
@@ -594,7 +596,7 @@ export default function ClientPage() {
         </section>
 
         {/* Reviews */}
-        {reviews.length>0&&<section className="cb-section cb-alt">
+        {reviews.length>0&&workspace.review_requests_enabled!==false&&<section className="cb-section cb-alt">
           <div className="cb-inner">
             <div className="cb-eyebrow">Testimonials</div>
             <h2 className="cb-heading">What clients <em>say</em></h2>
@@ -616,7 +618,7 @@ export default function ClientPage() {
         </section>}
 
         {/* Location */}
-        {workspace.address_street&&workspace.address_visibility!=='hidden'&&<section className="cb-section">
+        {workspace.show_address_on_page!==false&&workspace.address_street&&workspace.address_visibility!=='hidden'&&<section className="cb-section">
           <div className="cb-inner">
             <div className="cb-eyebrow">Find Us</div>
             <h2 className="cb-heading">The <em>Studio</em></h2>
@@ -641,37 +643,21 @@ export default function ClientPage() {
               </div>
             </div>
             {/* Google Maps embed */}
-            {workspace?.location && workspace.location.length > 0 && <div style={{marginTop:24}}>
-              <div style={{fontSize:12,color:'var(--text-muted)',marginBottom:8}}>📍 Notre emplacement</div>
-              <iframe
-                src={`https://www.google.com/maps?q=${encodeURIComponent(workspace.location)}&output=embed`}
-                width="100%"
-                height="200"
-                style={{border:0,borderRadius:12,display:'block'}}
-                allowFullScreen
-                loading="lazy"
-                title="Studio location"
-              />
+            {mapAddress && <div style={{padding:'0 0 4px'}}>
+              <div style={{fontSize:11,letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:8,opacity:0.6}}>📍 Notre emplacement</div>
+              <iframe src={`https://www.google.com/maps?q=${encodeURIComponent(mapAddress)}&output=embed`} width="100%" height="200" style={{border:0,borderRadius:12,display:'block'}} allowFullScreen loading="lazy" title="Location"/>
             </div>}
           </div>
         </section>}
 
         {/* Google Maps — show when location set but no structured address */}
-        {!workspace.address_street && workspace?.location && workspace.location.length > 0 && <section className="cb-section">
+        {workspace.show_address_on_page!==false && !workspace.address_street && mapAddress && <section className="cb-section">
           <div className="cb-inner">
             <div className="cb-eyebrow">Find Us</div>
             <h2 className="cb-heading">The <em>Studio</em></h2>
-            <div style={{marginTop:24}}>
-              <div style={{fontSize:12,color:'var(--text-muted)',marginBottom:8}}>📍 Notre emplacement</div>
-              <iframe
-                src={`https://www.google.com/maps?q=${encodeURIComponent(workspace.location)}&output=embed`}
-                width="100%"
-                height="200"
-                style={{border:0,borderRadius:12,display:'block'}}
-                allowFullScreen
-                loading="lazy"
-                title="Studio location"
-              />
+            <div style={{padding:'0 16px 24px'}}>
+              <div style={{fontSize:11,letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:8,opacity:0.6}}>📍 Notre emplacement</div>
+              <iframe src={`https://www.google.com/maps?q=${encodeURIComponent(mapAddress)}&output=embed`} width="100%" height="200" style={{border:0,borderRadius:12,display:'block'}} allowFullScreen loading="lazy" title="Location"/>
             </div>
           </div>
         </section>}
@@ -851,7 +837,8 @@ export default function ClientPage() {
                     {[['Service',bkService?.name],['Visit',bkVisit==='home'?'Home Visit':'Studio Visit'],bkVisit==='home'&&['Address',bkDom.street],['Date',bkDay?formatDateLabel(bkCalY,bkCalM,bkDay):''],['Time',bkTime],bkAddons.length>0&&['Add-ons',bkAddons.join(', ')]].filter(Boolean).map(([k,v])=>v&&<div key={k} className="cb-recap-row"><span className="cb-recap-key">{k}</span><span className="cb-recap-val">{v}</span></div>)}
                     <div style={{height:1,background:'rgba(255,255,255,.05)',margin:'4px 18px',borderTop:'1px dashed rgba(255,255,255,.05)'}}/>
                     <div className="cb-recap-row"><span className="cb-recap-key">Total</span><span className="cb-recap-val" style={{color:'var(--gold)',fontFamily:'Playfair Display,serif',fontSize:15}}>{bkService?.is_free?'Free':`$${Number(bkService?.price||0).toFixed(0)}`}{bkVisit==='home'?` + $${workspace.domicile_fee||45} travel`:''}</span></div>
-                    {bkService&&Number(bkService.deposit_amount)>0&&<div className="cb-recap-row"><span className="cb-recap-key">Deposit</span><span className="cb-recap-val" style={{color:'var(--gold)'}}>$${bkService.deposit_amount} at studio</span></div>}
+                    {depositRequired&&<div className="cb-recap-row"><span className="cb-recap-key">Deposit</span><span className="cb-recap-val" style={{color:'var(--gold)'}}>{workspace.payment_mode==='cash_only'?`$${depositAmount.toFixed(2)} cash at appointment`:`$${depositAmount.toFixed(2)} required`}</span></div>}
+                    {workspace.payment_mode==='cash_only'&&<div className="cb-recap-row"><span className="cb-recap-key">Payment</span><span className="cb-recap-val" style={{color:'var(--text-muted)',fontSize:11}}>Cash only — collected at appointment</span></div>}
                   </div>
                 </div>
                 {/* Form */}
@@ -1069,8 +1056,7 @@ const CSS = `
 /* ── TAB BAR ── */
 .tab-bar-wrap{position:sticky;top:64px;z-index:400;background:rgba(10,5,2,.99);border-bottom:1px solid rgba(201,168,76,.10);backdrop-filter:blur(20px)}
 .tab-bar{width:100%;display:flex;align-items:stretch;overflow:hidden}
-.tab-btn{background:transparent;border:none;color:var(--text-muted);font-family:'DM Sans',sans-serif;font-size:9.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:14px 6px;cursor:pointer;position:relative;transition:color .25s;display:flex;align-items:center;justify-content:center;gap:6px;flex:1;min-width:0;text-align:center;white-space:nowrap;overflow:hidden}
-.tab-btn:not(:last-child){border-right:1px solid rgba(255,255,255,0.1)}
+.tab-btn{background:transparent;border:none;color:var(--text-muted);font-family:'DM Sans',sans-serif;font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;padding:16px 8px;cursor:pointer;position:relative;transition:color .25s;display:flex;align-items:center;justify-content:center;gap:6px;flex:1;min-width:0;text-align:center;white-space:normal}
 .tab-btn::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;background:var(--gold);transform:scaleX(0);transition:transform .3s var(--ease)}
 .tab-btn:hover{color:var(--text-soft)}
 .tab-btn.active{color:var(--gold-light)}
