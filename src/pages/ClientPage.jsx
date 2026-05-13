@@ -48,6 +48,7 @@ const TEMPLATES = {
     '--body-bg':'#FAF5EE',
     '--text-primary':'#1A0E00','--text-secondary':'#6B5030','--accent':'#B8924A',
     '--btn-bg':'#B8924A','--btn-text':'#1A0E00',
+    '--btn-ghost-text':'#FFFFFF','--btn-ghost-border':'rgba(255,255,255,0.50)',
     '--nav-bg':'#1A0900','--nav-text':'#F0DEB8',       // FIX 3 — dark chocolate nav
     '--tab-bg':'#1A0900','--tab-text':'#A08050','--tab-active-border':'#B8924A',
     '--card-bg':'#FFFFFF','--card-border':'#E8DDD0','--price-color':'#B8924A',
@@ -516,7 +517,11 @@ export default function ClientPage() {
           <div className={`hero-context-tag${heroFading?' hero-fading':''}`}>
             <span className="hero-tag-dot"/><span>{hc.tag}</span>
           </div>
-          <h1 className="hero-name">{workspace.name}</h1>
+          <h1 className="hero-name">{(() => {
+            const np = (workspace.name||'').trim().split(/\s+/)
+            if (np.length === 1) return np[0]
+            return <><div className="hero-name-line">{np[0]}</div><div className="hero-name-line">{np.slice(1).join(' ')}</div></>
+          })()}</h1>
           <div className={`hero-eyebrow${heroFading?' hero-fading':''}`}>{hc.eyebrow}</div>
           <p className={`hero-bio${heroFading?' hero-fading':''}`}>{hc.bio}</p>
           <div className={`hero-stats${heroFading?' hero-fading':''}`}>
@@ -529,7 +534,7 @@ export default function ClientPage() {
           </div>
           <div className={`hero-cta-row${heroFading?' hero-fading':''}`}>
             <button className="cb-btn-primary" onClick={()=>document.querySelector('.tab-bar-wrap')?.scrollIntoView({behavior:'smooth'})}>{hc.ctas[0]}</button>
-            <button className="cb-btn-ghost" onClick={()=>setPortfolioOpen(true)} style={activeTab==='book'?{borderColor:'rgba(201,168,76,0.4)',color:'var(--gold-light)'}:{}}>{hc.ctas[1]}</button>
+            <button className="cb-btn-ghost" onClick={()=>setPortfolioOpen(true)}>{hc.ctas[1]}</button>
           </div>
           <div className="hero-socials">
             {workspace.instagram&&<a href={`https://instagram.com/${workspace.instagram.replace('@','')}`} target="_blank" rel="noreferrer"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>{workspace.instagram}</a>}
@@ -1002,9 +1007,10 @@ const CSS = `
 @keyframes orbDrift{0%{transform:translate(0%,0%)}25%{transform:translate(60%,20%)}50%{transform:translate(40%,60%)}75%{transform:translate(10%,40%)}100%{transform:translate(0%,0%)}}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.2}}
 @keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
-/* FIX 1 — floating orb via pseudo-element; FIX 5 — min-height reduced */
-.cb-hero{min-height:80vh;display:grid;grid-template-columns:52% 48%;padding-top:64px;position:relative;overflow:hidden;background:var(--hero-base,#080808)}
+/* floating orb via pseudo-element; svh for iOS chrome safety */
+.cb-hero{min-height:80svh;display:grid;grid-template-columns:52% 48%;padding-top:64px;position:relative;overflow:hidden;background:var(--hero-base,#080808)}
 .cb-hero::before{content:'';position:absolute;width:70%;aspect-ratio:1;border-radius:50%;background:radial-gradient(circle,var(--hero-orb,rgba(201,168,76,0.18)) 0%,transparent 70%);filter:blur(40px);animation:orbDrift var(--hero-duration,16s) ease-in-out infinite;pointer-events:none;z-index:0;top:-10%;left:-10%}
+@media(max-width:430px){.cb-hero::before{filter:blur(50px);width:80%}}
 /* FIX 5 — content top-aligned, reduced top padding */
 .hero-left,.hero-right{position:relative;z-index:1}
 .hero-left{display:flex;flex-direction:column;justify-content:flex-start;padding:44px 60px 60px 40px;position:relative;z-index:2;background:transparent}
@@ -1013,6 +1019,7 @@ const CSS = `
 .hero-tag-dot{width:6px;height:6px;border-radius:50%;background:var(--gold);flex-shrink:0;animation:pulse 2.5s infinite}
 /* FIX 2+3 — hero text uses --hero-text vars (separate from body --text) */
 .hero-name{font-family:'Playfair Display',serif;font-size:clamp(52px,5.5vw,78px);font-weight:500;line-height:.95;margin-bottom:26px;animation:fadeUp .8s .16s ease both;color:var(--hero-text,var(--text))}
+.hero-name-line{display:block;line-height:1.0}
 .hero-name em{font-style:italic;color:var(--gold)}
 .hero-eyebrow{font-size:10px;color:var(--hero-text-muted,var(--text-muted));letter-spacing:.22em;text-transform:uppercase;margin-bottom:20px;transition:opacity .25s ease,transform .25s ease}
 .hero-bio{font-size:15px;line-height:1.85;color:var(--hero-text-soft,var(--text-soft));max-width:360px;margin-bottom:40px;font-weight:300;transition:opacity .25s ease,transform .25s ease}
@@ -1057,7 +1064,7 @@ const CSS = `
 .cb-btn-primary{background:var(--btn-bg,var(--gold));color:var(--btn-text,#141210);border:none;padding:14px 28px;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;border-radius:1px;transition:all .25s}
 .cb-btn-primary:hover{background:var(--gold-light);box-shadow:0 8px 28px rgba(201,168,76,.25)}
 .cb-btn-primary:disabled{background:var(--dark-5);color:var(--text-muted);cursor:not-allowed;box-shadow:none}
-.cb-btn-ghost{background:transparent;color:rgba(250,246,241,.7);border:1px solid rgba(250,246,241,.25);padding:14px 28px;font-family:'DM Sans',sans-serif;font-size:11px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;border-radius:1px;transition:all .25s}
+.cb-btn-ghost{background:transparent;color:var(--btn-ghost-text,rgba(250,246,241,.7));border:1px solid var(--btn-ghost-border,rgba(250,246,241,.25));padding:14px 28px;font-family:'DM Sans',sans-serif;font-size:11px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;border-radius:1px;transition:all .25s}
 .cb-btn-ghost:hover{border-color:rgba(250,246,241,.5);color:rgba(250,246,241,.9)}
 
 /* ── TAB BAR ── */
