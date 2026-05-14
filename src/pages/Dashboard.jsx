@@ -11,6 +11,7 @@ import ProductsSection      from '../sections/ProductsSection'
 import ReviewsSection       from '../sections/ReviewsSection'
 import ServicesSection      from '../sections/ServicesSection'
 import SettingsSection      from '../sections/SettingsSection'
+import PolicySection       from '../sections/PolicySection'
 
 const LANG = {
   en: {
@@ -287,7 +288,8 @@ const I = {
   clock: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8" cy="8" r="6.5"/><path d="M8 4.5V8l2.5 2"/></svg>,
   link:  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M6.5 9.5a3.5 3.5 0 005 0l2-2a3.5 3.5 0 00-5-5l-1 1"/><path d="M9.5 6.5a3.5 3.5 0 00-5 0l-2 2a3.5 3.5 0 005 5l1-1"/></svg>,
   avail: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8" cy="8" r="6.5"/><path d="M8 4v4l2.5 2.5"/></svg>,
-  card:  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="1" y="3.5" width="14" height="9" rx="1.5"/><path d="M1 6.5h14"/><path d="M4 10h2M9 10h3"/></svg>,
+  card:   <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="1" y="3.5" width="14" height="9" rx="1.5"/><path d="M1 6.5h14"/><path d="M4 10h2M9 10h3"/></svg>,
+  shield: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M8 1.5l5 2v4c0 3.2-2.3 5.8-5 6.8-2.7-1-5-3.6-5-6.8v-4l5-2z"/></svg>,
 }
 
 const PLAN_FEATURES = {
@@ -901,6 +903,7 @@ export default function Dashboard() {
     {key:'portfolio',label:'nav_portfolio',icon:I.box},
     {key:'reviews',label:'nav_reviews',icon:I.home},
     {key:'availability',label:'nav_availability',icon:I.avail},
+    {key:'policy',label:'nav_policy',icon:I.shield},
     {key:'settings',label:'nav_settings',icon:I.gear},
   ]
 
@@ -928,6 +931,7 @@ export default function Dashboard() {
       case 'portfolio':    return <PortfolioSection {...props}/>
       case 'reviews':      return <ReviewsSection {...props}/>
       case 'availability': return <AvailabilitySection {...props}/>
+      case 'policy':       return <PolicySection workspace={workspace} toast={toast} refetch={fetchWorkspace}/>
       case 'settings':     return <SettingsSection {...props}/>
       default:             return <OverviewSection {...props}/>
     }

@@ -202,6 +202,7 @@ export default function ClientPage() {
   const [bkAppointment,  setBkAppointment]  = useState(null)
   const [bkSubmitErr,    setBkSubmitErr]    = useState(null)
   // Deposit / Stripe
+  const [bkPolicyAgreed, setBkPolicyAgreed] = useState(false)  // booking-policy step 0 checkbox
   const [bkDepositPi,    setBkDepositPi]    = useState(null)   // { client_secret, payment_intent_id }
   const [bkPaymentLoading, setBkPaymentLoading] = useState(false)
   const [bkPaymentErr,   setBkPaymentErr]   = useState(null)
@@ -216,7 +217,7 @@ export default function ClientPage() {
       setLoading(true); setNotFound(false)
       try {
         const { data: ws } = await supabase.from('workspaces')
-          .select('id,name,slug,tagline,bio,avatar_url,instagram,tiktok,phone,email,location,timezone,currency,is_published,theme,accepts_bookings,accepts_orders,offers_domicile,domicile_fee,domicile_radius_km,domicile_notes,address_visibility,neighborhood,address_street,address_city,address_province,address_postal,share_address,show_address_on_page,faq_settings,featured_product_id,featured_product_note,working_hours,deposit_required,deposit_type,deposit_value,review_requests_enabled,payment_mode')
+          .select('id,name,slug,tagline,bio,avatar_url,instagram,tiktok,phone,email,location,timezone,currency,is_published,theme,accepts_bookings,accepts_orders,offers_domicile,domicile_fee,domicile_radius_km,domicile_notes,address_visibility,neighborhood,address_street,address_city,address_province,address_postal,share_address,show_address_on_page,faq_settings,featured_product_id,featured_product_note,working_hours,deposit_required,deposit_type,deposit_value,review_requests_enabled,payment_mode,policy_enabled,policy_deposit_pct,policy_cancel_hours,policy_late_fee,policy_no_show_fee,policy_custom')
           .eq('slug', slug).eq('is_published', true).maybeSingle()
         if (!ws) { if (!cancelled) { setNotFound(true); setLoading(false) }; return }
         if (!cancelled) setWorkspace(ws)
@@ -339,8 +340,8 @@ export default function ClientPage() {
     setBkDom({street:'',city:'',postal:'',access:''}); setBkDay(null); setBkTime(null)
     setBkSlots([]); setBkCalY(TODAY.getFullYear()); setBkCalM(TODAY.getMonth())
     setBkForm({fname:'',lname:'',email:'',phone:'',source:'',notes:''})
-    setBkErrors({}); setBkAppointment(null); setBkSubmitErr(null)
-    setBkPage(1); setBkOpen(true); document.body.style.overflow = 'hidden'
+    setBkErrors({}); setBkAppointment(null); setBkSubmitErr(null); setBkPolicyAgreed(false)
+    setBkPage(hasPolicyGate ? 0 : 1); setBkOpen(true); document.body.style.overflow = 'hidden'
   }
   const closeBooking = () => { setBkOpen(false); document.body.style.overflow = '' }
 
@@ -469,6 +470,24 @@ export default function ClientPage() {
   const daysInMonth = new Date(bkCalY,bkCalM+1,0).getDate()
   const prevMonth = () => { if (bkCalM===0){setBkCalM(11);setBkCalY(y=>y-1)}else setBkCalM(m=>m-1); setBkDay(null);setBkTime(null);setBkSlots([]) }
   const nextMonth = () => { if (bkCalM===11){setBkCalM(0);setBkCalY(y=>y+1)}else setBkCalM(m=>m+1); setBkDay(null);setBkTime(null);setBkSlots([]) }
+
+  // ── Policy helpers ────────────────────────────────────────────────────────
+  const policyLines = (() => {
+    if (!workspace) return []
+    const lines = []
+    if (workspace.policy_deposit_pct > 0)
+      lines.push(`A ${workspace.policy_deposit_pct}% deposit is required to confirm your booking.`)
+    if (workspace.policy_cancel_hours > 0)
+      lines.push(`Free cancellation up to ${workspace.policy_cancel_hours} hours before your appointment.`)
+    if (workspace.policy_late_fee)
+      lines.push('A late arrival fee may apply if you arrive more than 15 minutes late.')
+    if (workspace.policy_no_show_fee)
+      lines.push('No-shows will be charged the full service amount.')
+    if (workspace.policy_custom?.trim())
+      lines.push(workspace.policy_custom.trim())
+    return lines
+  })()
+  const hasPolicyGate = workspace?.policy_enabled && policyLines.length > 0
 
   // ── Computed ──────────────────────────────────────────────────────────────
   const isDiscountActive = (p) => {
@@ -773,14 +792,33 @@ export default function ClientPage() {
       {/* ═══════════ BOOKING OVERLAY ═══════════ */}
       <div className={`cb-overlay${bkOpen?' open':''}`}>
         <div className="cb-ov-header">
-          <button className="cb-ov-back" onClick={bkPage===1||bkPage===5?closeBooking:()=>setBkPage(p=>p-1)}>{bkPage===1||bkPage===5?'✕':'← Back'}</button>
+          <button className="cb-ov-back" onClick={bkPage===0||bkPage===1||bkPage===5?closeBooking:()=>setBkPage(p=>p-1)}>{bkPage===0||bkPage===1||bkPage===5?'✕':'← Back'}</button>
           <div style={{textAlign:'center'}}><div style={{fontFamily:'Playfair Display,serif',fontSize:14,color:'var(--text)'}}>{bkService?.name||''}</div><div style={{fontSize:10,color:'var(--text-muted)',marginTop:2}}>{bkService?(bkService.is_free?'Free':`$${Number(bkService.price).toFixed(0)}`)+'·'+bkService.duration_min+'min':''}</div></div>
           <button className="cb-ov-back" style={{textAlign:'right'}} onClick={closeBooking}>✕</button>
         </div>
         <div className="cb-dots">{[1,2,3].map(n=><div key={n} className={`cb-dot${bkPage===n?' active':bkPage>n?' done':''}`}/>)}</div>
 
         <div className="cb-ov-pages">
-          <div className="cb-ov-inner" style={{transform:`translateX(-${(bkPage-1)*100}%)`}}>
+          <div className="cb-ov-inner" style={{transform:`translateX(-${bkPage*100}%)`}}>
+
+            {/* PAGE 0 — Policy Gate (shown only when policy_enabled + has content) */}
+            <div className="cb-ov-page">
+              <div className="cb-ov-content">
+                <div className="cb-page-eye">Before You Book</div>
+                <h3 className="cb-page-title">Please read<br/>our policy</h3>
+                <p style={{fontSize:13,color:'var(--text-muted)',fontWeight:300,lineHeight:1.65,marginBottom:8}}>Please read and agree to our booking policy before continuing.</p>
+                {policyLines.map((line,i)=>(
+                  <div key={i} className="cb-policy-line">{line}</div>
+                ))}
+                <label className="cb-policy-agree">
+                  <input type="checkbox" checked={bkPolicyAgreed} onChange={e=>setBkPolicyAgreed(e.target.checked)}/>
+                  <span>I have read and agree to the booking policy</span>
+                </label>
+              </div>
+              <div className="cb-ov-footer">
+                <button className="cb-btn-primary" style={{width:'100%',padding:16,opacity:bkPolicyAgreed?1:.45,cursor:bkPolicyAgreed?'pointer':'not-allowed'}} disabled={!bkPolicyAgreed} onClick={()=>setBkPage(1)}>Continue</button>
+              </div>
+            </div>
 
             {/* PAGE 1 — Visit */}
             <div className="cb-ov-page">
@@ -1231,6 +1269,9 @@ const CSS = `
 .cb-ov-page{min-width:100%;height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column}
 .cb-ov-content{flex:1;padding:28px 20px 16px}
 .cb-ov-footer{padding:14px 20px 28px;background:var(--dark);border-top:1px solid var(--dark-4);flex-shrink:0}
+.cb-policy-line{border-left:2px solid var(--accent,var(--gold));padding:6px 0 6px 12px;margin:8px 0;font-size:.85rem;color:var(--text-muted);line-height:1.6}
+.cb-policy-agree{display:flex;align-items:flex-start;gap:10px;margin-top:20px;cursor:pointer;font-size:.85rem;color:var(--text-muted);line-height:1.5}
+.cb-policy-agree input[type="checkbox"]{margin-top:2px;accent-color:var(--accent,var(--gold));width:16px;height:16px;flex-shrink:0;cursor:pointer}
 .cb-page-eye{font-size:8px;letter-spacing:.26em;text-transform:uppercase;color:var(--gold);margin-bottom:8px}
 .cb-page-title{font-family:'Playfair Display',serif;font-size:22px;color:var(--text);line-height:1.2;margin-bottom:24px}
 
