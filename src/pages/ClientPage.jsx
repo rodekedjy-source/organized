@@ -1155,7 +1155,7 @@ const CSS = `
 .cb-featured-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:16px;border-top:1px solid var(--dark-4);margin-top:12px}
 
 .cb-products-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;padding:16px 0}
-@media(max-width:480px){.cb-products-grid{grid-template-columns:1fr}}
+@media(max-width:360px){.cb-products-grid{grid-template-columns:1fr}}
 .cb-product-card{background:var(--dark-2);transition:background .3s}
 .cb-product-card:not(.sold-out){cursor:pointer}.cb-product-card:not(.sold-out):hover{background:var(--dark-3)}
 .cb-product-card.sold-out{opacity:.55}
