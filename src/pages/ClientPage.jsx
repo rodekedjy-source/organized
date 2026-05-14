@@ -697,7 +697,7 @@ export default function ClientPage() {
           <div className="cb-shop-filters">{['all','hair-care','styling','treatment'].map(f=><button key={f} className={`cb-filter-tab${shopFilter===f?' active':''}`} onClick={()=>setShopFilter(f)}>{f==='all'?'All':f.replace('-',' ').replace(/\b\w/g,l=>l.toUpperCase())}</button>)}</div>
         </div>
         {featuredProduct&&<div className="cb-featured">
-          <div className="cb-featured-img">{featuredProduct.image_url?<img src={featuredProduct.image_url} alt={featuredProduct.name} style={{width:'100%',height:'100%',objectFit:'cover'}}/>:<div className="cb-ph">✦</div>}</div>
+          <div className="cb-featured-img">{(featuredProduct.image_url||featuredProduct.images?.[0])?<img src={featuredProduct.image_url||featuredProduct.images?.[0]} alt={featuredProduct.name} style={{width:'100%',height:'100%',objectFit:'cover'}}/>:<div className="cb-ph">✦</div>}</div>
           <div className="cb-featured-info">
             <div className="cb-featured-badge">Recommended Pick</div>
             <div className="cb-featured-name">{featuredProduct.name}</div>
@@ -712,7 +712,7 @@ export default function ClientPage() {
         <div className="cb-products-grid">
           {otherProducts.map(p=>(
             <div key={p.id} className={`cb-product-card${p.stock===0?' sold-out':''}`}>
-              <div className="cb-product-img">{p.image_url?<img src={p.image_url} alt={p.name} style={{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'cover'}}/>:<div className="cb-ph">✦</div>}
+              <div className="cb-product-img">{(p.image_url||p.images?.[0])?<img src={p.image_url||p.images?.[0]} alt={p.name} style={{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'cover'}}/>:<div className="cb-ph">✦</div>}
                 {p.stock===0&&<div className="cb-badge cb-badge-so">Sold Out</div>}
                 {p.stock>0&&p.stock<=3&&<div className="cb-badge cb-badge-lim">Only {p.stock} left</div>}
               </div>

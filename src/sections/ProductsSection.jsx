@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import { useProducts } from '../hooks/useProducts'
 import { useWorkspaceContext } from '../contexts/WorkspaceContext'
 import { useToast } from '../contexts/ToastContext'
-import { insertProduct, updateProduct, deleteProduct, deleteProducts } from '../api/products'
+import { insertProduct, updateProduct, deleteProduct, deleteProducts, setFeaturedProduct } from '../api/products'
 import { formatCurrency } from '../lib/formatters'
 
 // ── PLAN GATING ───────────────────────────────────────────────────────────────
@@ -572,8 +572,20 @@ export default function ProductsSection() {
   const [deleting, setDeleting] = useState(false)
   const [editorTarget, setEditorTarget] = useState(null)
   const fileInputRef = useRef(null)
+  // Optimistic local override for featured_product_id
+  const [localFeaturedId, setLocalFeaturedId] = useState(undefined)
+  const featuredId = localFeaturedId !== undefined ? localFeaturedId : workspace?.featured_product_id
 
   if (!canAccess(subscription, 'products')) return <UpgradeGate feature="products" />
+
+  async function handleSetFeatured(e, productId) {
+    e.stopPropagation()
+    const next = featuredId === productId ? null : productId
+    setLocalFeaturedId(next)
+    const { error } = await setFeaturedProduct(workspace.id, next)
+    if (error) { toast('Could not update featured product.'); setLocalFeaturedId(undefined) }
+    else refresh()
+  }
 
   function enterSelectMode() { setSelectMode(true); setSelected(new Set()); setShowDotMenu(false) }
   function exitSelectMode() { setSelectMode(false); setSelected(new Set()) }
@@ -712,6 +724,27 @@ export default function ProductsSection() {
               <div key={p.id} className="prod-card" onClick={() => selectMode ? toggleSelect(p.id) : setEditProduct(p)}
                 style={{ cursor: 'pointer', position: 'relative', outline: isSelected ? '2.5px solid var(--gold)' : 'none', transition: 'outline .12s' }}>
                 {selectMode && (<div style={{ position: 'absolute', top: 8, left: 8, zIndex: 2, width: 22, height: 22, borderRadius: 6, border: `2px solid ${isSelected ? 'var(--gold)' : 'rgba(255,255,255,.7)'}`, background: isSelected ? 'var(--gold)' : 'rgba(0,0,0,.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all .12s' }}>{isSelected && <svg viewBox="0 0 10 10" fill="none" stroke="#fff" strokeWidth="2.5" width="10" height="10"><polyline points="1.5,5 4,7.5 8.5,2.5" /></svg>}</div>)}
+              {!selectMode && (
+                <button
+                  onClick={e => handleSetFeatured(e, p.id)}
+                  title={featuredId === p.id ? 'Remove from featured' : 'Set as featured'}
+                  style={{
+                    position: 'absolute', top: 8, right: 8, zIndex: 2,
+                    width: 28, height: 28, borderRadius: '50%',
+                    border: featuredId === p.id ? 'none' : '1px solid var(--border)',
+                    background: featuredId === p.id ? 'var(--gold)' : 'transparent',
+                    color: featuredId === p.id ? '#fff' : 'var(--ink-3)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    cursor: 'pointer', transition: 'all .2s ease', padding: 0,
+                  }}
+                >
+                  <svg viewBox="0 0 16 16" width="12" height="12"
+                    fill={featuredId === p.id ? 'currentColor' : 'none'}
+                    stroke="currentColor" strokeWidth={featuredId === p.id ? '0' : '1.5'}>
+                    <path d="M8 1l1.8 4.5H15l-4.2 3 1.6 4.8L8 10.8l-4.4 2.5 1.6-4.8L1 6.5h5.2z"/>
+                  </svg>
+                </button>
+              )}
                 <div className="prod-img" style={{ position: 'relative', overflow: 'hidden', background: 'var(--bg)' }}>
                   {imgs.length > 0
                     ? <img src={imgs[0]} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform .3s', filter: isSelected ? 'brightness(.8)' : 'none' }} onMouseEnter={e => { if (!selectMode) e.currentTarget.style.transform = 'scale(1.06)' }} onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'} />

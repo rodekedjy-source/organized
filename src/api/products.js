@@ -32,6 +32,7 @@ export async function insertProduct({ workspaceId, name, price, stock, descripti
     stock: parseInt(stock) || 0,
     description,
     images,
+    image_url: images?.[0] || null,
   })
 }
 
@@ -47,8 +48,20 @@ export async function updateProduct(id, { name, price, stock, description, image
       stock: parseInt(stock) || 0,
       description,
       images,
+      image_url: images?.[0] || null,
     })
     .eq('id', id)
+}
+
+/**
+ * Sets (or clears) the featured product on a workspace.
+ * Pass null as productId to unfeature.
+ */
+export async function setFeaturedProduct(workspaceId, productId) {
+  return supabase
+    .from('workspaces')
+    .update({ featured_product_id: productId })
+    .eq('id', workspaceId)
 }
 
 /**
