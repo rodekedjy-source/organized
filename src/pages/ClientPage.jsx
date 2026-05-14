@@ -476,15 +476,24 @@ export default function ClientPage() {
     if (!workspace) return []
     const lines = []
     if (workspace.policy_deposit_pct > 0)
-      lines.push(`A ${workspace.policy_deposit_pct}% deposit is required to confirm your booking.`)
+      lines.push(`A $${workspace.policy_deposit_pct} deposit is required to confirm your booking.`)
     if (workspace.policy_cancel_hours > 0)
       lines.push(`Free cancellation up to ${workspace.policy_cancel_hours} hours before your appointment.`)
-    if (workspace.policy_late_fee)
-      lines.push('A late arrival fee may apply if you arrive more than 15 minutes late.')
-    if (workspace.policy_no_show_fee)
-      lines.push('No-shows will be charged the full service amount.')
-    if (workspace.policy_custom?.trim())
-      lines.push(workspace.policy_custom.trim())
+    if (workspace.policy_late_fee) {
+      const customLate = workspace.policy_custom?.toLowerCase().includes('late')
+      if (!customLate) lines.push('A fee may apply for late arrivals.')
+    }
+    if (workspace.policy_no_show_fee) {
+      const customNoShow = workspace.policy_custom?.toLowerCase().includes('no-show') ||
+        workspace.policy_custom?.toLowerCase().includes('no show') ||
+        workspace.policy_custom?.toLowerCase().includes('noshow')
+      if (!customNoShow) lines.push('In case of no-show, the deposit is non-refundable.')
+    }
+    if (workspace.policy_custom?.trim()) {
+      workspace.policy_custom.trim().split('\n')
+        .filter(l => l.trim())
+        .forEach(l => lines.push(l.trim()))
+    }
     return lines
   })()
   const hasPolicyGate = workspace?.policy_enabled && policyLines.length > 0

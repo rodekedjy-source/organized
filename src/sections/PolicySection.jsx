@@ -48,15 +48,24 @@ export default function PolicySection({ workspace, toast, refetch }) {
   // Preview lines — same logic as ClientPage gate
   const lines = []
   if (form.policy_deposit_pct > 0)
-    lines.push(`A ${form.policy_deposit_pct}% deposit is required to confirm your booking.`)
+    lines.push(`A $${form.policy_deposit_pct} deposit is required to confirm your booking.`)
   if (form.policy_cancel_hours > 0)
     lines.push(`Free cancellation up to ${form.policy_cancel_hours} hours before your appointment.`)
-  if (form.policy_late_fee)
-    lines.push('A late arrival fee may apply if you arrive more than 15 minutes late.')
-  if (form.policy_no_show_fee)
-    lines.push('No-shows will be charged the full service amount.')
-  if (form.policy_custom?.trim())
-    lines.push(form.policy_custom.trim())
+  if (form.policy_late_fee) {
+    const customLate = form.policy_custom?.toLowerCase().includes('late')
+    if (!customLate) lines.push('A fee may apply for late arrivals.')
+  }
+  if (form.policy_no_show_fee) {
+    const customNoShow = form.policy_custom?.toLowerCase().includes('no-show') ||
+      form.policy_custom?.toLowerCase().includes('no show') ||
+      form.policy_custom?.toLowerCase().includes('noshow')
+    if (!customNoShow) lines.push('In case of no-show, the deposit is non-refundable.')
+  }
+  if (form.policy_custom?.trim()) {
+    form.policy_custom.trim().split('\n')
+      .filter(l => l.trim())
+      .forEach(l => lines.push(l.trim()))
+  }
 
   async function save() {
     setSaving(true)
@@ -116,9 +125,9 @@ export default function PolicySection({ workspace, toast, refetch }) {
                       value={form.policy_deposit_pct}
                       onChange={e => set('policy_deposit_pct', Number(e.target.value))}
                       onFocus={focus} onBlur={blur} />
-                    <span style={{ fontSize: '.88rem', color: 'var(--ink-2)', flexShrink: 0 }}>%</span>
+                    <span style={{ fontSize: '.88rem', color: 'var(--ink-2)', flexShrink: 0 }}>$</span>
                   </div>
-                  <div style={hint}>0% means no deposit required</div>
+                  <div style={hint}>Set to 0 for no deposit required</div>
                 </div>
               </div>
 
@@ -141,8 +150,11 @@ export default function PolicySection({ workspace, toast, refetch }) {
               {/* Fees */}
               <div>
                 <SHead title="Fees" />
-                <Toggle checked={form.policy_late_fee}    onChange={v => set('policy_late_fee', v)}    label="Charge a late arrival fee" />
-                <Toggle checked={form.policy_no_show_fee} onChange={v => set('policy_no_show_fee', v)} label="Charge a no-show fee" />
+                <Toggle checked={form.policy_late_fee}    onChange={v => set('policy_late_fee', v)}    label="Late arrival fee applies" />
+                <Toggle checked={form.policy_no_show_fee} onChange={v => set('policy_no_show_fee', v)} label="No-show deposit is non-refundable" />
+                <div style={{ fontSize: '.75rem', color: 'var(--ink-3)', fontStyle: 'italic', marginTop: '.35rem', lineHeight: 1.55 }}>
+                  Specify details in Additional Terms, or a default message will be shown.
+                </div>
               </div>
 
               {/* Custom */}
