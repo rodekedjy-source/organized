@@ -1328,6 +1328,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .prod-body{padding:.85rem}
 .prod-name{font-weight:600;font-size:.85rem;color:var(--ink);margin-bottom:.25rem}
 .prod-price{font-family:'Playfair Display',serif;font-size:.95rem;color:var(--ink);margin-bottom:.35rem}
+.prod-sale-badge{position:absolute;top:8px;left:8px;background:#1A0900;color:#F0DEB8;font-size:.62rem;font-weight:700;letter-spacing:.12em;padding:3px 8px;border-radius:2px;text-transform:uppercase;pointer-events:none;z-index:2}
 
 /* FORMATIONS */
 .formation-row{display:flex;align-items:center;gap:1rem;padding:1rem 1.4rem;border-bottom:1px solid var(--border);transition:background .12s}

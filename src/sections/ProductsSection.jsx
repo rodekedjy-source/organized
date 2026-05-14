@@ -55,6 +55,12 @@ function UpgradeGate({ feature }) {
 }
 
 // ── LOCAL HELPERS ─────────────────────────────────────────────────────────────
+function isSaleActive(p) {
+  if (!p.discount_price) return false
+  if (!p.discount_ends_at) return true
+  return new Date(p.discount_ends_at) > new Date()
+}
+
 function useScrollLock() {
   useEffect(() => {
     const prev = document.body.style.overflow
@@ -425,7 +431,7 @@ function ImageEditorModal({ imageUrl, workspaceId, productName = '', onSave, onC
 // ── PRODUCT EDIT MODAL ────────────────────────────────────────────────────────
 function ProductEditModal({ product, workspaceId, onClose, onSaved, onDeleted, toast }) {
   useScrollLock()
-  const [form, setForm] = useState({ name: product.name || '', price: String(product.price ?? ''), stock: String(product.stock ?? ''), description: product.description || '' })
+  const [form, setForm] = useState({ name: product.name || '', price: String(product.price ?? ''), stock: String(product.stock ?? ''), description: product.description || '', discount_price: product.discount_price != null ? String(product.discount_price) : '', discount_ends_at: product.discount_ends_at ? product.discount_ends_at.slice(0, 16) : '' })
   const [existingImgs, setExistingImgs] = useState((product.images || []).map(url => ({ url, preview: url })))
   const [newImgs, setNewImgs] = useState([])
   const [uploading, setUploading] = useState(false)
@@ -447,7 +453,7 @@ function ProductEditModal({ product, workspaceId, onClose, onSaved, onDeleted, t
   async function save() {
     setSaving(true)
     const finalImages = [...existingImgs.map(i => i.url), ...newImgs.filter(i => i.url).map(i => i.url)]
-    const { error } = await updateProduct(product.id, { name: form.name, price: form.price, stock: form.stock, description: form.description, images: finalImages })
+    const { error } = await updateProduct(product.id, { name: form.name, price: form.price, stock: form.stock, description: form.description, images: finalImages, discount_price: form.discount_price || null, discount_ends_at: form.discount_ends_at || null })
     setSaving(false); if (error) { toast('Error saving.'); return }
     toast(`${form.name} updated.`); onSaved(); onClose()
   }
@@ -516,6 +522,14 @@ function ProductEditModal({ product, workspaceId, onClose, onSaved, onDeleted, t
               <div className="field"><label>Stock</label><input style={iS} type="number" value={form.stock} onChange={e => setForm(f => ({ ...f, stock: e.target.value }))} onFocus={e => e.target.style.borderColor = 'var(--gold)'} onBlur={e => e.target.style.borderColor = 'var(--border-2)'} /></div>
               <div className="field"><label>Description</label><input style={iS} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} onFocus={e => e.target.style.borderColor = 'var(--gold)'} onBlur={e => e.target.style.borderColor = 'var(--border-2)'} /></div>
             </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '.75rem' }}>
+              <div className="field"><label>Discount Price <span style={{ fontWeight: 400, color: 'var(--ink-3)' }}>(optional)</span></label><input style={iS} type="number" min="0" value={form.discount_price} onChange={e => setForm(f => ({ ...f, discount_price: e.target.value }))} placeholder="Leave empty for no discount" onFocus={e => e.target.style.borderColor = 'var(--gold)'} onBlur={e => e.target.style.borderColor = 'var(--border-2)'} /></div>
+              <div className="field">
+                <label>Discount Ends <span style={{ fontWeight: 400, color: 'var(--ink-3)' }}>(optional)</span></label>
+                <input style={iS} type="datetime-local" value={form.discount_ends_at} onChange={e => setForm(f => ({ ...f, discount_ends_at: e.target.value }))} onFocus={e => e.target.style.borderColor = 'var(--gold)'} onBlur={e => e.target.style.borderColor = 'var(--border-2)'} />
+                <span style={{ fontSize: '.68rem', color: 'var(--ink-3)', marginTop: '.2rem', display: 'block' }}>Leave empty for permanent discount</span>
+              </div>
+            </div>
             {existingImgs.length > 0 && (
               <div>
                 <div style={{ fontSize: '.72rem', fontWeight: 600, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: '.5rem' }}>Current photos — click ✕ to remove</div>
@@ -561,7 +575,7 @@ export default function ProductsSection() {
   const toast = useToast()
   const { data, refresh } = useProducts(workspace?.id)
   const [addMode, setAddMode] = useState(false)
-  const [form, setForm] = useState({ name: '', price: '', stock: '', description: '' })
+  const [form, setForm] = useState({ name: '', price: '', stock: '', description: '', discount_price: '', discount_ends_at: '' })
   const [pendingImgs, setPendingImgs] = useState([])
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -607,8 +621,8 @@ export default function ProductsSection() {
   async function add(e) {
     e.preventDefault(); setSaving(true)
     const imageUrls = pendingImgs.filter(p => p.url).map(p => p.url)
-    await insertProduct({ workspaceId: workspace.id, name: form.name, price: form.price, stock: form.stock, description: form.description, images: imageUrls })
-    toast(`${form.name} added.`); setForm({ name: '', price: '', stock: '', description: '' }); setPendingImgs([]); setSaving(false); setAddMode(false); refresh()
+    await insertProduct({ workspaceId: workspace.id, name: form.name, price: form.price, stock: form.stock, description: form.description, images: imageUrls, discount_price: form.discount_price || null, discount_ends_at: form.discount_ends_at || null })
+    toast(`${form.name} added.`); setForm({ name: '', price: '', stock: '', description: '', discount_price: '', discount_ends_at: '' }); setPendingImgs([]); setSaving(false); setAddMode(false); refresh()
   }
 
   const iS = { width: '100%', padding: '.6rem .85rem', border: '1px solid var(--border-2)', borderRadius: 9, fontSize: '.85rem', fontFamily: 'inherit', color: 'var(--ink)', background: 'var(--surface)', outline: 'none', transition: 'border .15s' }
@@ -632,6 +646,17 @@ export default function ProductsSection() {
             <div className="field"><label>Price (CAD)</label>
               <input style={iS} type="number" value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} placeholder="28" required
                 onFocus={e => e.target.style.borderColor = 'var(--gold)'} onBlur={e => e.target.style.borderColor = 'var(--border-2)'} /></div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div className="field"><label>Discount Price <span style={{ fontWeight: 400, color: 'var(--ink-3)' }}>(optional)</span></label>
+              <input style={iS} type="number" min="0" value={form.discount_price} onChange={e => setForm(f => ({ ...f, discount_price: e.target.value }))} placeholder="Leave empty for no discount"
+                onFocus={e => e.target.style.borderColor = 'var(--gold)'} onBlur={e => e.target.style.borderColor = 'var(--border-2)'} /></div>
+            <div className="field">
+              <label>Discount Ends <span style={{ fontWeight: 400, color: 'var(--ink-3)' }}>(optional)</span></label>
+              <input style={iS} type="datetime-local" value={form.discount_ends_at} onChange={e => setForm(f => ({ ...f, discount_ends_at: e.target.value }))}
+                onFocus={e => e.target.style.borderColor = 'var(--gold)'} onBlur={e => e.target.style.borderColor = 'var(--border-2)'} />
+              <span style={{ fontSize: '.68rem', color: 'var(--ink-3)', marginTop: '.2rem', display: 'block' }}>Leave empty for permanent discount</span>
+            </div>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div className="field"><label>Stock</label>
@@ -750,6 +775,7 @@ export default function ProductsSection() {
                     ? <img src={imgs[0]} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform .3s', filter: isSelected ? 'brightness(.8)' : 'none' }} onMouseEnter={e => { if (!selectMode) e.currentTarget.style.transform = 'scale(1.06)' }} onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'} />
                     : <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '.3rem' }}><span style={{ fontSize: '1.5rem' }}>📷</span><span style={{ fontSize: '.65rem', color: 'var(--ink-3)' }}>Add photos</span></div>}
                   {imgs.length > 1 && <div style={{ position: 'absolute', bottom: 5, right: 6, background: 'rgba(0,0,0,.5)', color: '#fff', fontSize: '.6rem', padding: '1px 6px', borderRadius: 20 }}>+{imgs.length - 1}</div>}
+                  {isSaleActive(p) && <div className="prod-sale-badge">SALE</div>}
                 </div>
                 <div className="prod-body">
                   <div className="prod-name">{p.name}</div>

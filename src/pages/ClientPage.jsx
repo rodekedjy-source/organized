@@ -227,7 +227,7 @@ export default function ClientPage() {
           supabase.from('services').select('id,name,description,duration_min,price,is_free,display_order,addons,deposit_amount,category,image_url').eq('workspace_id',ws.id).eq('is_active',true).is('deleted_at',null).order('display_order',{ascending:true}),
           supabase.from('availability').select('day_of_week,is_open,open_time,close_time').eq('workspace_id',ws.id).order('day_of_week',{ascending:true}),
           supabase.from('blocked_dates').select('blocked_date').eq('workspace_id',ws.id).gte('blocked_date',today),
-          supabase.from('products').select('id,name,description,price,currency,stock,image_url,images').eq('workspace_id',ws.id).eq('is_active',true).is('deleted_at',null).order('created_at',{ascending:false}),
+          supabase.from('products').select('id,name,description,price,currency,stock,image_url,images,discount_price,discount_ends_at').eq('workspace_id',ws.id).eq('is_active',true).is('deleted_at',null).order('created_at',{ascending:false}),
           supabase.from('offerings').select('id,title,description,price,currency,duration_label,format,max_students,is_active').eq('workspace_id',ws.id).eq('is_active',true).is('deleted_at',null).order('created_at',{ascending:false}),
           supabase.from('reviews').select('reviewer_name,rating,body,service_label,service_name,created_at').eq('workspace_id',ws.id).eq('is_visible',true).eq('is_approved',true).order('created_at',{ascending:false}).limit(12),
           supabase.from('portfolio_photos').select('id,url,caption,display_order').eq('workspace_id',ws.id).order('display_order',{ascending:true}),
@@ -471,6 +471,11 @@ export default function ClientPage() {
   const nextMonth = () => { if (bkCalM===11){setBkCalM(0);setBkCalY(y=>y+1)}else setBkCalM(m=>m+1); setBkDay(null);setBkTime(null);setBkSlots([]) }
 
   // ── Computed ──────────────────────────────────────────────────────────────
+  const isDiscountActive = (p) => {
+    if (!p.discount_price) return false
+    if (!p.discount_ends_at) return true
+    return new Date(p.discount_ends_at) > new Date()
+  }
   const featuredProduct = workspace?.featured_product_id ? products.find(p=>p.id===workspace.featured_product_id)||products[0] : products[0]
   const otherProducts   = products.filter(p=>p.id!==featuredProduct?.id)
   const avgRating       = reviews.length ? (reviews.reduce((s,r)=>s+r.rating,0)/reviews.length).toFixed(1) : null
@@ -697,14 +702,24 @@ export default function ClientPage() {
           <div className="cb-shop-filters">{['all','hair-care','styling','treatment'].map(f=><button key={f} className={`cb-filter-tab${shopFilter===f?' active':''}`} onClick={()=>setShopFilter(f)}>{f==='all'?'All':f.replace('-',' ').replace(/\b\w/g,l=>l.toUpperCase())}</button>)}</div>
         </div>
         {featuredProduct&&<div className="cb-featured">
-          <div className="cb-featured-img">{(featuredProduct.image_url||featuredProduct.images?.[0])?<img src={featuredProduct.image_url||featuredProduct.images?.[0]} alt={featuredProduct.name} style={{width:'100%',height:'100%',objectFit:'cover'}}/>:<div className="cb-ph">✦</div>}</div>
+          <div className="cb-featured-img" style={{position:'relative'}}>
+            {(featuredProduct.image_url||featuredProduct.images?.[0])?<img src={featuredProduct.image_url||featuredProduct.images?.[0]} alt={featuredProduct.name} style={{width:'100%',height:'100%',objectFit:'cover'}}/>:<div className="cb-ph">✦</div>}
+            {isDiscountActive(featuredProduct)&&<div className="cb-badge-sale">SALE</div>}
+          </div>
           <div className="cb-featured-info">
             <div className="cb-featured-badge">Recommended Pick</div>
             <div className="cb-featured-name">{featuredProduct.name}</div>
             {workspace.featured_product_note&&<blockquote className="cb-featured-quote">"{workspace.featured_product_note}"</blockquote>}
             <p className="cb-product-desc">{featuredProduct.description}</p>
             <div className="cb-featured-footer">
-              <div className="cb-product-price">${Number(featuredProduct.price).toFixed(0)}</div>
+              {isDiscountActive(featuredProduct)?(
+                <div className="cb-price-row">
+                  <span className="cb-price-original">${Number(featuredProduct.price).toFixed(0)}</span>
+                  <span className="cb-price-discounted">${Number(featuredProduct.discount_price).toFixed(0)}</span>
+                </div>
+              ):(
+                <div className="cb-product-price">${Number(featuredProduct.price).toFixed(0)}</div>
+              )}
               <button className="cb-add-bag" disabled={featuredProduct.stock===0} onClick={()=>addToCart(featuredProduct)}>{featuredProduct.stock===0?'Sold Out':'Add to Bag'}</button>
             </div>
           </div>
@@ -715,11 +730,22 @@ export default function ClientPage() {
               <div className="cb-product-img">{(p.image_url||p.images?.[0])?<img src={p.image_url||p.images?.[0]} alt={p.name} style={{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'cover'}}/>:<div className="cb-ph">✦</div>}
                 {p.stock===0&&<div className="cb-badge cb-badge-so">Sold Out</div>}
                 {p.stock>0&&p.stock<=3&&<div className="cb-badge cb-badge-lim">Only {p.stock} left</div>}
+                {isDiscountActive(p)&&<div className="cb-badge-sale">SALE</div>}
               </div>
               <div className="cb-product-info">
                 <div className="cb-product-name">{p.name}</div>
                 <p className="cb-product-desc">{p.description}</p>
-                <div className="cb-product-footer"><div className="cb-product-price">${Number(p.price).toFixed(0)}</div><button className="cb-add-bag" disabled={p.stock===0} onClick={()=>addToCart(p)}>{p.stock===0?'Sold Out':'Add to Bag'}</button></div>
+                <div className="cb-product-footer">
+                  {isDiscountActive(p)?(
+                    <div className="cb-price-row">
+                      <span className="cb-price-original">${Number(p.price).toFixed(0)}</span>
+                      <span className="cb-price-discounted">${Number(p.discount_price).toFixed(0)}</span>
+                    </div>
+                  ):(
+                    <div className="cb-product-price">${Number(p.price).toFixed(0)}</div>
+                  )}
+                  <button className="cb-add-bag" disabled={p.stock===0} onClick={()=>addToCart(p)}>{p.stock===0?'Sold Out':'Add to Bag'}</button>
+                </div>
               </div>
             </div>
           ))}
@@ -1164,6 +1190,10 @@ const CSS = `
 .cb-badge{position:absolute;top:10px;left:10px;font-size:8px;letter-spacing:.16em;text-transform:uppercase;padding:4px 10px;border-radius:100px}
 .cb-badge-so{background:rgba(255,255,255,.04);border:1px solid var(--dark-5);color:var(--text-muted)}
 .cb-badge-lim{background:rgba(192,80,74,.12);border:1px solid rgba(192,80,74,.28);color:#e88080}
+.cb-badge-sale{position:absolute;top:8px;left:8px;background:var(--nav-bg);color:var(--nav-text);font-size:.6rem;font-weight:700;letter-spacing:.12em;padding:3px 8px;border-radius:2px;text-transform:uppercase;pointer-events:none;z-index:2}
+.cb-price-row{display:flex;align-items:center;gap:8px}
+.cb-price-original{font-size:.85rem;color:var(--text-muted);text-decoration:line-through;opacity:.6}
+.cb-price-discounted{font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:700;color:var(--accent)}
 .cb-product-info{padding:18px}
 .cb-product-name{font-family:'Playfair Display',serif;font-size:16px;color:var(--text);margin-bottom:6px}
 .cb-product-desc{font-size:12px;color:var(--text-muted);font-weight:300;line-height:1.65;margin-bottom:14px}
