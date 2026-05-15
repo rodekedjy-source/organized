@@ -37,21 +37,28 @@ export default function AvailabilitySection({ lang = 'en' }) {
   }
 
   async function updateTime(id, field, val) {
-    setSchedule(prev => prev.map(d => d.id === id ? { ...d, [field]: val } : d))
-    await updateAvailabilityTime(id, field, val)
+    const prev = schedule.find(d => d.id === id)?.[field]
+    setSchedule(s => s.map(d => d.id === id ? { ...d, [field]: val } : d))
+    const { error } = await updateAvailabilityTime(id, field, val)
+    if (error) {
+      setSchedule(s => s.map(d => d.id === id ? { ...d, [field]: prev } : d))
+      toast('Could not save time — please try again.')
+    }
   }
 
   async function addBlock(e) {
     e.preventDefault()
     if (!blockInput.date) return
-    await insertBlockedDate(workspace.id, blockInput.date, blockInput.reason)
+    const { error } = await insertBlockedDate(workspace.id, blockInput.date, blockInput.reason)
+    if (error) { toast('Could not block date — please try again.'); return }
     toast('Date blocked.')
     setBlockInput({ date: '', reason: '' })
     refresh()
   }
 
   async function removeBlock(id) {
-    await deleteBlockedDate(id)
+    const { error } = await deleteBlockedDate(id)
+    if (error) { toast('Could not unblock date — please try again.'); return }
     toast('Date unblocked.')
     refresh()
   }

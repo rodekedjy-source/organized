@@ -15,7 +15,6 @@ const CANCEL_REASONS = [
 function CancelSubFlow({ appt, onConfirm, onBack, saving }) {
   const [reason, setReason]           = useState('')
   const [depositAction, setDepositAction] = useState('keep')
-  const hasDeposit = !!(appt.payment_intent_id || appt.stripe_payment_intent_id)
   const radio = { accentColor: 'var(--gold)', width: 16, height: 16, flexShrink: 0, cursor: 'pointer' }
   const row   = { display: 'flex', alignItems: 'center', gap: '.7rem', padding: '.45rem 0', cursor: 'pointer' }
   const secHd = { fontSize: '.67rem', fontWeight: 700, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: '.5rem' }
@@ -34,7 +33,7 @@ function CancelSubFlow({ appt, onConfirm, onBack, saving }) {
         </label>
       ))}
 
-      {hasDeposit && (
+      {reason && (
         <>
           <div style={{ height: 1, background: 'var(--border)', margin: '1.1rem 0' }} />
           <div style={secHd}>Deposit</div>
@@ -54,7 +53,7 @@ function CancelSubFlow({ appt, onConfirm, onBack, saving }) {
       <div style={{ marginTop: '1.5rem', display: 'flex', flexDirection: 'column', gap: '.6rem' }}>
         <button
           disabled={!reason || saving}
-          onClick={() => onConfirm(reason, hasDeposit ? depositAction : 'keep')}
+          onClick={() => onConfirm(reason, depositAction)}
           style={{ height: 48, borderRadius: 8, border: '1px solid var(--red)', color: 'var(--red)', background: 'transparent', fontSize: '.88rem', fontWeight: 600, cursor: reason && !saving ? 'pointer' : 'not-allowed', fontFamily: 'inherit', opacity: !reason || saving ? .45 : 1, transition: 'opacity .15s' }}>
           {saving ? 'Cancelling…' : 'Cancel & Confirm'}
         </button>
