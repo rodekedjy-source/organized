@@ -43,6 +43,8 @@ export default function AvailabilitySection({ lang = 'en' }) {
     if (error) {
       setSchedule(s => s.map(d => d.id === id ? { ...d, [field]: prev } : d))
       toast('Could not save time — please try again.')
+    } else {
+      toast('Availability saved.')
     }
   }
 
@@ -97,12 +99,12 @@ export default function AvailabilitySection({ lang = 'en' }) {
               </button>
               {day.is_open && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '.4rem', flex: 1, minWidth: 0 }}>
-                  <input type="time" value={day.open_time?.slice(0, 5) || '09:00'} className="avail-time"
-                    onChange={e => updateTime(day.id, 'open_time', e.target.value)}
+                  <input type="time" defaultValue={day.open_time?.slice(0, 5) || '09:00'} className="avail-time"
+                    onBlur={e => updateTime(day.id, 'open_time', e.target.value)}
                     style={{ minWidth: 0, flex: 1 }} />
                   <span style={{ color: 'var(--ink-3)', fontSize: '.75rem', flexShrink: 0 }}>–</span>
-                  <input type="time" value={day.close_time?.slice(0, 5) || '18:00'} className="avail-time"
-                    onChange={e => updateTime(day.id, 'close_time', e.target.value)}
+                  <input type="time" defaultValue={day.close_time?.slice(0, 5) || '18:00'} className="avail-time"
+                    onBlur={e => updateTime(day.id, 'close_time', e.target.value)}
                     style={{ minWidth: 0, flex: 1 }} />
                 </div>
               )}
