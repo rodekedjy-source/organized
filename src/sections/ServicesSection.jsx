@@ -35,7 +35,7 @@ export default function ServicesSection({ lang = 'en' }) {
   const toast = useToast()
   const { data, refresh } = useServices(workspace?.id)
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ name: '', price: '', duration_min: '', description: '' })
+  const [form, setForm] = useState({ name: '', price: '', duration_min: '60', description: '' })
   const [loading, setLoading] = useState(false)
   const [imgFile, setImgFile] = useState(null)
   const [imgPreview, setImgPreview] = useState(null)
@@ -58,7 +58,9 @@ export default function ServicesSection({ lang = 'en' }) {
   }
 
   async function add(e) {
-    e.preventDefault(); setLoading(true)
+    e.preventDefault()
+    if (!form.duration_min) { toast('Please select a duration.'); return }
+    setLoading(true)
     const { data: row, error } = await insertService({
       workspaceId: workspace.id,
       name: form.name,
@@ -74,7 +76,7 @@ export default function ServicesSection({ lang = 'en' }) {
       } catch (e) { toast('Service saved but image upload failed: ' + e.message) }
     }
     toast(`${form.name} added.`)
-    setForm({ name: '', price: '', duration_min: '', description: '' })
+    setForm({ name: '', price: '', duration_min: '60', description: '' })
     setImgFile(null); setImgPreview(null)
     setShowForm(false); setLoading(false); refresh()
   }
@@ -152,7 +154,7 @@ export default function ServicesSection({ lang = 'en' }) {
 
             <div className="field">
               <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span>Duration <span style={{ fontSize: '.72rem', color: 'var(--ink-3)', fontWeight: 400 }}>(optional)</span></span>
+                <span>Duration (minutes)</span>
                 {form.duration_min && <span style={{ fontSize: '.72rem', color: 'var(--gold)', fontWeight: 500 }}>{DURATION_OPTIONS.find(d => d.value === parseInt(form.duration_min))?.label || formatDuration(parseInt(form.duration_min))}</span>}
               </label>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '.4rem' }}>

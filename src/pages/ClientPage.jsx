@@ -334,7 +334,7 @@ export default function ClientPage() {
       .select('scheduled_at,duration_min').eq('workspace_id', workspace.id)
       .gte('scheduled_at', `${dateStr}T00:00:00+00:00`).lte('scheduled_at', `${dateStr}T23:59:59+00:00`)
       .not('status','in','("cancelled")').is('deleted_at',null)
-    setBkSlots(generateSlots(avail.open_time, avail.close_time, svc.duration_min, existing||[]))
+    setBkSlots(generateSlots(avail.open_time, avail.close_time, svc.duration_min || 60, existing||[]))
     setBkSlotsLoading(false)
   }, [workspace, availability, bkCalY, bkCalM])
 
@@ -628,7 +628,7 @@ export default function ClientPage() {
                   {svc.image_url&&<div style={{margin:'-32px -28px 24px',height:180,overflow:'hidden',flexShrink:0}}><img src={svc.image_url} alt={svc.name} style={{width:'100%',height:'100%',objectFit:'cover'}}/></div>}
                   <div className="cb-svc-cat">{svc.category||'Service'}</div>
                   <div className="cb-svc-name">{svc.name}</div>
-                  <div className="cb-svc-dur">{svc.duration_min} min</div>
+                  <div className="cb-svc-dur">{svc.duration_min ? svc.duration_min + ' min' : '1h'}</div>
                   <div className="cb-svc-footer">
                     <div className="cb-svc-price">{svc.is_free?'Free':`$${Number(svc.price).toFixed(0)}`}</div>
                     {workspace.accepts_bookings!==false&&<button className="cb-svc-book">Book →</button>}
@@ -806,7 +806,7 @@ export default function ClientPage() {
       <div className={`cb-overlay${bkOpen?' open':''}`}>
         <div className="cb-ov-header">
           <button className="cb-ov-back" onClick={bkPage===0||bkPage===1||bkPage===5?closeBooking:()=>setBkPage(p=>p-1)}>{bkPage===0||bkPage===1||bkPage===5?'✕':'← Back'}</button>
-          <div style={{textAlign:'center'}}><div style={{fontFamily:'Playfair Display,serif',fontSize:14,color:'var(--text)'}}>{bkService?.name||''}</div><div style={{fontSize:10,color:'var(--text-muted)',marginTop:2}}>{bkService?(bkService.is_free?'Free':`$${Number(bkService.price).toFixed(0)}`)+'·'+bkService.duration_min+'min':''}</div></div>
+          <div style={{textAlign:'center'}}><div style={{fontFamily:'Playfair Display,serif',fontSize:14,color:'var(--text)'}}>{bkService?.name||''}</div><div style={{fontSize:10,color:'var(--text-muted)',marginTop:2}}>{bkService?(bkService.is_free?'Free':`$${Number(bkService.price).toFixed(0)}`)+' · '+(bkService.duration_min?bkService.duration_min+' min':'1h'):''}</div></div>
           <button className="cb-ov-back" style={{textAlign:'right'}} onClick={closeBooking}>✕</button>
         </div>
         <div className="cb-dots">{[1,2,3].map(n=><div key={n} className={`cb-dot${bkPage===n?' active':bkPage>n?' done':''}`}/>)}</div>
