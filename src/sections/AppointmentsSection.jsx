@@ -4,6 +4,7 @@ import { useAppointments } from '../hooks/useAppointments'
 import { useWorkspaceContext } from '../contexts/WorkspaceContext'
 import { useToast } from '../contexts/ToastContext'
 import { rescheduleAppointment, updateAppointmentStatus } from '../api/appointments'
+import AppointmentDetailSheet from './AppointmentDetailSheet'
 import { formatCurrency } from '../lib/formatters'
 
 // ── I18N ──────────────────────────────────────────────────────────────────────
@@ -236,7 +237,8 @@ export default function AppointmentsSection({ lang = 'en' }) {
   const { workspace } = useWorkspaceContext()
   const toast = useToast()
   const { data, loading, refresh } = useAppointments(workspace?.id)
-  const [period, setPeriod] = useState('month')
+  const [period, setPeriod]       = useState('month')
+  const [detailAppt, setDetailAppt] = useState(null)
 
   // Realtime subscription + polling — calls hook's refresh instead of direct fetch
   useEffect(() => {
@@ -321,7 +323,7 @@ export default function AppointmentsSection({ lang = 'en' }) {
             <span className="badge badge-pending">{pending.length} {t(lang, 'waiting')}</span>
           </div>
           {pending.map(a => (
-            <div key={a.id} style={{ padding: '1rem 1.25rem', borderBottom: '1px solid var(--border)' }}>
+            <div key={a.id} style={{ padding: '1rem 1.25rem', borderBottom: '1px solid var(--border)', cursor: 'pointer' }} onClick={() => setDetailAppt(a)}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '.65rem' }}>
                 <div>
                   <div style={{ fontWeight: 600, fontSize: '.88rem', color: 'var(--ink)' }}>{a.client_name}</div>
@@ -334,8 +336,8 @@ export default function AppointmentsSection({ lang = 'en' }) {
                 </span>
               </div>
               <div style={{ display: 'flex', gap: '.5rem' }}>
-                <button className="btn btn-primary btn-sm" style={{ flex: 1, justifyContent: 'center' }} onClick={() => confirm(a.id)}>✓ Confirm</button>
-                <button className="btn btn-sm" style={{ flex: 1, justifyContent: 'center', color: '#c0392b', border: '1px solid #fecaca', background: 'var(--surface)' }} onClick={() => decline(a.id)}>✕ Decline</button>
+                <button className="btn btn-primary btn-sm" style={{ flex: 1, justifyContent: 'center' }} onClick={e => { e.stopPropagation(); confirm(a.id) }}>✓ Confirm</button>
+                <button className="btn btn-sm" style={{ flex: 1, justifyContent: 'center', color: '#c0392b', border: '1px solid #fecaca', background: 'var(--surface)' }} onClick={e => { e.stopPropagation(); decline(a.id) }}>✕ Decline</button>
               </div>
             </div>
           ))}
@@ -358,7 +360,7 @@ export default function AppointmentsSection({ lang = 'en' }) {
               </div>
             )
             : periodData.map(a => (
-              <div key={a.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.25rem', borderBottom: '1px solid var(--border)' }}>
+              <div key={a.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.25rem', borderBottom: '1px solid var(--border)', cursor: 'pointer' }} onClick={() => setDetailAppt(a)}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontWeight: 600, fontSize: '.88rem', color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.client_name}</div>
                   <div style={{ fontSize: '.72rem', color: 'var(--ink-3)', marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -373,6 +375,15 @@ export default function AppointmentsSection({ lang = 'en' }) {
             ))
         }
       </div>
+
+      {detailAppt && (
+        <AppointmentDetailSheet
+          appt={detailAppt}
+          onClose={() => setDetailAppt(null)}
+          onRefresh={refresh}
+          toast={toast}
+        />
+      )}
     </div>
   )
 }

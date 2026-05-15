@@ -110,3 +110,25 @@ export async function updateAppointmentStatus(id, status) {
     .update({ status })
     .eq('id', id)
 }
+
+/**
+ * Annule un RDV avec une raison d'annulation.
+ */
+export async function cancelAppointment(id, reason) {
+  const { error } = await supabase
+    .from('appointments')
+    .update({ status: 'cancelled', cancellation_reason: reason })
+    .eq('id', id)
+  return { error }
+}
+
+/**
+ * Marque un RDV comme complété.
+ */
+export async function completeAppointment(id) {
+  const { error } = await supabase
+    .from('appointments')
+    .update({ status: 'completed' })
+    .eq('id', id)
+  return { error }
+}
