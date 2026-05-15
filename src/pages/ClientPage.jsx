@@ -262,6 +262,10 @@ export default function ClientPage() {
         const { data } = await supabase.from('products').select('id,name,description,price,currency,stock,image_url,images').eq('workspace_id', wsId).eq('is_active', true).is('deleted_at', null).order('created_at', { ascending: false })
         if (data) setProducts(data)
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'availability', filter: `workspace_id=eq.${wsId}` }, () => {
+        supabase.from('availability').select('day_of_week,is_open,open_time,close_time').eq('workspace_id', wsId).order('day_of_week', { ascending: true })
+          .then(({ data }) => { if (data) setAvailability(data) })
+      })
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
