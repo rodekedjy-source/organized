@@ -132,3 +132,13 @@ export async function completeAppointment(id) {
     .eq('id', id)
   return { error }
 }
+
+/**
+ * Crée un RDV depuis le calendrier du dashboard (insertion manuelle par le pro).
+ */
+export async function createAppointment(data) {
+  const { error } = await supabase
+    .from('appointments')
+    .insert(data)
+  return { error }
+}
