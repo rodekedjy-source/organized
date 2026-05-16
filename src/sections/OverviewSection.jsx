@@ -686,15 +686,13 @@ function DayPanel({ dayStr, allAppts, blockedDates, onClose, onBlock, onUnblock,
   async function saveBooking(){
     if(!bookingForm.client_name.trim()||!bookingForm.time) return
     setBookingSaving(true)
-    const [h,m]=bookingForm.time.split(':')
-    const dt=new Date(dayStr+'T00:00:00');dt.setHours(parseInt(h),parseInt(m),0,0)
     const selectedSvc=services.find(s=>s.id===bookingForm.service_id)
     const{error}=await createAppointment({
       workspace_id:workspace.id,client_name:bookingForm.client_name.trim(),
       client_phone:bookingForm.client_phone.trim()||null,client_email:bookingForm.client_email.trim()||null,
       service_id:bookingForm.service_id||null,service_name:selectedSvc?.name||null,
       duration_min:selectedSvc?.duration_min||60,
-      scheduled_at:dt.toISOString(),amount:parseFloat(bookingForm.amount)||0,status:bookingForm.status,
+      scheduled_at:`${dayStr}T${bookingForm.time}:00`,amount:parseFloat(bookingForm.amount)||0,status:bookingForm.status,
     })
     setBookingSaving(false)
     if(error){toast('Could not save booking — '+error.message);return}
