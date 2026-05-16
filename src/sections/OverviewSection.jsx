@@ -653,6 +653,7 @@ function DayPanel({ dayStr, allAppts, blockedDates, onClose, onBlock, onUnblock,
   const [noteSaved,setNoteSaved]=useState(false)
   const [noteLoading,setNoteLoading]=useState(true)
   const [services,setServices]=useState([])
+  const [availability,setAvailability]=useState([])
   const [bookingForm,setBookingForm]=useState({client_name:'',client_phone:'',client_email:'',service_id:'',time:'09:00',amount:'',status:'confirmed'})
   const [bookingSaving,setBookingSaving]=useState(false)
   const [bookingDone,setBookingDone]=useState(false)
@@ -670,7 +671,8 @@ function DayPanel({ dayStr, allAppts, blockedDates, onClose, onBlock, onUnblock,
   },[dayStr,workspace?.id])
   useEffect(()=>{
     if(mode!=='booking'||!workspace?.id) return
-    supabase.from('services').select('id,name,price').eq('workspace_id',workspace.id).eq('is_active',true).then(({data})=>setServices(data||[]))
+    supabase.from('services').select('id,name,price,duration_min').eq('workspace_id',workspace.id).eq('is_active',true).then(({data})=>setServices(data||[]))
+    supabase.from('availability').select('day_of_week,is_open,open_time,close_time').eq('workspace_id',workspace.id).then(({data})=>setAvailability(data||[]))
   },[mode,workspace?.id])
   async function saveNote(){
     if(!workspace?.id) return;setNoteSaving(true);setNoteSaved(false)
@@ -683,6 +685,15 @@ function DayPanel({ dayStr, allAppts, blockedDates, onClose, onBlock, onUnblock,
   }
   async function saveBooking(){
     if(!bookingForm.client_name.trim()||!bookingForm.time) return
+    const dayOfWeek=new Date(dayStr+'T12:00:00').getDay()
+    const dayAvail=availability.find(a=>a.day_of_week===dayOfWeek)
+    if(!dayAvail||!dayAvail.is_open){toast('This day is closed — check your availability settings');return}
+    const[selH,selM]=bookingForm.time.split(':').map(Number)
+    const selMin=selH*60+selM
+    const[openH,openM]=dayAvail.open_time.split(':').map(Number)
+    const[closeH,closeM]=dayAvail.close_time.split(':').map(Number)
+    const openMin=openH*60+openM,closeMin=closeH*60+closeM
+    if(selMin<openMin||selMin>=closeMin){toast(`Outside business hours — open ${dayAvail.open_time.slice(0,5)} to ${dayAvail.close_time.slice(0,5)}`);return}
     setBookingSaving(true)
     const [h,m]=bookingForm.time.split(':')
     const dt=new Date(dayStr+'T00:00:00');dt.setHours(parseInt(h),parseInt(m),0,0)
