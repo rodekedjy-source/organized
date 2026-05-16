@@ -699,7 +699,8 @@ function DayPanel({ dayStr, allAppts, blockedDates, onClose, onBlock, onUnblock,
     setBookingSaving(false)
     if(error){toast('Could not save booking — '+error.message);return}
     setBookingDone(true)
-    setTimeout(()=>{setBookingDone(false);setMode('main');setBookingForm({client_name:'',client_phone:'',client_email:'',service_id:'',time:'09:00',amount:'',status:'confirmed'});if(onBooked)onBooked()},1400)
+    if(onBooked) onBooked()
+    setTimeout(()=>{setBookingDone(false);setMode('main');setBookingForm({client_name:'',client_phone:'',client_email:'',service_id:'',time:'09:00',amount:'',status:'confirmed'})},1400)
   }
   const iS={width:'100%',padding:'.55rem .75rem',border:'1px solid var(--border-2)',borderRadius:8,fontSize:'.82rem',fontFamily:'inherit',color:'var(--ink)',background:'var(--surface)',outline:'none',transition:'border .15s'}
   const lS={display:'block',fontSize:'.72rem',fontWeight:600,color:'var(--ink-3)',marginBottom:'.3rem',textTransform:'uppercase',letterSpacing:'.05em'}
