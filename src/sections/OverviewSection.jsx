@@ -685,15 +685,6 @@ function DayPanel({ dayStr, allAppts, blockedDates, onClose, onBlock, onUnblock,
   }
   async function saveBooking(){
     if(!bookingForm.client_name.trim()||!bookingForm.time) return
-    const dayOfWeek=new Date(dayStr+'T12:00:00').getDay()
-    const dayAvail=availability.find(a=>a.day_of_week===dayOfWeek)
-    if(!dayAvail||!dayAvail.is_open){toast('This day is closed — check your availability settings');return}
-    const[selH,selM]=bookingForm.time.split(':').map(Number)
-    const selMin=selH*60+selM
-    const[openH,openM]=dayAvail.open_time.split(':').map(Number)
-    const[closeH,closeM]=dayAvail.close_time.split(':').map(Number)
-    const openMin=openH*60+openM,closeMin=closeH*60+closeM
-    if(selMin<openMin||selMin>=closeMin){toast(`Outside business hours — open ${dayAvail.open_time.slice(0,5)} to ${dayAvail.close_time.slice(0,5)}`);return}
     setBookingSaving(true)
     const [h,m]=bookingForm.time.split(':')
     const dt=new Date(dayStr+'T00:00:00');dt.setHours(parseInt(h),parseInt(m),0,0)
