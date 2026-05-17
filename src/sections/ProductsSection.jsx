@@ -249,12 +249,12 @@ function ImageEditorModal({ imageUrl, workspaceId, productName = '', onSave, onC
   const ctrlBtn = () => ({ background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)', color: 'rgba(255,255,255,.75)', borderRadius: 12, width: 68, height: 64, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 5, transition: 'background .15s' })
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: '#080706', zIndex: 500, display: 'flex', flexDirection: 'column' }}>
+    <div style={{ position: 'fixed', inset: 0, background: '#080706', zIndex: 500, display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '.85rem 1.25rem', borderBottom: '1px solid rgba(255,255,255,.06)', flexShrink: 0 }}>
         <button onClick={onClose} style={tabBtn(false)}>Cancel</button>
         <div style={{ display: 'flex', gap: '.35rem' }}>
-          <button onClick={() => setMode('adjust')} style={tabBtn(mode === 'adjust')}>Adjust</button>
-          <button onClick={() => setMode('crop')} style={tabBtn(mode === 'crop')}>Crop</button>
+          <button onClick={e => { e.stopPropagation(); setMode('adjust') }} style={tabBtn(mode === 'adjust')}>Adjust</button>
+          <button onClick={e => { e.stopPropagation(); setMode('crop') }} style={tabBtn(mode === 'crop')}>Crop</button>
         </div>
         <button onClick={save} disabled={saving || !loaded}
           style={{ background: saving || !loaded ? 'rgba(197,169,106,.3)' : 'var(--gold)', border: 'none', color: '#1a1814', borderRadius: 9, padding: '.45rem 1.1rem', cursor: 'pointer', fontFamily: 'inherit', fontSize: '.8rem', fontWeight: 700, transition: 'all .15s' }}>
