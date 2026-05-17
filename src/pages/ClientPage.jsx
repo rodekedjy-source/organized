@@ -1,6 +1,7 @@
 import { useRef, useState, useEffect, useLayoutEffect, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { enrollFree } from '../api/offerings'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONSTANTS
@@ -182,6 +183,13 @@ export default function ClientPage() {
   const [floatOpen,      setFloatOpen]      = useState(false)
   const [shopFilter,     setShopFilter]     = useState('all')
 
+  // ── Enrollment state ──────────────────────────────────────────────────────
+  const [enrollOpen,      setEnrollOpen]      = useState(false)
+  const [enrollOffering,  setEnrollOffering]  = useState(null)
+  const [enrollForm,      setEnrollForm]      = useState({ name: '', email: '', phone: '' })
+  const [enrollSubmitting,setEnrollSubmitting]= useState(false)
+  const [enrollDone,      setEnrollDone]      = useState(false)
+
   // ── Booking state ─────────────────────────────────────────────────────────
   const [bkOpen,         setBkOpen]         = useState(false)
   const [bkPage,         setBkPage]         = useState(1)
@@ -229,7 +237,7 @@ export default function ClientPage() {
           supabase.from('availability').select('day_of_week,is_open,open_time,close_time').eq('workspace_id',ws.id).order('day_of_week',{ascending:true}),
           supabase.from('blocked_dates').select('blocked_date').eq('workspace_id',ws.id).gte('blocked_date',today),
           supabase.from('products').select('id,name,description,price,currency,stock,image_url,images,discount_price,discount_ends_at').eq('workspace_id',ws.id).eq('is_active',true).is('deleted_at',null).order('created_at',{ascending:false}),
-          supabase.from('offerings').select('id,title,description,price,currency,duration_label,format,max_students,is_active').eq('workspace_id',ws.id).eq('is_active',true).is('deleted_at',null).order('created_at',{ascending:false}),
+          supabase.from('offerings').select('id,title,description,price,currency,duration_label,format,max_students,is_active,type,content_url,content_type,workshop_date,workshop_location,spots_total,spots_taken').eq('workspace_id',ws.id).eq('is_active',true).is('deleted_at',null).order('created_at',{ascending:false}),
           supabase.from('reviews').select('reviewer_name,rating,body,service_label,service_name,created_at').eq('workspace_id',ws.id).eq('is_visible',true).eq('is_approved',true).order('created_at',{ascending:false}).limit(12),
           supabase.from('portfolio_photos').select('id,url,caption,display_order').eq('workspace_id',ws.id).order('display_order',{ascending:true}),
         ])
@@ -273,9 +281,9 @@ export default function ClientPage() {
 
   // ── BUG 9 — scroll lock for all overlays ─────────────────────────────────
   useEffect(() => {
-    document.body.style.overflow = (bkOpen||portfolioOpen||cartOpen||policyOpen||lbOpen) ? 'hidden' : ''
+    document.body.style.overflow = (bkOpen||portfolioOpen||cartOpen||policyOpen||lbOpen||enrollOpen) ? 'hidden' : ''
     return () => { document.body.style.overflow = '' }
-  }, [bkOpen, portfolioOpen, cartOpen, policyOpen, lbOpen])
+  }, [bkOpen, portfolioOpen, cartOpen, policyOpen, lbOpen, enrollOpen])
 
   // ── BUG 6 — init Stripe on deposit page ───────────────────────────────────
   useEffect(() => {
@@ -348,6 +356,39 @@ export default function ClientPage() {
     setBkPage(hasPolicyGate ? 0 : 1); setBkOpen(true); document.body.style.overflow = 'hidden'
   }
   const closeBooking = () => { setBkOpen(false); document.body.style.overflow = '' }
+
+  // ── Enrollment handler ────────────────────────────────────────────────────
+  async function handleEnroll() {
+    if (!enrollForm.name.trim() || !enrollForm.email.trim()) return
+    if (Number(enrollOffering?.price) > 0) {
+      // Paid — placeholder until Stripe flow is built
+      const toast_fn = (msg) => { /* minimal inline toast via alert-like approach not used here */ }
+      setEnrollOpen(false)
+      return
+    }
+    setEnrollSubmitting(true)
+    try {
+      const { error } = await enrollFree(enrollOffering.id, workspace.id, { name: enrollForm.name, email: enrollForm.email, phone: enrollForm.phone })
+      if (error) { setEnrollSubmitting(false); return }
+      await supabase.functions.invoke('send-enrollment-email', {
+        body: {
+          client_name: enrollForm.name,
+          client_email: enrollForm.email,
+          offering_title: enrollOffering.title,
+          offering_type: enrollOffering.type,
+          content_url: enrollOffering.content_url,
+          content_type: enrollOffering.content_type,
+          workspace_name: workspace.name,
+          booking_link: `https://beorganized.io/${workspace.slug}`,
+          workshop_date: enrollOffering.workshop_date,
+          workshop_location: enrollOffering.workshop_location,
+        }
+      })
+      setEnrollDone(true)
+    } finally {
+      setEnrollSubmitting(false)
+    }
+  }
 
   // ── Go to page ────────────────────────────────────────────────────────────
   const goToPage = (n) => {
@@ -789,18 +830,80 @@ export default function ClientPage() {
       {activeTab==='learn'&&<div className="cb-panel">
         <div className="cb-learn-hero"><div className="cb-eyebrow">Knowledge</div><h2 className="cb-heading">Formations &amp; <em>Workshops</em></h2><p className="cb-sub">Sharing the techniques behind the craft — in person and online.</p></div>
         <div className="cb-offerings-grid">
-          {offerings.map(o=>(
-            <div key={o.id} className={`cb-offering-card${o.format==='online'?' online':''}`}>
-              <div style={{marginBottom:18}}><span className={`cb-type-badge ${o.format==='online'?'online':'inperson'}`}>{o.format==='online'?'Online Course':'In-Person Workshop'}</span></div>
-              <div className="cb-offering-title">{o.title}</div>
-              <p className="cb-offering-desc">{o.description}</p>
-              {o.duration_label&&<div className="cb-offering-meta"><span>{o.duration_label}</span>{o.max_students&&<span>{o.max_students} spots</span>}</div>}
-              <div className="cb-offering-footer"><div className="cb-offering-price">${Number(o.price).toFixed(0)}</div><button className="cb-enroll-btn">Reserve a Spot →</button></div>
-            </div>
-          ))}
+          {offerings.map(o=>{
+            const isWorkshop=o.type==='workshop'
+            const isFree=Number(o.price)===0
+            const spotsLeft=isWorkshop&&o.spots_total>0?o.spots_total-(o.spots_taken||0):null
+            const isFull=spotsLeft!==null&&spotsLeft<=0
+            return (
+              <div key={o.id} className={`cb-offering-card${isWorkshop?'':' online'}`}>
+                <div style={{marginBottom:14}}><span className={`cb-type-badge ${isWorkshop?'inperson':'online'}`}>{isWorkshop?'Workshop':'Online Course'}</span></div>
+                <div className="cb-offering-title">{o.title}</div>
+                <p className="cb-offering-desc" style={{WebkitLineClamp:2,display:'-webkit-box',WebkitBoxOrient:'vertical',overflow:'hidden'}}>{o.description}</p>
+                {isWorkshop&&o.workshop_date&&(
+                  <div className="cb-offering-meta">
+                    <span>📅 {new Date(o.workshop_date).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}</span>
+                    {o.workshop_location&&<span>📍 {o.workshop_location}</span>}
+                  </div>
+                )}
+                {isWorkshop&&o.spots_total>0&&(
+                  <div style={{marginBottom:16}}>
+                    <div style={{display:'flex',justifyContent:'space-between',fontSize:11,marginBottom:4,color:'var(--text-muted)'}}><span>{spotsLeft} spot{spotsLeft!==1?'s':''} left</span><span>{o.spots_taken||0}/{o.spots_total}</span></div>
+                    <div style={{height:4,background:'var(--dark-4)',borderRadius:2}}><div style={{height:'100%',background:'var(--gold)',borderRadius:2,width:`${Math.min(100,((o.spots_taken||0)/o.spots_total)*100)}%`}}/></div>
+                  </div>
+                )}
+                {!isWorkshop&&o.duration_label&&<div className="cb-offering-meta"><span>{o.duration_label}</span></div>}
+                <div className="cb-offering-footer">
+                  <div className="cb-offering-price">{isFree?'Free':`$${Number(o.price).toFixed(0)}`}</div>
+                  <button className="cb-enroll-btn" disabled={isFull} style={isFull?{opacity:.5,cursor:'default'}:{}}
+                    onClick={()=>{setEnrollOffering(o);setEnrollForm({name:'',email:'',phone:''});setEnrollDone(false);setEnrollOpen(true)}}>
+                    {isFull?'Sold Out':isWorkshop?'Reserve a Spot →':isFree?'Enroll Free →':`Enroll — $${Number(o.price).toFixed(0)} →`}
+                  </button>
+                </div>
+              </div>
+            )
+          })}
         </div>
         <footer className="cb-footer"><div className="cb-footer-inner"><div className="cb-footer-brand">{workspace.name}<span>Powered by <a href="https://beorganized.io" target="_blank" rel="noreferrer">Organized.</a></span></div></div></footer>
       </div>}
+
+      {/* ═══════════ ENROLLMENT MODAL ═══════════ */}
+      {enrollOpen&&enrollOffering&&(
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.75)',zIndex:800,display:'flex',alignItems:'flex-end',justifyContent:'center'}} onClick={()=>setEnrollOpen(false)}>
+          <div style={{background:'var(--dark-2)',borderRadius:'20px 20px 0 0',width:'100%',maxWidth:520,padding:'1.5rem 1.5rem 2.5rem',boxSizing:'border-box'}} onClick={e=>e.stopPropagation()}>
+            {!enrollDone?(<>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'1.25rem'}}>
+                <div>
+                  <div style={{fontSize:11,fontWeight:700,color:'var(--gold)',textTransform:'uppercase',letterSpacing:'.1em',marginBottom:4}}>{enrollOffering.type==='workshop'?'Reserve a Spot':'Enroll Now'}</div>
+                  <div style={{fontFamily:'Playfair Display,serif',fontSize:20,color:'var(--text)'}}>{enrollOffering.title}</div>
+                </div>
+                <button onClick={()=>setEnrollOpen(false)} style={{background:'none',border:'none',color:'var(--text-muted)',fontSize:22,cursor:'pointer',padding:0,lineHeight:1}}>✕</button>
+              </div>
+              {Number(enrollOffering.price)===0?(<>
+                <p style={{fontSize:13,color:'var(--text-muted)',marginBottom:'1.25rem',lineHeight:1.65}}>Enter your info to get access.</p>
+                <div style={{display:'flex',flexDirection:'column',gap:'.65rem',marginBottom:'1.25rem'}}>
+                  {[{key:'name',ph:'Full name',type:'text'},{key:'email',ph:'Email address',type:'email'},{key:'phone',ph:'Phone (optional)',type:'tel'}].map(({key,ph,type})=>(
+                    <input key={key} type={type} value={enrollForm[key]} onChange={e=>setEnrollForm(f=>({...f,[key]:e.target.value}))} placeholder={ph} style={{width:'100%',background:'var(--dark-3)',border:'1px solid var(--dark-4)',borderRadius:10,padding:'12px 14px',color:'var(--text)',fontFamily:'DM Sans,sans-serif',fontSize:14,outline:'none',boxSizing:'border-box'}}/>
+                  ))}
+                </div>
+                <button onClick={handleEnroll} disabled={enrollSubmitting||!enrollForm.name.trim()||!enrollForm.email.trim()} className="cb-enroll-btn" style={{width:'100%',padding:14,fontSize:13,opacity:enrollSubmitting||!enrollForm.name.trim()||!enrollForm.email.trim()?.5:1,cursor:enrollSubmitting?'default':'pointer'}}>
+                  {enrollSubmitting?'Submitting…':'Get Access →'}
+                </button>
+              </>):(<>
+                <p style={{fontSize:13,color:'var(--text-muted)',marginBottom:'1.25rem'}}>Price: <strong style={{color:'var(--gold)'}}>${Number(enrollOffering.price).toFixed(0)}</strong></p>
+                <button onClick={()=>{setEnrollOpen(false)}} className="cb-enroll-btn" style={{width:'100%',padding:14,fontSize:13}}>Pay &amp; Enroll — ${Number(enrollOffering.price).toFixed(0)} → (Coming soon)</button>
+              </>)}
+            </>):(
+              <div style={{textAlign:'center',padding:'2rem 0'}}>
+                <div style={{fontSize:48,marginBottom:'1rem'}}>✅</div>
+                <div style={{fontFamily:'Playfair Display,serif',fontSize:22,color:'var(--text)',marginBottom:8}}>You're in!</div>
+                <p style={{fontSize:13,color:'var(--text-muted)',lineHeight:1.65}}>Check your inbox — we sent access details to <strong>{enrollForm.email}</strong>.</p>
+                <button onClick={()=>setEnrollOpen(false)} style={{marginTop:'1.5rem',background:'none',border:'1px solid var(--dark-4)',color:'var(--text-muted)',padding:'10px 24px',borderRadius:8,cursor:'pointer',fontSize:13}}>Close</button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ═══════════ BOOKING OVERLAY ═══════════ */}
       <div className={`cb-overlay${bkOpen?' open':''}`}>
