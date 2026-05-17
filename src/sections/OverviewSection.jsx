@@ -683,22 +683,39 @@ function DayPanel({ dayStr, allAppts, blockedDates, onClose, onBlock, onUnblock,
     const svc=services.find(s=>s.id===id)
     setBookingForm(f=>({...f,service_id:id,amount:svc?.price!=null?String(svc.price):f.amount}))
   }
-  async function saveBooking(){
-    if(!bookingForm.client_name.trim()||!bookingForm.time) return
+  async function saveBooking() {
+    if (!bookingForm.client_name.trim() || !bookingForm.time) return
     setBookingSaving(true)
-    const selectedSvc=services.find(s=>s.id===bookingForm.service_id)
-    const{error}=await createAppointment({
-      workspace_id:workspace.id,client_name:bookingForm.client_name.trim(),
-      client_phone:bookingForm.client_phone.trim()||null,client_email:bookingForm.client_email.trim()||null,
-      service_id:bookingForm.service_id||null,service_name:selectedSvc?.name||null,
-      duration_min:Number(selectedSvc?.duration_min)||60,
-      scheduled_at:`${dayStr}T${bookingForm.time}:00`,amount:parseFloat(bookingForm.amount)||0,status:bookingForm.status,
-    })
-    setBookingSaving(false)
-    if(error){toast('Could not save booking — '+error.message);return}
-    setBookingDone(true)
-    if(onBooked) onBooked()
-    setTimeout(()=>{setBookingDone(false);setMode('main');setBookingForm({client_name:'',client_phone:'',client_email:'',service_id:'',time:'09:00',amount:'',status:'confirmed'})},1400)
+    try {
+      const selectedSvc = services.find(s => s.id === bookingForm.service_id)
+      const { error } = await createAppointment({
+        workspace_id: workspace.id,
+        client_name: bookingForm.client_name.trim(),
+        client_phone: bookingForm.client_phone.trim() || null,
+        client_email: bookingForm.client_email.trim() || null,
+        service_id: bookingForm.service_id || null,
+        service_name: selectedSvc?.name || null,
+        scheduled_at: `${dayStr}T${bookingForm.time}:00`,
+        amount: parseFloat(bookingForm.amount) || 0,
+        status: bookingForm.status,
+        duration_min: Number(selectedSvc?.duration_min) || 60,
+      })
+      if (error) {
+        toast('Could not save booking — ' + error.message)
+        return
+      }
+      setBookingDone(true)
+      onBooked()
+      setTimeout(() => {
+        setBookingDone(false)
+        setMode('main')
+        setBookingForm({ client_name: '', client_phone: '', client_email: '', service_id: '', time: '09:00', amount: '', status: 'confirmed' })
+      }, 1400)
+    } catch (err) {
+      toast('Unexpected error — ' + err.message)
+    } finally {
+      setBookingSaving(false)
+    }
   }
   const iS={width:'100%',padding:'.55rem .75rem',border:'1px solid var(--border-2)',borderRadius:8,fontSize:'.82rem',fontFamily:'inherit',color:'var(--ink)',background:'var(--surface)',outline:'none',transition:'border .15s'}
   const lS={display:'block',fontSize:'.72rem',fontWeight:600,color:'var(--ink-3)',marginBottom:'.3rem',textTransform:'uppercase',letterSpacing:'.05em'}
