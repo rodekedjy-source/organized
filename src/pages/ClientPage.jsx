@@ -189,6 +189,8 @@ export default function ClientPage() {
   const [enrollForm,      setEnrollForm]      = useState({ name: '', email: '', phone: '' })
   const [enrollSubmitting,setEnrollSubmitting]= useState(false)
   const [enrollDone,      setEnrollDone]      = useState(false)
+  const [enrollError,     setEnrollError]     = useState('')
+  const [offeringDetail,  setOfferingDetail]  = useState(null)
 
   // ── Booking state ─────────────────────────────────────────────────────────
   const [bkOpen,         setBkOpen]         = useState(false)
@@ -281,9 +283,9 @@ export default function ClientPage() {
 
   // ── BUG 9 — scroll lock for all overlays ─────────────────────────────────
   useEffect(() => {
-    document.body.style.overflow = (bkOpen||portfolioOpen||cartOpen||policyOpen||lbOpen||enrollOpen) ? 'hidden' : ''
+    document.body.style.overflow = (bkOpen||portfolioOpen||cartOpen||policyOpen||lbOpen||enrollOpen||!!offeringDetail) ? 'hidden' : ''
     return () => { document.body.style.overflow = '' }
-  }, [bkOpen, portfolioOpen, cartOpen, policyOpen, lbOpen, enrollOpen])
+  }, [bkOpen, portfolioOpen, cartOpen, policyOpen, lbOpen, enrollOpen, offeringDetail])
 
   // ── BUG 6 — init Stripe on deposit page ───────────────────────────────────
   useEffect(() => {
@@ -361,15 +363,14 @@ export default function ClientPage() {
   async function handleEnroll() {
     if (!enrollForm.name.trim() || !enrollForm.email.trim()) return
     if (Number(enrollOffering?.price) > 0) {
-      // Paid — placeholder until Stripe flow is built
-      const toast_fn = (msg) => { /* minimal inline toast via alert-like approach not used here */ }
       setEnrollOpen(false)
       return
     }
     setEnrollSubmitting(true)
+    setEnrollError('')
     try {
       const { error } = await enrollFree(enrollOffering.id, workspace.id, { name: enrollForm.name, email: enrollForm.email, phone: enrollForm.phone })
-      if (error) { setEnrollSubmitting(false); return }
+      if (error) { setEnrollError('Could not complete enrollment. Please try again.'); return }
       await supabase.functions.invoke('send-enrollment-email', {
         body: {
           client_name: enrollForm.name,
@@ -837,26 +838,28 @@ export default function ClientPage() {
             const isFull=spotsLeft!==null&&spotsLeft<=0
             return (
               <div key={o.id} className={`cb-offering-card${isWorkshop?'':' online'}`}>
-                <div style={{marginBottom:14}}><span className={`cb-type-badge ${isWorkshop?'inperson':'online'}`}>{isWorkshop?'Workshop':'Online Course'}</span></div>
-                <div className="cb-offering-title">{o.title}</div>
-                <p className="cb-offering-desc" style={{WebkitLineClamp:2,display:'-webkit-box',WebkitBoxOrient:'vertical',overflow:'hidden'}}>{o.description}</p>
-                {isWorkshop&&o.workshop_date&&(
-                  <div className="cb-offering-meta">
-                    <span>📅 {new Date(o.workshop_date).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}</span>
-                    {o.workshop_location&&<span>📍 {o.workshop_location}</span>}
-                  </div>
-                )}
-                {isWorkshop&&o.spots_total>0&&(
-                  <div style={{marginBottom:16}}>
-                    <div style={{display:'flex',justifyContent:'space-between',fontSize:11,marginBottom:4,color:'var(--text-muted)'}}><span>{spotsLeft} spot{spotsLeft!==1?'s':''} left</span><span>{o.spots_taken||0}/{o.spots_total}</span></div>
-                    <div style={{height:4,background:'var(--dark-4)',borderRadius:2}}><div style={{height:'100%',background:'var(--gold)',borderRadius:2,width:`${Math.min(100,((o.spots_taken||0)/o.spots_total)*100)}%`}}/></div>
-                  </div>
-                )}
-                {!isWorkshop&&o.duration_label&&<div className="cb-offering-meta"><span>{o.duration_label}</span></div>}
+                <div onClick={()=>setOfferingDetail(o)} style={{cursor:'pointer'}}>
+                  <div style={{marginBottom:14}}><span className={`cb-type-badge ${isWorkshop?'inperson':'online'}`}>{isWorkshop?'Workshop':'Online Course'}</span></div>
+                  <div className="cb-offering-title">{o.title}</div>
+                  <p className="cb-offering-desc" style={{WebkitLineClamp:2,display:'-webkit-box',WebkitBoxOrient:'vertical',overflow:'hidden'}}>{o.description}</p>
+                  {isWorkshop&&o.workshop_date&&(
+                    <div className="cb-offering-meta">
+                      <span>📅 {new Date(o.workshop_date).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}</span>
+                      {o.workshop_location&&<span>📍 {o.workshop_location}</span>}
+                    </div>
+                  )}
+                  {isWorkshop&&o.spots_total>0&&(
+                    <div style={{marginBottom:16}}>
+                      <div style={{display:'flex',justifyContent:'space-between',fontSize:11,marginBottom:4,color:'var(--text-muted)'}}><span>{spotsLeft} spot{spotsLeft!==1?'s':''} left</span><span>{o.spots_taken||0}/{o.spots_total}</span></div>
+                      <div style={{height:4,background:'var(--dark-4)',borderRadius:2}}><div style={{height:'100%',background:'var(--gold)',borderRadius:2,width:`${Math.min(100,((o.spots_taken||0)/o.spots_total)*100)}%`}}/></div>
+                    </div>
+                  )}
+                  {!isWorkshop&&o.duration_label&&<div className="cb-offering-meta"><span>{o.duration_label}</span></div>}
+                </div>
                 <div className="cb-offering-footer">
                   <div className="cb-offering-price">{isFree?'Free':`$${Number(o.price).toFixed(0)}`}</div>
                   <button className="cb-enroll-btn" disabled={isFull} style={isFull?{opacity:.5,cursor:'default'}:{}}
-                    onClick={()=>{setEnrollOffering(o);setEnrollForm({name:'',email:'',phone:''});setEnrollDone(false);setEnrollOpen(true)}}>
+                    onClick={()=>{setEnrollOffering(o);setEnrollForm({name:'',email:'',phone:''});setEnrollDone(false);setEnrollError('');setEnrollOpen(true)}}>
                     {isFull?'Sold Out':isWorkshop?'Reserve a Spot →':isFree?'Enroll Free →':`Enroll — $${Number(o.price).toFixed(0)} →`}
                   </button>
                 </div>
@@ -886,7 +889,8 @@ export default function ClientPage() {
                     <input key={key} type={type} value={enrollForm[key]} onChange={e=>setEnrollForm(f=>({...f,[key]:e.target.value}))} placeholder={ph} style={{width:'100%',background:'var(--dark-3)',border:'1px solid var(--dark-4)',borderRadius:10,padding:'12px 14px',color:'var(--text)',fontFamily:'DM Sans,sans-serif',fontSize:14,outline:'none',boxSizing:'border-box'}}/>
                   ))}
                 </div>
-                <button onClick={handleEnroll} disabled={enrollSubmitting||!enrollForm.name.trim()||!enrollForm.email.trim()} className="cb-enroll-btn" style={{width:'100%',padding:14,fontSize:13,opacity:enrollSubmitting||!enrollForm.name.trim()||!enrollForm.email.trim()?.5:1,cursor:enrollSubmitting?'default':'pointer'}}>
+                {enrollError&&<p style={{fontSize:12,color:'#e05c5c',marginBottom:'.6rem',lineHeight:1.5}}>{enrollError}</p>}
+                <button onClick={handleEnroll} disabled={enrollSubmitting||!enrollForm.name.trim()||!enrollForm.email.trim()} className="cb-enroll-btn" style={{width:'100%',padding:14,fontSize:13,opacity:(enrollSubmitting||!enrollForm.name.trim()||!enrollForm.email.trim())?0.5:1,cursor:enrollSubmitting?'default':'pointer'}}>
                   {enrollSubmitting?'Submitting…':'Get Access →'}
                 </button>
               </>):(<>
@@ -904,6 +908,62 @@ export default function ClientPage() {
           </div>
         </div>
       )}
+
+      {/* ═══════════ FORMATION DETAIL ═══════════ */}
+      {offeringDetail&&(()=>{
+        const od=offeringDetail
+        const isW=od.type==='workshop'
+        const isFr=Number(od.price)===0
+        const sl=isW&&od.spots_total>0?od.spots_total-(od.spots_taken||0):null
+        const isFu=sl!==null&&sl<=0
+        const imgs=(od.files||[]).filter(f=>f.kind==='image')
+        const pdfs=(od.files||[]).filter(f=>f.kind==='pdf')
+        const vids=(od.files||[]).filter(f=>f.kind==='video')
+        return(
+          <div className="cb-overlay open" style={{overflowY:'auto'}}>
+            <div className="cb-ov-header" style={{position:'sticky',top:0,zIndex:10,background:'var(--dark)'}}>
+              <button className="cb-ov-back" onClick={()=>setOfferingDetail(null)}>← Back</button>
+              <span className={`cb-type-badge ${isW?'inperson':'online'}`} style={{fontSize:10}}>{isW?'Workshop':'Online Course'}</span>
+              <div style={{fontWeight:700,color:'var(--gold)',fontSize:14}}>{isFr?'Free':`$${Number(od.price).toFixed(0)}`}</div>
+            </div>
+            <div style={{padding:'1.75rem 1.25rem 8rem',maxWidth:640,margin:'0 auto'}}>
+              <h2 style={{fontFamily:'Playfair Display,serif',fontSize:'1.6rem',color:'var(--text)',marginBottom:'.6rem',lineHeight:1.25}}>{od.title}</h2>
+              {imgs.length>0&&(
+                <div style={{display:'flex',gap:'.6rem',overflowX:'auto',marginBottom:'1.25rem',paddingBottom:4}}>
+                  {imgs.map((img,i)=><img key={i} src={img.url} alt={img.name} style={{width:200,height:140,objectFit:'cover',borderRadius:10,flexShrink:0}}/>)}
+                </div>
+              )}
+              {od.description&&<p style={{fontSize:15,color:'var(--text-muted)',lineHeight:1.75,marginBottom:'1.5rem',whiteSpace:'pre-wrap'}}>{od.description}</p>}
+              {isW&&od.workshop_date&&(
+                <div style={{background:'var(--dark-3)',borderRadius:12,padding:'1rem 1.25rem',marginBottom:'1rem'}}>
+                  <div style={{fontSize:12,fontWeight:700,color:'var(--gold)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'.5rem'}}>Event Details</div>
+                  <div style={{display:'flex',flexDirection:'column',gap:'.4rem',fontSize:14,color:'var(--text)'}}>
+                    <span>📅 {new Date(od.workshop_date).toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'})}</span>
+                    {od.workshop_location&&<span>📍 {od.workshop_location}</span>}
+                    {od.duration_label&&<span>⏱ {od.duration_label}</span>}
+                  </div>
+                  {od.spots_total>0&&(
+                    <div style={{marginTop:'1rem'}}>
+                      <div style={{display:'flex',justifyContent:'space-between',fontSize:11,marginBottom:4,color:'var(--text-muted)'}}><span>{sl} spot{sl!==1?'s':''} left</span><span>{od.spots_taken||0}/{od.spots_total}</span></div>
+                      <div style={{height:5,background:'var(--dark-4)',borderRadius:3}}><div style={{height:'100%',background:'var(--gold)',borderRadius:3,width:`${Math.min(100,((od.spots_taken||0)/od.spots_total)*100)}%`}}/></div>
+                    </div>
+                  )}
+                </div>
+              )}
+              {!isW&&od.duration_label&&<div style={{fontSize:13,color:'var(--text-muted)',marginBottom:'1rem'}}>⏱ {od.duration_label}</div>}
+              {pdfs.map((f,i)=><a key={i} href={f.url} target="_blank" rel="noreferrer" style={{display:'flex',alignItems:'center',gap:'.5rem',padding:'.65rem 1rem',border:'1px solid var(--dark-4)',borderRadius:9,marginBottom:'.5rem',color:'var(--text)',textDecoration:'none',fontSize:13}}>📄 {f.name}</a>)}
+              {vids.map((v,i)=><video key={i} src={v.url} controls style={{width:'100%',borderRadius:10,marginBottom:'.75rem'}}/>)}
+            </div>
+            <div style={{position:'fixed',bottom:0,left:0,right:0,padding:'1rem 1.25rem',background:'var(--dark)',borderTop:'1px solid var(--dark-4)',display:'flex',alignItems:'center',gap:'1rem',zIndex:20}}>
+              <div style={{fontFamily:'Playfair Display,serif',fontSize:18,fontWeight:700,color:'var(--gold)',minWidth:60}}>{isFr?'Free':`$${Number(od.price).toFixed(0)}`}</div>
+              <button className="cb-enroll-btn" disabled={isFu} style={{flex:1,padding:14,fontSize:14,opacity:isFu?.5:1,cursor:isFu?'default':'pointer'}}
+                onClick={()=>{setOfferingDetail(null);setEnrollOffering(od);setEnrollForm({name:'',email:'',phone:''});setEnrollDone(false);setEnrollError('');setEnrollOpen(true)}}>
+                {isFu?'Sold Out':isW?'Reserve a Spot →':isFr?'Enroll Free →':`Enroll — $${Number(od.price).toFixed(0)} →`}
+              </button>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* ═══════════ BOOKING OVERLAY ═══════════ */}
       <div className={`cb-overlay${bkOpen?' open':''}`}>

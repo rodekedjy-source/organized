@@ -1,5 +1,22 @@
 import { useState, useEffect } from 'react'
+import { supabase } from '../lib/supabase'
 import { fetchOfferings, insertOffering, updateOffering, deleteOffering, fetchEnrollments } from '../api/offerings'
+
+function fileKind(f) {
+  if (f.type.startsWith('image/')) return 'image'
+  if (f.type === 'application/pdf') return 'pdf'
+  if (f.type.startsWith('video/')) return 'video'
+  return 'file'
+}
+async function uploadFormationFile(file, workspaceId) {
+  const kind = fileKind(file)
+  const ext = file.name.split('.').pop()
+  const path = `${workspaceId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+  const { error } = await supabase.storage.from('formation-files').upload(path, file, { upsert: true, contentType: file.type })
+  if (error) return { name: file.name, kind, url: null, error: error.message }
+  const { data: urlData } = supabase.storage.from('formation-files').getPublicUrl(path)
+  return { name: file.name, kind, url: urlData?.publicUrl || null, error: null }
+}
 
 const CONTENT_LABELS = { youtube: 'YouTube URL', zoom: 'Zoom/Webinar Link', pdf: 'PDF or File URL', custom: 'Content URL' }
 
@@ -18,11 +35,27 @@ function OfferingModal({ offering, workspaceId, onClose, onSaved, toast }) {
     workshop_location: offering?.workshop_location || '',
     spots_total: String(offering?.spots_total || ''),
     is_active: offering?.is_active ?? true,
+    media: offering?.files || [],
   })
   const [saving, setSaving] = useState(false)
+  const [uploading, setUploading] = useState(false)
   const [confirmDel, setConfirmDel] = useState(false)
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
   const iS = { width: '100%', padding: '.58rem .82rem', border: '1px solid var(--border-2)', borderRadius: 9, fontSize: '.84rem', fontFamily: 'inherit', color: 'var(--ink)', background: 'var(--surface)', outline: 'none', boxSizing: 'border-box' }
+
+  async function handleMediaUpload(e) {
+    const files = Array.from(e.target.files || [])
+    if (!files.length) return
+    if (form.media.length + files.length > 5) { toast('Max 5 files per formation.'); return }
+    setUploading(true)
+    const results = await Promise.all(files.map(f => uploadFormationFile(f, workspaceId)))
+    const failed = results.filter(r => r.error)
+    if (failed.length) toast(`${failed.length} file(s) failed to upload.`)
+    const ok = results.filter(r => !r.error)
+    set('media', [...form.media, ...ok])
+    setUploading(false)
+    e.target.value = ''
+  }
 
   async function save() {
     if (!form.title.trim()) { toast('Title is required.'); return }
@@ -35,6 +68,7 @@ function OfferingModal({ offering, workspaceId, onClose, onSaved, toast }) {
       description: form.description,
       is_active: form.is_active,
       duration_label: form.duration_label,
+      files: form.media,
       ...(form.type === 'online'
         ? { content_type: form.content_type, content_url: form.content_url, workshop_date: null, workshop_location: null, spots_total: 0 }
         : { workshop_date: form.workshop_date || null, workshop_location: form.workshop_location, spots_total: parseInt(form.spots_total) || 0, content_url: null, content_type: 'custom' }
@@ -96,6 +130,27 @@ function OfferingModal({ offering, workspaceId, onClose, onSaved, toast }) {
               <div className="field"><label>Duration</label><input style={iS} value={form.duration_label} onChange={e => set('duration_label', e.target.value)} placeholder="e.g. Full day · 8h" onFocus={e => e.target.style.borderColor = 'var(--gold)'} onBlur={e => e.target.style.borderColor = 'var(--border-2)'} /></div>
             </div>
           </>}
+          {/* Media upload */}
+          <div>
+            <label style={{ display: 'block', fontSize: '.78rem', fontWeight: 600, color: 'var(--ink-2)', marginBottom: '.35rem' }}>Media <span style={{ fontWeight: 400, color: 'var(--ink-3)' }}>(optional · images, PDF, video · max 5)</span></label>
+            {form.media.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '.4rem', marginBottom: '.5rem' }}>
+                {form.media.map((f, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '.35rem', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 7, padding: '.3rem .55rem', fontSize: '.75rem', color: 'var(--ink-2)', maxWidth: 180 }}>
+                    <span>{f.kind === 'image' ? '🖼' : f.kind === 'pdf' ? '📄' : f.kind === 'video' ? '🎬' : '📎'}</span>
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{f.name}</span>
+                    <button onClick={() => set('media', form.media.filter((_, j) => j !== i))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-3)', padding: 0, lineHeight: 1, fontSize: '.85rem' }}>✕</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {form.media.length < 5 && (
+              <label style={{ display: 'inline-flex', alignItems: 'center', gap: '.4rem', padding: '.42rem .9rem', border: '1px dashed var(--border-2)', borderRadius: 8, cursor: uploading ? 'default' : 'pointer', fontSize: '.8rem', color: 'var(--ink-3)', background: 'var(--bg)' }}>
+                {uploading ? '⏳ Uploading…' : '+ Add files'}
+                <input type="file" accept="image/*,application/pdf,video/mp4" multiple style={{ display: 'none' }} disabled={uploading} onChange={handleMediaUpload} />
+              </label>
+            )}
+          </div>
           {/* Published toggle */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '.75rem', padding: '.75rem', background: 'var(--bg)', borderRadius: 10, border: '1px solid var(--border)' }}>
             <button onClick={() => set('is_active', !form.is_active)} style={{ width: 44, height: 24, borderRadius: 12, border: 'none', background: form.is_active ? 'var(--gold)' : 'var(--border-2)', cursor: 'pointer', transition: 'background .2s', position: 'relative', flexShrink: 0 }}>
