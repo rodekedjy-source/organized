@@ -644,7 +644,7 @@ function CoachSlider({ appts, stats, workspace, session, lang='en' }) {
 }
 
 // ── DAY PANEL ─────────────────────────────────────────────────────────────────
-function DayPanel({ dayStr, allAppts, blockedDates, onClose, onBlock, onUnblock, onBooked, workspace, lang='en' }) {
+function DayPanel({ dayStr, allAppts, blockedDates, onClose, onBlock, onUnblock, onBooked, workspace, lang='en', toast }) {
   useScrollLock()
   const [mode,setMode]=useState('main')
   const [reason,setReason]=useState('')
@@ -691,7 +691,7 @@ function DayPanel({ dayStr, allAppts, blockedDates, onClose, onBlock, onUnblock,
       workspace_id:workspace.id,client_name:bookingForm.client_name.trim(),
       client_phone:bookingForm.client_phone.trim()||null,client_email:bookingForm.client_email.trim()||null,
       service_id:bookingForm.service_id||null,service_name:selectedSvc?.name||null,
-      duration_min:selectedSvc?.duration_min||60,
+      duration_min:Number(selectedSvc?.duration_min)||60,
       scheduled_at:`${dayStr}T${bookingForm.time}:00`,amount:parseFloat(bookingForm.amount)||0,status:bookingForm.status,
     })
     setBookingSaving(false)
@@ -1088,7 +1088,7 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
         )}
       </div>
       {showRevenue&&<RevenuePanel appts={allAppts} onClose={()=>setShowRevenue(false)}/>}
-      {selectedDay&&(<DayPanel dayStr={selectedDay} allAppts={allAppts} blockedDates={blockedDates} onClose={()=>setSelectedDay(null)} onBlock={handleBlock} onUnblock={handleUnblock} onBooked={fetchData} workspace={workspace} lang={lang}/>)}
+      {selectedDay&&(<DayPanel dayStr={selectedDay} allAppts={allAppts} blockedDates={blockedDates} onClose={()=>setSelectedDay(null)} onBlock={handleBlock} onUnblock={handleUnblock} onBooked={fetchData} workspace={workspace} lang={lang} toast={toast}/>)}
     </div>
   )
 }
