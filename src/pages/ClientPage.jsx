@@ -1026,7 +1026,7 @@ export default function ClientPage() {
                     </div>
                     <p className="cb-gate-title">Enroll to access</p>
                     <p className="cb-gate-sub">{isFr?'Free — enter your email to get instant access':'Purchase this course to unlock the content'}</p>
-                    <button className="cb-enroll-btn" style={{marginTop:16}} onClick={()=>{setEnrollOffering(od);setEnrollForm({name:'',email:'',phone:''});setEnrollDone(false);setEnrollError('');setEnrollOpen(true)}}>
+                    <button className="cb-enroll-btn" style={{marginTop:16}} onClick={()=>{setEnrollOffering(offeringDetail);setEnrollForm({name:'',email:'',phone:''});setEnrollDone(false);setEnrollError('');setEnrollOpen(true)}}>
                       {isFr?'Get Access — Free':`Enroll — $${Number(od.price).toFixed(0)}`}
                     </button>
                   </div>
