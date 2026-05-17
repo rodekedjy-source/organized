@@ -7,6 +7,7 @@ import ClientsSection       from '../sections/ClientsSection'
 import OfferingsSection     from '../sections/OfferingsSection'
 import OverviewSection      from '../sections/OverviewSection'
 import PortfolioSection     from '../sections/PortfolioSection'
+import OrdersSection        from '../sections/OrdersSection'
 import ProductsSection      from '../sections/ProductsSection'
 import ReviewsSection       from '../sections/ReviewsSection'
 import ServicesSection      from '../sections/ServicesSection'
@@ -17,7 +18,7 @@ const LANG = {
   en: {
     morning:'Good morning',afternoon:'Good afternoon',evening:'Good evening',
     nav_overview:'Overview',nav_appointments:'Appointments',nav_services:'Services',
-    nav_products:'Products',nav_formations:'Formations',nav_clients:'Clients',
+    nav_products:'Products',nav_orders:'Orders',nav_formations:'Formations',nav_clients:'Clients',
     nav_availability:'Availability',nav_settings:'Settings',nav_signout:'Sign out',
     nav_portfolio:'Portfolio',nav_reviews:'Reviews',nav_payments:'Payments',
     copy_link:'Copy link',link_copied:'Booking link copied!',
@@ -72,7 +73,7 @@ const LANG = {
   fr: {
     morning:'Bonjour',afternoon:'Bonjour',evening:'Bonsoir',
     nav_overview:'Accueil',nav_appointments:'Rendez-vous',nav_services:'Services',
-    nav_products:'Produits',nav_formations:'Formations',nav_clients:'Clients',
+    nav_products:'Produits',nav_orders:'Commandes',nav_formations:'Formations',nav_clients:'Clients',
     nav_availability:'Disponibilités',nav_settings:'Paramètres',nav_signout:'Déconnexion',
     nav_portfolio:'Portfolio',nav_reviews:'Avis',nav_payments:'Paiements',
     copy_link:'Copier le lien',link_copied:'Lien copié !',
@@ -127,7 +128,7 @@ const LANG = {
   es: {
     morning:'Buenos días',afternoon:'Buenas tardes',evening:'Buenas noches',
     nav_overview:'Inicio',nav_appointments:'Citas',nav_services:'Servicios',
-    nav_products:'Productos',nav_formations:'Formaciones',nav_clients:'Clientes',
+    nav_products:'Productos',nav_orders:'Pedidos',nav_formations:'Formaciones',nav_clients:'Clientes',
     nav_availability:'Disponibilidad',nav_settings:'Configuración',nav_signout:'Cerrar sesión',
     nav_portfolio:'Portfolio',nav_reviews:'Reseñas',nav_payments:'Pagos',
     copy_link:'Copiar enlace',link_copied:'¡Enlace copiado!',
@@ -290,6 +291,7 @@ const I = {
   avail: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8" cy="8" r="6.5"/><path d="M8 4v4l2.5 2.5"/></svg>,
   card:   <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="1" y="3.5" width="14" height="9" rx="1.5"/><path d="M1 6.5h14"/><path d="M4 10h2M9 10h3"/></svg>,
   shield: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M8 1.5l5 2v4c0 3.2-2.3 5.8-5 6.8-2.7-1-5-3.6-5-6.8v-4l5-2z"/></svg>,
+  orders: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="1.5" width="12" height="13" rx="1.5"/><path d="M5 5h6M5 8h6M5 11h4"/></svg>,
 }
 
 const PLAN_FEATURES = {
@@ -897,6 +899,7 @@ export default function Dashboard() {
     {key:'appointments',label:'nav_appointments',icon:I.cal},
     {key:'services',label:'nav_services',icon:I.box},
     {key:'products',label:'nav_products',icon:I.box},
+    {key:'orders',label:'nav_orders',icon:I.orders},
     {key:'formations',label:'nav_formations',icon:I.grad},
     {key:'clients',label:'nav_clients',icon:I.users},
     {key:'payments',label:'nav_payments',icon:I.card},
@@ -925,6 +928,7 @@ export default function Dashboard() {
       case 'appointments': return <AppointmentsSection {...props}/>
       case 'services':     return <ServicesSection {...props}/>
       case 'products':     return canAccess(subscription,'products') ? <ProductsSection {...props}/> : <UpgradeGate feature="products"/>
+      case 'orders':       return <OrdersSection workspace={workspace} toast={toast}/>
       case 'formations':   return canAccess(subscription,'formations') ? <OfferingsSection {...props}/> : <UpgradeGate feature="formations"/>
       case 'clients':      return <ClientsSection {...props}/>
       case 'payments':     return <Payments {...props}/>
