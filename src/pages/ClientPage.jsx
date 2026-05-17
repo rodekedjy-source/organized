@@ -371,7 +371,7 @@ export default function ClientPage() {
     setEnrollError('')
     try {
       const { error } = await enrollFree(enrollOffering.id, workspace.id, { name: enrollForm.name, email: enrollForm.email, phone: enrollForm.phone })
-      if (error) { setEnrollError('Could not complete enrollment. Please try again.'); return }
+      if (error) { console.error('enrollFree error:', error.message, error.code, error.details); setEnrollError('Could not complete enrollment: ' + error.message); return }
       await supabase.functions.invoke('send-enrollment-email', {
         body: {
           client_name: enrollForm.name,
@@ -387,10 +387,24 @@ export default function ClientPage() {
           workshop_location: enrollOffering.workshop_location,
         }
       })
+      // Persist enrollment to localStorage so detail page gates content
+      const enrolled = JSON.parse(localStorage.getItem('enrolled_offerings') || '[]')
+      if (!enrolled.includes(enrollOffering.id)) {
+        enrolled.push(enrollOffering.id)
+        localStorage.setItem('enrolled_offerings', JSON.stringify(enrolled))
+      }
       setEnrollDone(true)
     } finally {
       setEnrollSubmitting(false)
     }
+  }
+
+  // ── isEnrolled helper ─────────────────────────────────────────────────────
+  function isEnrolled(offeringId) {
+    try {
+      const enrolled = JSON.parse(localStorage.getItem('enrolled_offerings') || '[]')
+      return enrolled.includes(offeringId)
+    } catch { return false }
   }
 
   // ── Go to page ────────────────────────────────────────────────────────────
@@ -973,11 +987,6 @@ export default function ClientPage() {
             </div>
             <div style={{padding:'1.75rem 1.25rem 8rem',maxWidth:640,margin:'0 auto'}}>
               <h2 style={{fontFamily:'Playfair Display,serif',fontSize:'1.6rem',color:'var(--text)',marginBottom:'.6rem',lineHeight:1.25}}>{od.title}</h2>
-              {imgs.length>0&&(
-                <div style={{display:'flex',gap:'.6rem',overflowX:'auto',marginBottom:'1.25rem',paddingBottom:4}}>
-                  {imgs.map((img,i)=><img key={i} src={img.url} alt={img.name} style={{width:200,height:140,objectFit:'cover',borderRadius:10,flexShrink:0}}/>)}
-                </div>
-              )}
               {od.description&&<p style={{fontSize:15,color:'var(--text-muted)',lineHeight:1.75,marginBottom:'1.5rem',whiteSpace:'pre-wrap'}}>{od.description}</p>}
               {isW&&od.workshop_date&&(
                 <div style={{background:'var(--dark-3)',borderRadius:12,padding:'1rem 1.25rem',marginBottom:'1rem'}}>
@@ -996,8 +1005,33 @@ export default function ClientPage() {
                 </div>
               )}
               {!isW&&od.duration_label&&<div style={{fontSize:13,color:'var(--text-muted)',marginBottom:'1rem'}}>⏱ {od.duration_label}</div>}
-              {pdfs.map((f,i)=><a key={i} href={f.url} target="_blank" rel="noreferrer" style={{display:'flex',alignItems:'center',gap:'.5rem',padding:'.65rem 1rem',border:'1px solid var(--dark-4)',borderRadius:9,marginBottom:'.5rem',color:'var(--text)',textDecoration:'none',fontSize:13}}>📄 {f.name}</a>)}
-              {vids.map((v,i)=><video key={i} src={v.url} controls style={{width:'100%',borderRadius:10,marginBottom:'.75rem'}}/>)}
+              {(imgs.length>0||pdfs.length>0||vids.length>0||od.content_url)&&(
+                isEnrolled(od.id)?(
+                  <>
+                    {imgs.length>0&&(
+                      <div style={{display:'flex',gap:'.6rem',overflowX:'auto',marginBottom:'1.25rem',paddingBottom:4}}>
+                        {imgs.map((img,i)=><img key={i} src={img.url} alt={img.name} style={{width:200,height:140,objectFit:'cover',borderRadius:10,flexShrink:0}}/>)}
+                      </div>
+                    )}
+                    {pdfs.map((f,i)=><a key={i} href={f.url} target="_blank" rel="noreferrer" style={{display:'flex',alignItems:'center',gap:'.5rem',padding:'.65rem 1rem',border:'1px solid var(--dark-4)',borderRadius:9,marginBottom:'.5rem',color:'var(--text)',textDecoration:'none',fontSize:13}}>📄 {f.name}</a>)}
+                    {vids.map((v,i)=><video key={i} src={v.url} controls style={{width:'100%',borderRadius:10,marginBottom:'.75rem'}}/>)}
+                    {od.content_url&&<a href={od.content_url} target="_blank" rel="noreferrer" style={{display:'flex',alignItems:'center',gap:'.5rem',padding:'.65rem 1rem',background:'var(--gold-dim)',border:'1px solid var(--gold-border)',borderRadius:9,marginBottom:'.5rem',color:'var(--gold)',textDecoration:'none',fontSize:13,fontWeight:600}}>→ Access Content</a>}
+                  </>
+                ):(
+                  <div className="cb-content-gate">
+                    <div className="cb-gate-icon">
+                      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                      </svg>
+                    </div>
+                    <p className="cb-gate-title">Enroll to access</p>
+                    <p className="cb-gate-sub">{isFr?'Free — enter your email to get instant access':'Purchase this course to unlock the content'}</p>
+                    <button className="cb-enroll-btn" style={{marginTop:16}} onClick={()=>{setEnrollOffering(od);setEnrollForm({name:'',email:'',phone:''});setEnrollDone(false);setEnrollError('');setEnrollOpen(true)}}>
+                      {isFr?'Get Access — Free':`Enroll — $${Number(od.price).toFixed(0)}`}
+                    </button>
+                  </div>
+                )
+              )}
             </div>
             <div style={{position:'fixed',bottom:0,left:0,right:0,padding:'1rem 1.25rem',background:'var(--dark)',borderTop:'1px solid var(--dark-4)',display:'flex',alignItems:'center',gap:'1rem',zIndex:20}}>
               <div style={{fontFamily:'Playfair Display,serif',fontSize:18,fontWeight:700,color:'var(--gold)',minWidth:60}}>{isFr?'Free':`$${Number(od.price).toFixed(0)}`}</div>
@@ -1476,6 +1510,10 @@ const CSS = `
 .cb-offering-type-tag{font-size:.55rem;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.7);text-align:center;margin-top:6px}
 .cb-offering-body{flex:1;padding:16px;display:flex;flex-direction:column;gap:0;min-width:0}
 .cb-workshop-item{border-left:4px solid var(--accent,var(--gold));background:var(--dark-2);border-radius:0 12px 12px 0;padding:16px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.cb-content-gate{display:flex;flex-direction:column;align-items:center;text-align:center;padding:32px 24px;background:var(--dark-2);border-radius:12px;margin:16px 0}
+.cb-gate-icon{color:var(--accent,var(--gold));margin-bottom:12px}
+.cb-gate-title{font-family:'Playfair Display',serif;font-size:1.1rem;color:var(--text);margin:0 0 8px}
+.cb-gate-sub{font-size:.82rem;color:var(--text-muted);margin:0;line-height:1.5}
 .cb-enroll-btn{background:var(--btn-bg,var(--gold));color:var(--btn-text,#141210);border:none;padding:11px 20px;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;border-radius:1px;transition:all .25s;white-space:nowrap}
 .cb-enroll-btn:hover{background:var(--gold-light)}
 
