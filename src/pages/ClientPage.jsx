@@ -370,9 +370,10 @@ export default function ClientPage() {
     setEnrollSubmitting(true)
     setEnrollError('')
     try {
+      console.log('enrollOffering:', enrollOffering)
       const { error } = await enrollFree(enrollOffering.id, workspace.id, { name: enrollForm.name, email: enrollForm.email, phone: enrollForm.phone })
       if (error) { console.error('enrollFree error:', error.message, error.code, error.details); setEnrollError('Could not complete enrollment: ' + error.message); return }
-      await supabase.functions.invoke('send-enrollment-email', {
+      const emailResp = await supabase.functions.invoke('send-enrollment-email', {
         body: {
           client_name: enrollForm.name,
           client_email: enrollForm.email,
@@ -387,6 +388,7 @@ export default function ClientPage() {
           workshop_location: enrollOffering.workshop_location,
         }
       })
+      console.log('email response:', emailResp)
       // Persist enrollment to localStorage so detail page gates content
       const enrolled = JSON.parse(localStorage.getItem('enrolled_offerings') || '[]')
       if (!enrolled.includes(enrollOffering.id)) {
@@ -1026,7 +1028,7 @@ export default function ClientPage() {
                     </div>
                     <p className="cb-gate-title">Enroll to access</p>
                     <p className="cb-gate-sub">{isFr?'Free — enter your email to get instant access':'Purchase this course to unlock the content'}</p>
-                    <button className="cb-enroll-btn" style={{marginTop:16}} onClick={()=>{setEnrollOffering(offeringDetail);setEnrollForm({name:'',email:'',phone:''});setEnrollDone(false);setEnrollError('');setEnrollOpen(true)}}>
+                    <button className="cb-enroll-btn" style={{marginTop:16}} onClick={()=>{setOfferingDetail(null);setEnrollOffering(od);setEnrollForm({name:'',email:'',phone:''});setEnrollDone(false);setEnrollError('');setEnrollOpen(true)}}>
                       {isFr?'Get Access — Free':`Enroll — $${Number(od.price).toFixed(0)}`}
                     </button>
                   </div>
