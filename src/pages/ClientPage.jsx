@@ -182,6 +182,7 @@ export default function ClientPage() {
   const [openFAQ,        setOpenFAQ]        = useState(null)
   const [floatOpen,      setFloatOpen]      = useState(false)
   const [shopFilter,     setShopFilter]     = useState('all')
+  const [learnFilter,    setLearnFilter]    = useState('all')
 
   // ── Enrollment state ──────────────────────────────────────────────────────
   const [enrollOpen,      setEnrollOpen]      = useState(false)
@@ -239,7 +240,7 @@ export default function ClientPage() {
           supabase.from('availability').select('day_of_week,is_open,open_time,close_time').eq('workspace_id',ws.id).order('day_of_week',{ascending:true}),
           supabase.from('blocked_dates').select('blocked_date').eq('workspace_id',ws.id).gte('blocked_date',today),
           supabase.from('products').select('id,name,description,price,currency,stock,image_url,images,discount_price,discount_ends_at').eq('workspace_id',ws.id).eq('is_active',true).is('deleted_at',null).order('created_at',{ascending:false}),
-          supabase.from('offerings').select('id,title,description,price,currency,duration_label,format,max_students,is_active,type,content_url,content_type,workshop_date,workshop_location,spots_total,spots_taken').eq('workspace_id',ws.id).eq('is_active',true).is('deleted_at',null).order('created_at',{ascending:false}),
+          supabase.from('offerings').select('id,title,description,price,currency,duration_label,format,max_students,is_active,type,content_url,content_type,files,workshop_date,workshop_location,spots_total,spots_taken').eq('workspace_id',ws.id).eq('is_active',true).is('deleted_at',null).order('created_at',{ascending:false}),
           supabase.from('reviews').select('reviewer_name,rating,body,service_label,service_name,created_at').eq('workspace_id',ws.id).eq('is_visible',true).eq('is_approved',true).order('created_at',{ascending:false}).limit(12),
           supabase.from('portfolio_photos').select('id,url,caption,display_order').eq('workspace_id',ws.id).order('display_order',{ascending:true}),
         ])
@@ -379,6 +380,7 @@ export default function ClientPage() {
           offering_type: enrollOffering.type,
           content_url: enrollOffering.content_url,
           content_type: enrollOffering.content_type,
+          files: enrollOffering.files || [],
           workspace_name: workspace.name,
           booking_link: `https://beorganized.io/${workspace.slug}`,
           workshop_date: enrollOffering.workshop_date,
@@ -828,47 +830,90 @@ export default function ClientPage() {
       </div>}
 
       {/* ═══════════ LEARN PANEL ═══════════ */}
-      {activeTab==='learn'&&<div className="cb-panel">
-        <div className="cb-learn-hero"><div className="cb-eyebrow">Knowledge</div><h2 className="cb-heading">Formations &amp; <em>Workshops</em></h2><p className="cb-sub">Sharing the techniques behind the craft — in person and online.</p></div>
-        <div className="cb-offerings-grid">
-          {offerings.map(o=>{
-            const isWorkshop=o.type==='workshop'
-            const isFree=Number(o.price)===0
-            const spotsLeft=isWorkshop&&o.spots_total>0?o.spots_total-(o.spots_taken||0):null
-            const isFull=spotsLeft!==null&&spotsLeft<=0
-            return (
-              <div key={o.id} className={`cb-offering-card${isWorkshop?'':' online'}`}>
-                <div onClick={()=>setOfferingDetail(o)} style={{cursor:'pointer'}}>
-                  <div style={{marginBottom:14}}><span className={`cb-type-badge ${isWorkshop?'inperson':'online'}`}>{isWorkshop?'Workshop':'Online Course'}</span></div>
-                  <div className="cb-offering-title">{o.title}</div>
-                  <p className="cb-offering-desc" style={{WebkitLineClamp:2,display:'-webkit-box',WebkitBoxOrient:'vertical',overflow:'hidden'}}>{o.description}</p>
-                  {isWorkshop&&o.workshop_date&&(
-                    <div className="cb-offering-meta">
-                      <span>📅 {new Date(o.workshop_date).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}</span>
-                      {o.workshop_location&&<span>📍 {o.workshop_location}</span>}
-                    </div>
-                  )}
-                  {isWorkshop&&o.spots_total>0&&(
-                    <div style={{marginBottom:16}}>
-                      <div style={{display:'flex',justifyContent:'space-between',fontSize:11,marginBottom:4,color:'var(--text-muted)'}}><span>{spotsLeft} spot{spotsLeft!==1?'s':''} left</span><span>{o.spots_taken||0}/{o.spots_total}</span></div>
-                      <div style={{height:4,background:'var(--dark-4)',borderRadius:2}}><div style={{height:'100%',background:'var(--gold)',borderRadius:2,width:`${Math.min(100,((o.spots_taken||0)/o.spots_total)*100)}%`}}/></div>
-                    </div>
-                  )}
-                  {!isWorkshop&&o.duration_label&&<div className="cb-offering-meta"><span>{o.duration_label}</span></div>}
-                </div>
-                <div className="cb-offering-footer">
-                  <div className="cb-offering-price">{isFree?'Free':`$${Number(o.price).toFixed(0)}`}</div>
-                  <button className="cb-enroll-btn" disabled={isFull} style={isFull?{opacity:.5,cursor:'default'}:{}}
-                    onClick={()=>{setEnrollOffering(o);setEnrollForm({name:'',email:'',phone:''});setEnrollDone(false);setEnrollError('');setEnrollOpen(true)}}>
-                    {isFull?'Sold Out':isWorkshop?'Reserve a Spot →':isFree?'Enroll Free →':`Enroll — $${Number(o.price).toFixed(0)} →`}
-                  </button>
-                </div>
+      {activeTab==='learn'&&(()=>{
+        const hasOnline=offerings.some(o=>o.type!=='workshop')
+        const hasWorkshop=offerings.some(o=>o.type==='workshop')
+        const filtered=learnFilter==='all'?offerings:offerings.filter(o=>learnFilter==='workshop'?o.type==='workshop':o.type!=='workshop')
+        return(
+        <div className="cb-panel">
+          <div className="cb-learn-header">
+            <div className="cb-eyebrow">Knowledge</div>
+            <h2 className="cb-heading">Formations &amp; <em>Workshops</em></h2>
+            <p className="cb-sub">Learn the techniques behind the craft.</p>
+            {hasOnline&&hasWorkshop&&(
+              <div className="cb-shop-filters" style={{marginTop:20}}>
+                {[['all','All'],['online','Online'],['workshop','Workshops']].map(([f,l])=>(
+                  <button key={f} className={`cb-filter-tab${learnFilter===f?' active':''}`} onClick={()=>setLearnFilter(f)}>{l}</button>
+                ))}
               </div>
-            )
-          })}
+            )}
+          </div>
+          <div style={{padding:'20px 20px 4px'}}>
+            {filtered.map((o,idx)=>{
+              const isWorkshop=o.type==='workshop'
+              const isFree=Number(o.price)===0
+              const spotsLeft=isWorkshop&&o.spots_total>0?o.spots_total-(o.spots_taken||0):null
+              const isFull=spotsLeft!==null&&spotsLeft<=0
+              const fillPct=o.spots_total>0?Math.min(100,((o.spots_taken||0)/o.spots_total)*100):0
+              const almostFull=fillPct>=80
+              const openDetail=()=>setOfferingDetail(o)
+              const openEnroll=()=>{setEnrollOffering(o);setEnrollForm({name:'',email:'',phone:''});setEnrollDone(false);setEnrollError('');setEnrollOpen(true)}
+              if(isWorkshop){return(
+                <div key={o.id} className="cb-workshop-item">
+                  <div onClick={openDetail} style={{cursor:'pointer'}}>
+                    <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10,flexWrap:'wrap'}}>
+                      <span className="cb-type-badge inperson">Workshop</span>
+                      {o.workshop_date&&<span style={{fontSize:10,color:'var(--text-muted)',letterSpacing:'.04em'}}>{new Date(o.workshop_date).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span>}
+                    </div>
+                    <div className="cb-offering-title" style={{marginTop:0,marginBottom:6,fontSize:18}}>{o.title}</div>
+                    {o.description&&<p className="cb-offering-desc" style={{marginBottom:12,WebkitLineClamp:2,display:'-webkit-box',WebkitBoxOrient:'vertical',overflow:'hidden'}}>{o.description}</p>}
+                    {o.workshop_location&&<div style={{fontSize:12,color:'var(--text-muted)',marginBottom:10}}>📍 {o.workshop_location}</div>}
+                    {o.spots_total>0&&(
+                      <div style={{marginBottom:14}}>
+                        <div style={{display:'flex',justifyContent:'space-between',fontSize:10,marginBottom:4}}>
+                          <span style={{color:almostFull?'#e05c5c':'var(--text-muted)',fontWeight:almostFull?600:400}}>{almostFull?'Almost full —':''} {spotsLeft} spot{spotsLeft!==1?'s':''} left</span>
+                          <span style={{color:'var(--text-soft)'}}>{o.spots_taken||0}/{o.spots_total}</span>
+                        </div>
+                        <div style={{height:4,background:'var(--dark-4)',borderRadius:2}}><div style={{height:'100%',background:almostFull?'#e05c5c':'var(--gold)',borderRadius:2,width:`${fillPct}%`,transition:'width .4s'}}/></div>
+                      </div>
+                    )}
+                  </div>
+                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,paddingTop:12,borderTop:'1px solid var(--dark-4)'}}>
+                    <div className="cb-offering-price" style={{fontSize:18}}>{isFree?'Free':`$${Number(o.price).toFixed(0)}`}</div>
+                    <button className="cb-enroll-btn" disabled={isFull} style={isFull?{opacity:.5,cursor:'default'}:{}} onClick={openEnroll}>
+                      {isFull?'Sold Out':'Reserve a Spot →'}
+                    </button>
+                  </div>
+                </div>
+              )}
+              const num=String(idx+1).padStart(2,'0')
+              return(
+                <div key={o.id} className="cb-offering-item">
+                  <div className="cb-offering-accent" onClick={openDetail} style={{cursor:'pointer'}}>
+                    <div className="cb-offering-num">{num}</div>
+                    <div className="cb-offering-type-tag">Online Course</div>
+                  </div>
+                  <div className="cb-offering-body">
+                    <div onClick={openDetail} style={{cursor:'pointer',flex:1}}>
+                      <div className="cb-offering-title" style={{marginTop:0,marginBottom:4,fontSize:16}}>{o.title}</div>
+                      {o.description&&<p className="cb-offering-desc" style={{marginBottom:6,WebkitLineClamp:2,display:'-webkit-box',WebkitBoxOrient:'vertical',overflow:'hidden'}}>{o.description}</p>}
+                      {o.duration_label&&<div style={{fontSize:11,color:'var(--text-muted)',marginBottom:4}}>⏱ {o.duration_label}</div>}
+                    </div>
+                    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,marginTop:8,paddingTop:8,borderTop:'1px solid var(--dark-4)'}}>
+                      <div className="cb-offering-price" style={{fontSize:16}}>{isFree?'Free':`$${Number(o.price).toFixed(0)}`}</div>
+                      <button className="cb-enroll-btn" onClick={openEnroll}>
+                        {isFree?'Get Access — Free':`Enroll — $${Number(o.price).toFixed(0)}`}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+          <footer className="cb-footer"><div className="cb-footer-inner"><div className="cb-footer-brand">{workspace.name}<span>Powered by <a href="https://beorganized.io" target="_blank" rel="noreferrer">Organized.</a></span></div></div></footer>
         </div>
-        <footer className="cb-footer"><div className="cb-footer-inner"><div className="cb-footer-brand">{workspace.name}<span>Powered by <a href="https://beorganized.io" target="_blank" rel="noreferrer">Organized.</a></span></div></div></footer>
-      </div>}
+        )
+      })()}
 
       {/* ═══════════ ENROLLMENT MODAL ═══════════ */}
       {enrollOpen&&enrollOffering&&(
@@ -1417,18 +1462,20 @@ const CSS = `
 .cb-add-bag:not(:disabled):hover{border-color:var(--gold);color:var(--gold-light);background:var(--gold-dim)}
 .cb-add-bag:disabled{opacity:.4;cursor:not-allowed}
 
-.cb-learn-hero{padding:56px 24px 40px;background:var(--dark-2);border-bottom:1px solid var(--dark-4)}
-.cb-offerings-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1px;background:var(--dark-4);border:1px solid var(--dark-4);border-top:none}
-.cb-offering-card{background:var(--dark-2);padding:32px 24px;transition:background .3s}
-.cb-offering-card.online{background:var(--dark-3)}.cb-offering-card:hover{background:var(--dark-3)}
+.cb-learn-header{padding:56px 24px 32px;background:var(--dark-2);border-bottom:1px solid var(--dark-4)}
 .cb-type-badge{font-size:9px;letter-spacing:.18em;text-transform:uppercase;padding:5px 12px;border-radius:100px}
 .cb-type-badge.inperson{background:var(--gold-dim);border:1px solid var(--gold-border);color:var(--gold-light)}
 .cb-type-badge.online{background:rgba(86,187,134,.08);border:1px solid rgba(86,187,134,.22);color:#56bb86}
 .cb-offering-title{font-family:'Playfair Display',serif;font-size:20px;color:var(--text);margin-top:16px;margin-bottom:10px}
-.cb-offering-desc{font-size:13px;color:var(--text-muted);font-weight:300;line-height:1.8;margin-bottom:20px}
-.cb-offering-meta{display:flex;gap:18px;margin-bottom:20px;font-size:12px;color:var(--text-soft)}
-.cb-offering-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:18px;border-top:1px solid var(--dark-4)}
+.cb-offering-desc{font-size:13px;color:var(--text-muted);font-weight:300;line-height:1.75;margin-bottom:12px}
+.cb-offering-meta{display:flex;gap:18px;margin-bottom:12px;font-size:12px;color:var(--text-soft)}
 .cb-offering-price{font-family:'Playfair Display',serif;font-size:24px;color:var(--price-color,var(--gold))}
+.cb-offering-item{display:flex;background:var(--dark-2);border-radius:12px;overflow:hidden;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.cb-offering-accent{width:90px;flex-shrink:0;background:var(--accent,var(--gold));display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px 8px}
+.cb-offering-num{font-family:'Playfair Display',serif;font-size:2rem;color:#fff;opacity:.9;line-height:1}
+.cb-offering-type-tag{font-size:.55rem;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.7);text-align:center;margin-top:6px}
+.cb-offering-body{flex:1;padding:16px;display:flex;flex-direction:column;gap:0;min-width:0}
+.cb-workshop-item{border-left:4px solid var(--accent,var(--gold));background:var(--dark-2);border-radius:0 12px 12px 0;padding:16px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
 .cb-enroll-btn{background:var(--btn-bg,var(--gold));color:var(--btn-text,#141210);border:none;padding:11px 20px;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;border-radius:1px;transition:all .25s;white-space:nowrap}
 .cb-enroll-btn:hover{background:var(--gold-light)}
 
