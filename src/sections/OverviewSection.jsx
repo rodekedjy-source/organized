@@ -688,6 +688,10 @@ function DayPanel({ dayStr, allAppts, blockedDates, onClose, onBlock, onUnblock,
     setBookingSaving(true)
     try {
       const selectedSvc = services.find(s => s.id === bookingForm.service_id)
+      const tzOffset = -new Date().getTimezoneOffset()
+      const sign = tzOffset >= 0 ? '+' : '-'
+      const pad = n => String(Math.floor(Math.abs(n))).padStart(2, '0')
+      const offsetStr = `${sign}${pad(tzOffset / 60)}:${pad(tzOffset % 60)}`
       const { error } = await createAppointment({
         workspace_id: workspace.id,
         client_name: bookingForm.client_name.trim(),
@@ -695,7 +699,7 @@ function DayPanel({ dayStr, allAppts, blockedDates, onClose, onBlock, onUnblock,
         client_email: bookingForm.client_email.trim() || null,
         service_id: bookingForm.service_id || null,
         service_name: selectedSvc?.name || null,
-        scheduled_at: `${dayStr}T${bookingForm.time}:00`,
+        scheduled_at: `${dayStr}T${bookingForm.time}:00${offsetStr}`,
         amount: parseFloat(bookingForm.amount) || 0,
         status: bookingForm.status,
         duration_min: Number(selectedSvc?.duration_min) || 60,
@@ -878,7 +882,7 @@ function InteractiveCal({ allAppts, blockedDates, onDayClick }) {
   const apptDays=new Set(allAppts.filter(a=>a.status!=='cancelled').map(a=>{
     if(!a.scheduled_at) return null
     const d=new Date(a.scheduled_at)
-    if(d.getFullYear()===viewYear&&d.getMonth()===viewMonth) return d.getDate()
+    if(d.getUTCFullYear()===viewYear&&d.getUTCMonth()===viewMonth) return d.getUTCDate()
     return null
   }).filter(Boolean))
   const blockedSet=new Set(blockedDates.map(b=>{
