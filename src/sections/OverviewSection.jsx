@@ -699,6 +699,7 @@ function DayPanel({ dayStr, allAppts, blockedDates, onClose, onBlock, onUnblock,
         amount: parseFloat(bookingForm.amount) || 0,
         status: bookingForm.status,
         duration_min: Number(selectedSvc?.duration_min) || 60,
+        is_manual: true,
       })
       if (error) {
         toast('Could not save booking — ' + error.message)
