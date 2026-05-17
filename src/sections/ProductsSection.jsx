@@ -9,7 +9,7 @@ import { formatCurrency } from '../lib/formatters'
 // ── PLAN GATING ───────────────────────────────────────────────────────────────
 const PLAN_FEATURES = {
   free: [], essential: [],
-  pro: ['products', 'formations', 'analytics_full', 'ai_enhance', 'custom_branding', 'clients_unlimited'],
+  pro: ['products', 'formations', 'analytics_full', 'custom_branding', 'clients_unlimited'],
 }
 function canAccess(subscription, feature) {
   const plan = subscription?.plan || 'essential'
@@ -21,7 +21,6 @@ function UpgradeGate({ feature }) {
   const INFO = {
     products: { name: 'Product Sales', desc: 'Sell products directly through your booking page.' },
     formations: { name: 'Workshops & Formations', desc: 'Create and monetize courses, workshops, and events.' },
-    ai_enhance: { name: 'AI Photo Enhancement', desc: 'Transform product photos into professional studio shots.' },
     clients_unlimited: { name: 'Unlimited Clients', desc: 'Remove the 50-client cap on your Essential plan.' },
   }
   const info = INFO[feature] || { name: feature, desc: '' }
@@ -107,163 +106,6 @@ async function uploadProductImages(files, workspaceId) {
   }))
 }
 
-// ── AI ENHANCE MODAL ──────────────────────────────────────────────────────────
-function EnhanceModal({ imageUrl, imagePreview, workspace, onSelect, onClose, toast }) {
-  const [phase, setPhase] = useState('templates')
-  const [templates, setTemplates] = useState([])
-  const [selected, setSelected] = useState(null)
-  const [resultUrl, setResultUrl] = useState(null)
-  const [saving, setSaving] = useState(false)
-  const [usageUsed, setUsageUsed] = useState(0)
-  const DAILY_LIMIT = 10
-
-  const FALLBACK_TEMPLATES = [
-    { id: 'studio_white',   label: 'Studio Blanc',     emoji: '⬜', url: 'https://v3b.fal.media/files/b/0a98fac8/C9DokWdUT0u69qqaDgR_9.jpg' },
-    { id: 'marble_luxe',    label: 'Marbre Luxe',       emoji: '🧇', url: 'https://v3b.fal.media/files/b/0a98fac8/5z50B-ImghTkqTO0j6Eoj.jpg' },
-    { id: 'bokeh_gold',     label: 'Bokeh Doré',        emoji: '✨', url: 'https://v3b.fal.media/files/b/0a98fac8/42ZN6OhGvPsYAVaY0KSqI.jpg' },
-    { id: 'noir_dramatique',label: 'Nuit Dramatique',   emoji: '🌑', url: 'https://v3b.fal.media/files/b/0a98fac8/gi_jVMyiTa9YJBYjU_SMu.jpg' },
-    { id: 'rose_poudre',    label: 'Rose Poudré',       emoji: '🌸', url: 'https://v3b.fal.media/files/b/0a98fac8/VmNTUlN8iy0eObxGLJTAJ.jpg' },
-    { id: 'botanique',      label: 'Botanique',         emoji: '🌿', url: 'https://v3b.fal.media/files/b/0a98fac8/uCsXKl3V_WiABW9oVevBi.jpg' },
-  ]
-
-  useEffect(() => {
-    async function loadTemplates() {
-      try {
-        const { data: { session } } = await supabase.auth.getSession()
-        const { data, error } = await supabase.functions.invoke('enhance-product-image', {
-          body: {},
-          headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
-        })
-        if (!error && data?.templates) setTemplates(data.templates)
-        else setTemplates(FALLBACK_TEMPLATES)
-        if (data?.used != null) setUsageUsed(data.used)
-      } catch { setTemplates(FALLBACK_TEMPLATES) }
-    }
-    loadTemplates()
-  }, [])
-
-  async function generate(template) {
-    if (usageUsed >= DAILY_LIMIT) {
-      toast(`Daily limit reached (${DAILY_LIMIT}/day). Resets at midnight UTC.`)
-      return
-    }
-    setSelected(template); setPhase('loading')
-    try {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session?.access_token) { toast('Please log in to use AI enhancement.'); setPhase('templates'); return }
-      const { data, error } = await supabase.functions.invoke('enhance-product-image', {
-        body: { image_url: imageUrl, template_id: template.id },
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      })
-      if (error) {
-        const msg = error.message || ''
-        if (msg.includes('limit') || msg.includes('429')) {
-          toast(`Daily AI enhancement limit reached (${DAILY_LIMIT}/day). Resets at midnight UTC.`)
-        } else {
-          toast('Enhancement failed — ' + msg)
-        }
-        setPhase('templates'); return
-      }
-      if (data?.error) {
-        if (data.error.includes('limit')) {
-          toast(data.error); setPhase('templates'); return
-        }
-        throw new Error(data.error)
-      }
-      if (data?.used != null) setUsageUsed(data.used)
-      if (data?.url) { setResultUrl(data.url); setPhase('result'); return }
-      throw new Error('No image returned.')
-    } catch (e) { toast('Enhancement failed — ' + e.message); setPhase('templates') }
-  }
-
-  async function save() {
-    if (!resultUrl) return; setSaving(true)
-    try {
-      let finalUrl = resultUrl
-      if (resultUrl.startsWith('data:')) {
-        const blob = await (await fetch(resultUrl)).blob()
-        const path = `${workspace.id}/enhanced-${Date.now()}.png`
-        await supabase.storage.from('product-images').upload(path, blob, { upsert: true, contentType: 'image/png' })
-        const { data: ud } = supabase.storage.from('product-images').getPublicUrl(path)
-        finalUrl = ud?.publicUrl || resultUrl
-      }
-      onSelect(finalUrl); onClose()
-    } catch (e) { toast('Could not save: ' + e.message) }
-    finally { setSaving(false) }
-  }
-
-  return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 1050, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', padding: '0' }}>
-      <style>{`@keyframes spin-en{to{transform:rotate(360deg)}} @keyframes slide-up{from{transform:translateY(100%)}to{transform:translateY(0)}}`}</style>
-      <div style={{ background: 'var(--surface)', borderRadius: '20px 20px 0 0', width: '100%', maxWidth: '520px', overflow: 'hidden', boxShadow: '0 -8px 40px rgba(0,0,0,.4)', animation: 'slide-up .3s ease', maxHeight: '92vh', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-          <div>
-            <div style={{ fontSize: '.95rem', fontWeight: 700, fontFamily: "'Playfair Display',serif" }}>✨ AI Photo Enhancement</div>
-            <div style={{ fontSize: '.72rem', color: usageUsed >= DAILY_LIMIT ? 'var(--red)' : 'var(--ink-3)', marginTop: '.1rem' }}>
-              {usageUsed}/{DAILY_LIMIT} enhancements used today
-            </div>
-          </div>
-          <button onClick={onClose} style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '8px', width: 28, height: 28, cursor: 'pointer', color: 'var(--ink-3)', fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
-        </div>
-        <div style={{ padding: '1rem 1.25rem', overflowY: 'auto', flex: 1 }}>
-          {phase !== 'result' && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '.75rem', marginBottom: '1rem', background: 'var(--bg)', borderRadius: 10, padding: '.65rem' }}>
-              <img src={imagePreview || imageUrl} style={{ width: 52, height: 52, objectFit: 'cover', borderRadius: 8, flexShrink: 0 }} alt="product" />
-              <div>
-                <div style={{ fontSize: '.8rem', fontWeight: 600, color: 'var(--ink)' }}>Your product</div>
-                <div style={{ fontSize: '.7rem', color: 'var(--ink-3)' }}>Background will be replaced by AI</div>
-              </div>
-            </div>
-          )}
-          {phase === 'templates' && (
-            <>
-              <div style={{ fontSize: '.68rem', fontWeight: 700, color: 'var(--ink-3)', marginBottom: '.65rem', textTransform: 'uppercase', letterSpacing: '.08em' }}>Select a background</div>
-              {templates.length === 0
-                ? <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--ink-3)', fontSize: '.85rem' }}>Loading templates...</div>
-                : (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '.5rem' }}>
-                    {templates.map(tpl => (
-                      <div key={tpl.id} onClick={() => generate(tpl)}
-                        style={{ cursor: 'pointer', borderRadius: 10, overflow: 'hidden', border: '2px solid var(--border)', transition: 'border-color .15s,transform .1s' }}
-                        onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--gold)'; e.currentTarget.style.transform = 'scale(1.02)' }}
-                        onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.transform = 'scale(1)' }}>
-                        <img src={tpl.url} alt={tpl.label} style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
-                        <div style={{ padding: '.3rem .4rem', background: 'var(--bg)' }}>
-                          <div style={{ fontSize: '.65rem', fontWeight: 600, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tpl.emoji} {tpl.label}</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-            </>
-          )}
-          {phase === 'loading' && (
-            <div style={{ textAlign: 'center', padding: '2.5rem 0' }}>
-              {selected && <img src={selected.url} style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 12, marginBottom: '1rem', opacity: .6 }} alt="" />}
-              <div style={{ width: 40, height: 40, borderRadius: '50%', border: '3px solid var(--border)', borderTopColor: 'var(--gold)', animation: 'spin-en 1s linear infinite', margin: '0 auto .9rem' }} />
-              <div style={{ fontWeight: 600, color: 'var(--ink)', marginBottom: '.3rem', fontSize: '.9rem' }}>Creating your visual…</div>
-              <div style={{ fontSize: '.75rem', color: 'var(--ink-3)' }}>Removing background · Compositing · ~15 seconds</div>
-            </div>
-          )}
-          {phase === 'result' && (
-            <>
-              <img src={resultUrl} style={{ width: '100%', aspectRatio: '1', objectFit: 'contain', borderRadius: 12, marginBottom: '1rem', background: '#f5f5f5' }} alt="enhanced" />
-              <button onClick={save} disabled={saving}
-                style={{ width: '100%', padding: '.85rem', background: 'linear-gradient(135deg,#c5a66a,#a8863d)', color: '#fff', border: 'none', borderRadius: 10, fontWeight: 600, fontSize: '.88rem', cursor: saving ? 'default' : 'pointer', opacity: saving ? .7 : 1, marginBottom: '.6rem' }}>
-                {saving ? 'Saving…' : '✓ Use this photo'}
-              </button>
-              <button onClick={() => { setPhase('templates'); setResultUrl(null); setSelected(null) }}
-                style={{ width: '100%', padding: '.65rem', background: 'none', border: '1px solid var(--border)', borderRadius: 9, color: 'var(--ink-3)', cursor: 'pointer', fontSize: '.82rem' }}>
-                ← Try another template
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // ── IMAGE EDITOR MODAL ────────────────────────────────────────────────────────
 function ImageEditorModal({ imageUrl, workspaceId, productName = '', onSave, onClose, toast }) {
   useScrollLock()
@@ -274,9 +116,8 @@ function ImageEditorModal({ imageUrl, workspaceId, productName = '', onSave, onC
   const [loaded, setLoaded] = useState(false)
   const [saving, setSaving] = useState(false)
   const [mode, setMode] = useState('adjust')
-  const [showEnhance, setShowEnhance] = useState(false)
-  const [cropAspect, setCropAspect] = useState(null)
   const [crop, setCrop] = useState({ x: 0, y: 0, w: 1, h: 1 })
+  const dragRef = useRef(null)
 
   useEffect(() => {
     fetch(imageUrl).then(r => r.blob()).then(blob => {
@@ -320,17 +161,62 @@ function ImageEditorModal({ imageUrl, workspaceId, productName = '', onSave, onC
 
   function rotate(deg) { setRotation(r => (r + deg + 360) % 360) }
 
-  function applyAspect(a) {
-    setCropAspect(a)
-    if (a === null) { setCrop({ x: 0, y: 0, w: 1, h: 1 }); return }
-    const canvas = canvasRef.current; if (!canvas) return
-    const cw = canvas.width, ch = canvas.height
-    let rw = 1, rh = 1
-    if (a === 1) { const s = Math.min(cw, ch); rw = s / cw; rh = s / ch }
-    else if (a === 0.75) { rw = Math.min(1, ch * 0.75 / cw); rh = Math.min(1, cw / (ch * 0.75)) }
-    else if (a === 1.333) { rh = Math.min(1, cw * 0.75 / ch); rw = Math.min(1, ch * 1.333 / cw) }
-    setCrop({ x: (1 - rw) / 2, y: (1 - rh) / 2, w: rw, h: rh })
+  function getNormCoords(clientX, clientY) {
+    const rect = canvasRef.current.getBoundingClientRect()
+    return { x: (clientX - rect.left) / rect.width, y: (clientY - rect.top) / rect.height }
   }
+
+  function getHitTarget(nx, ny) {
+    const { x, y, w, h } = crop
+    const HS = 0.08
+    if (nx >= x && nx <= x + HS && ny >= y && ny <= y + HS) return 'tl'
+    if (nx >= x + w - HS && nx <= x + w && ny >= y && ny <= y + HS) return 'tr'
+    if (nx >= x && nx <= x + HS && ny >= y + h - HS && ny <= y + h) return 'bl'
+    if (nx >= x + w - HS && nx <= x + w && ny >= y + h - HS && ny <= y + h) return 'br'
+    if (nx >= x && nx <= x + w && ny >= y && ny <= y + h) return 'move'
+    return null
+  }
+
+  function handleDragStart(clientX, clientY) {
+    if (mode !== 'crop') return
+    const { x: nx, y: ny } = getNormCoords(clientX, clientY)
+    const target = getHitTarget(nx, ny)
+    if (!target) return
+    dragRef.current = { type: target, startX: nx, startY: ny, startCrop: { ...crop } }
+  }
+
+  function handleDragMove(clientX, clientY) {
+    if (!dragRef.current) return
+    const { x: nx, y: ny } = getNormCoords(clientX, clientY)
+    const { type, startX, startY, startCrop } = dragRef.current
+    const dx = nx - startX, dy = ny - startY
+    const MIN = 0.05
+    setCrop(() => {
+      let { x, y, w, h } = startCrop
+      if (type === 'move') {
+        x = Math.max(0, Math.min(1 - w, x + dx))
+        y = Math.max(0, Math.min(1 - h, y + dy))
+      } else if (type === 'tl') {
+        const nx2 = Math.max(0, Math.min(x + w - MIN, x + dx))
+        const ny2 = Math.max(0, Math.min(y + h - MIN, y + dy))
+        w = w + (x - nx2); h = h + (y - ny2); x = nx2; y = ny2
+      } else if (type === 'tr') {
+        const ny2 = Math.max(0, Math.min(y + h - MIN, y + dy))
+        h = h + (y - ny2); y = ny2
+        w = Math.max(MIN, Math.min(1 - x, w + dx))
+      } else if (type === 'bl') {
+        const nx2 = Math.max(0, Math.min(x + w - MIN, x + dx))
+        w = w + (x - nx2); x = nx2
+        h = Math.max(MIN, Math.min(1 - y, h + dy))
+      } else if (type === 'br') {
+        w = Math.max(MIN, Math.min(1 - x, w + dx))
+        h = Math.max(MIN, Math.min(1 - y, h + dy))
+      }
+      return { x: Math.max(0, x), y: Math.max(0, y), w: Math.min(1 - x, Math.max(MIN, w)), h: Math.min(1 - y, Math.max(MIN, h)) }
+    })
+  }
+
+  function handleDragEnd() { dragRef.current = null }
 
   async function save() {
     const canvas = canvasRef.current, img = imgRef.current
@@ -377,7 +263,16 @@ function ImageEditorModal({ imageUrl, workspaceId, productName = '', onSave, onC
       </div>
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.25rem', overflow: 'hidden' }}>
         {!loaded && <div style={{ color: 'rgba(255,255,255,.25)', fontSize: '.75rem', letterSpacing: '.1em', textTransform: 'uppercase' }}>Loading…</div>}
-        <canvas ref={canvasRef} style={{ maxWidth: '100%', maxHeight: '100%', display: loaded ? 'block' : 'none', borderRadius: 6 }} />
+        <canvas ref={canvasRef}
+          style={{ maxWidth: '100%', maxHeight: '100%', display: loaded ? 'block' : 'none', borderRadius: 6, touchAction: mode === 'crop' ? 'none' : 'auto', cursor: mode === 'crop' ? 'crosshair' : 'default' }}
+          onTouchStart={e => { if (mode !== 'crop') return; e.preventDefault(); const t = e.touches[0]; handleDragStart(t.clientX, t.clientY) }}
+          onTouchMove={e => { if (mode !== 'crop') return; e.preventDefault(); const t = e.touches[0]; handleDragMove(t.clientX, t.clientY) }}
+          onTouchEnd={handleDragEnd}
+          onMouseDown={e => { if (mode !== 'crop') return; handleDragStart(e.clientX, e.clientY) }}
+          onMouseMove={e => { if (mode !== 'crop') return; handleDragMove(e.clientX, e.clientY) }}
+          onMouseUp={handleDragEnd}
+          onMouseLeave={handleDragEnd}
+        />
       </div>
       <div style={{ padding: '1rem 1.25rem 2.75rem', background: 'rgba(0,0,0,.7)', backdropFilter: 'blur(20px)', flexShrink: 0 }}>
         {mode === 'adjust' && (
@@ -390,40 +285,14 @@ function ImageEditorModal({ imageUrl, workspaceId, productName = '', onSave, onC
                 <span style={{ fontSize: '.55rem', color: 'rgba(255,255,255,.3)', textTransform: 'uppercase', letterSpacing: '.07em' }}>{c.sub}</span>
               </button>
             ))}
-            <button onClick={() => setShowEnhance(true)}
-              style={{ background: 'rgba(197,169,106,.1)', border: '1px solid rgba(197,169,106,.25)', color: 'var(--gold)', borderRadius: 12, width: 68, height: 64, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 5, transition: 'all .15s' }}
-              onMouseEnter={e => e.currentTarget.style.background = 'rgba(197,169,106,.2)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'rgba(197,169,106,.1)'}>
-              <span style={{ fontSize: '.82rem', fontWeight: 700, letterSpacing: '.04em' }}>AI</span>
-              <span style={{ fontSize: '.55rem', color: 'rgba(197,169,106,.5)', textTransform: 'uppercase', letterSpacing: '.07em' }}>Enhance</span>
-            </button>
           </div>
         )}
         {mode === 'crop' && (
-          <div>
-            <div style={{ fontSize: '.6rem', color: 'rgba(255,255,255,.25)', textTransform: 'uppercase', letterSpacing: '.12em', textAlign: 'center', marginBottom: '.6rem' }}>Aspect ratio</div>
-            <div style={{ display: 'flex', justifyContent: 'center', gap: '.4rem', flexWrap: 'wrap' }}>
-              {[{ label: 'Free', val: null }, { label: '1:1', val: 1 }, { label: '3:4', val: 0.75 }, { label: '4:3', val: 1.333 }].map(a => (
-                <button key={a.label} onClick={() => applyAspect(a.val)} style={{ ...tabBtn(cropAspect === a.val), padding: '.4rem .8rem', borderRadius: 8 }}>{a.label}</button>
-              ))}
-            </div>
-            <div style={{ textAlign: 'center', marginTop: '.55rem', fontSize: '.6rem', color: 'rgba(255,255,255,.18)', letterSpacing: '.06em' }}>Tap Done to apply</div>
+          <div style={{ textAlign: 'center', fontSize: '.6rem', color: 'rgba(255,255,255,.25)', letterSpacing: '.08em', padding: '.5rem 0' }}>
+            Drag corners or move to crop
           </div>
         )}
       </div>
-      {showEnhance && (
-        <EnhanceModal imageUrl={imageUrl} imagePreview={imageUrl} workspace={{ id: workspaceId }}
-          onSelect={newUrl => {
-            fetch(newUrl).then(r => r.blob()).then(blob => {
-              const blobUrl = URL.createObjectURL(blob)
-              const img = new Image()
-              img.onload = () => { imgRef.current = img; draw() }
-              img.src = blobUrl
-            })
-            toast('Photo enhanced.'); setShowEnhance(false)
-          }}
-          onClose={() => setShowEnhance(false)} toast={toast} />
-      )}
     </div>
   )
 }

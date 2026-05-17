@@ -296,7 +296,7 @@ const I = {
 
 const PLAN_FEATURES = {
   free: [], essential: [],
-  pro: ['products', 'formations', 'analytics_full', 'ai_enhance', 'custom_branding', 'clients_unlimited'],
+  pro: ['products', 'formations', 'analytics_full', 'custom_branding', 'clients_unlimited'],
 }
 function canAccess(subscription, feature) {
   const plan = subscription?.plan || 'essential'
@@ -310,7 +310,6 @@ function UpgradeGate({ feature }) {
   const INFO = {
     products:   { name:'Product Sales',          desc:'Sell products directly through your booking page.' },
     formations: { name:'Workshops & Formations', desc:'Create and monetize courses, workshops, and events.' },
-    ai_enhance: { name:'AI Photo Enhancement',   desc:'Transform product photos into professional studio shots.' },
     clients_unlimited: { name:'Unlimited Clients', desc:'Remove the 50-client cap on your Essential plan.' },
   }
   const info = INFO[feature] || { name: feature, desc: '' }
