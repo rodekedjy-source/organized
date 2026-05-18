@@ -802,7 +802,7 @@ export default function ClientPage() {
           <div><div className="cb-eyebrow">The Edit</div><h2 className="cb-heading">Shop <em>Picks</em></h2><p className="cb-sub">Products personally tested and recommended. Studio pickup or delivery.</p></div>
           <div className="cb-shop-filters">{['all','hair-care','styling','treatment'].map(f=><button key={f} className={`cb-filter-tab${shopFilter===f?' active':''}`} onClick={()=>setShopFilter(f)}>{f==='all'?'All':f.replace('-',' ').replace(/\b\w/g,l=>l.toUpperCase())}</button>)}</div>
         </div>
-        {featuredProduct&&<div className="cb-featured">
+        {featuredProduct&&<div className="cb-featured" style={{cursor:'pointer'}} onClick={()=>setProductDetail(featuredProduct)}>
           <div className="cb-featured-img" style={{position:'relative'}}>
             {(featuredProduct.image_url||featuredProduct.images?.[0])?<img src={featuredProduct.image_url||featuredProduct.images?.[0]} alt={featuredProduct.name} style={{width:'100%',height:'100%',objectFit:'cover'}}/>:<div className="cb-ph">✦</div>}
             {isDiscountActive(featuredProduct)&&<div className="cb-badge-sale">SALE</div>}
@@ -821,7 +821,7 @@ export default function ClientPage() {
               ):(
                 <div className="cb-product-price">${Number(featuredProduct.price).toFixed(0)}</div>
               )}
-              <button className="cb-add-bag" disabled={featuredProduct.stock===0} onClick={()=>addToCart(featuredProduct)}>{featuredProduct.stock===0?'Sold Out':'Add to Bag'}</button>
+              <button className="cb-add-bag" disabled={featuredProduct.stock===0} onClick={e=>{e.stopPropagation();addToCart(featuredProduct)}}>{featuredProduct.stock===0?'Sold Out':'Add to Bag'}</button>
             </div>
           </div>
         </div>}
@@ -1693,7 +1693,7 @@ const CSS = `
 .cb-enroll-btn{background:var(--btn-bg,var(--gold));color:var(--btn-text,#141210);border:none;padding:11px 20px;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;border-radius:1px;transition:all .25s;white-space:nowrap}
 .cb-enroll-btn:hover{background:var(--gold-light)}
 
-.cb-overlay{position:fixed;inset:0;z-index:900;background:var(--dark);display:flex;flex-direction:column;transform:translateY(100%);transition:transform .42s cubic-bezier(.25,.46,.45,.94)!important;overflow:hidden}
+.cb-overlay{position:fixed;inset:0;z-index:900;background:var(--body-bg,#FAFAF8);display:flex;flex-direction:column;transform:translateY(100%);transition:transform 0.38s cubic-bezier(0.32,0.72,0,1);will-change:transform;overflow:hidden}
 .cb-overlay.open{transform:translateY(0)}
 .cb-ov-header{display:flex;align-items:center;justify-content:space-between;padding:0 20px;height:58px;border-bottom:1px solid var(--dark-4);background:var(--dark-2);flex-shrink:0}
 .cb-ov-back{background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-family:'DM Sans',sans-serif;font-size:12px;padding:8px 0;transition:color .2s;letter-spacing:.04em;min-width:56px}
