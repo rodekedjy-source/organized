@@ -8,6 +8,25 @@ function fileKind(f) {
   if (f.type.startsWith('video/')) return 'video'
   return 'file'
 }
+async function compressImage(file, maxWidth=1200, quality=0.8) {
+  return new Promise(resolve => {
+    const img = new Image()
+    const url = URL.createObjectURL(file)
+    img.onload = () => {
+      const scale = Math.min(1, maxWidth / img.width)
+      const canvas = document.createElement('canvas')
+      canvas.width = img.width * scale
+      canvas.height = img.height * scale
+      const ctx = canvas.getContext('2d')
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+      canvas.toBlob(blob => {
+        resolve(new File([blob], file.name, { type: 'image/jpeg' }))
+        URL.revokeObjectURL(url)
+      }, 'image/jpeg', quality)
+    }
+    img.src = url
+  })
+}
 async function uploadFormationFile(file, workspaceId) {
   const kind = fileKind(file)
   const ext = file.name.split('.').pop()
@@ -48,7 +67,10 @@ function OfferingModal({ offering, workspaceId, onClose, onSaved, toast }) {
     if (!files.length) return
     if (form.media.length + files.length > 5) { toast('Max 5 files per formation.'); return }
     setUploading(true)
-    const results = await Promise.all(files.map(f => uploadFormationFile(f, workspaceId)))
+    const results = await Promise.all(files.map(async f => {
+      const uploadFile = f.type.startsWith('image/') ? await compressImage(f) : f
+      return uploadFormationFile(uploadFile, workspaceId)
+    }))
     const failed = results.filter(r => r.error)
     if (failed.length) toast(`${failed.length} file(s) failed to upload.`)
     const ok = results.filter(r => !r.error)

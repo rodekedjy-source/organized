@@ -192,6 +192,9 @@ export default function ClientPage() {
   const [enrollDone,      setEnrollDone]      = useState(false)
   const [enrollError,     setEnrollError]     = useState('')
   const [offeringDetail,  setOfferingDetail]  = useState(null)
+  const [odSlideIdx,      setOdSlideIdx]      = useState(0)
+  const [odLightboxImg,   setOdLightboxImg]   = useState(null)
+  const odTouchX = useRef(0)
 
   // ── Booking state ─────────────────────────────────────────────────────────
   const [bkOpen,         setBkOpen]         = useState(false)
@@ -287,6 +290,7 @@ export default function ClientPage() {
     document.body.style.overflow = (bkOpen||portfolioOpen||cartOpen||policyOpen||lbOpen||enrollOpen||!!offeringDetail) ? 'hidden' : ''
     return () => { document.body.style.overflow = '' }
   }, [bkOpen, portfolioOpen, cartOpen, policyOpen, lbOpen, enrollOpen, offeringDetail])
+  useEffect(() => { setOdSlideIdx(0); setOdLightboxImg(null) }, [offeringDetail?.id])
 
   // ── BUG 6 — init Stripe on deposit page ───────────────────────────────────
   useEffect(() => {
@@ -980,67 +984,98 @@ export default function ClientPage() {
         const imgs=(od.files||[]).filter(f=>f.kind==='image')
         const pdfs=(od.files||[]).filter(f=>f.kind==='pdf')
         const vids=(od.files||[]).filter(f=>f.kind==='video')
+        const fillPct=od.spots_total>0?Math.min(100,((od.spots_taken||0)/od.spots_total)*100):0
+        const almostFull=fillPct>=80
+        const wDate=od.workshop_date?new Date(od.workshop_date):null
+        const wDateStr=wDate?wDate.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'}):''
+        const wTimeStr=wDate?wDate.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'}):''
+        const hasContent=pdfs.length>0||vids.length>0||!!od.content_url
+        const enrolled=isEnrolled(od.id)
+        const openEnroll=()=>{setOfferingDetail(null);setEnrollOffering(od);setEnrollForm({name:'',email:'',phone:''});setEnrollDone(false);setEnrollError('');setEnrollOpen(true)}
         return(
-          <div className="cb-overlay open" style={{overflowY:'auto'}}>
-            <div className="cb-ov-header" style={{position:'sticky',top:0,zIndex:10,background:'var(--dark)'}}>
-              <button className="cb-ov-back" onClick={()=>setOfferingDetail(null)}>← Back</button>
-              <span className={`cb-type-badge ${isW?'inperson':'online'}`} style={{fontSize:10}}>{isW?'Workshop':'Online Course'}</span>
-              <div style={{fontWeight:700,color:'var(--gold)',fontSize:14}}>{isFr?'Free':`$${Number(od.price).toFixed(0)}`}</div>
+          <div className="cb-overlay open" style={{overflowY:'auto',overflowX:'hidden'}}>
+            {odLightboxImg&&<div className="od-img-lightbox" onClick={()=>setOdLightboxImg(null)}><img src={odLightboxImg} alt=""/></div>}
+            {/* 1. Sticky header */}
+            <div className="od-header">
+              <button className="od-back" onClick={()=>setOfferingDetail(null)}>← Back</button>
+              <span className="od-type-badge">{isW?'Workshop':'Online Course'}</span>
+              <div className="od-header-price">{isFr?'Free':`$${Number(od.price).toFixed(0)}`}</div>
             </div>
-            <div style={{padding:'1.75rem 1.25rem 8rem',maxWidth:640,margin:'0 auto'}}>
-              <h2 style={{fontFamily:'Playfair Display,serif',fontSize:'1.6rem',color:'var(--text)',marginBottom:'.6rem',lineHeight:1.25}}>{od.title}</h2>
-              {od.description&&<p style={{fontSize:15,color:'var(--text-muted)',lineHeight:1.75,marginBottom:'1.5rem',whiteSpace:'pre-wrap'}}>{od.description}</p>}
-              {isW&&od.workshop_date&&(
-                <div style={{background:'var(--dark-3)',borderRadius:12,padding:'1rem 1.25rem',marginBottom:'1rem'}}>
-                  <div style={{fontSize:12,fontWeight:700,color:'var(--gold)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'.5rem'}}>Event Details</div>
-                  <div style={{display:'flex',flexDirection:'column',gap:'.4rem',fontSize:14,color:'var(--text)'}}>
-                    <span>📅 {new Date(od.workshop_date).toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'})}</span>
-                    {od.workshop_location&&<span>📍 {od.workshop_location}</span>}
-                    {od.duration_label&&<span>⏱ {od.duration_label}</span>}
+            {/* 2. Image slider */}
+            <div className="od-slider" onTouchStart={e=>{odTouchX.current=e.touches[0].clientX}} onTouchEnd={e=>{const dx=e.changedTouches[0].clientX-odTouchX.current;if(Math.abs(dx)>40){if(dx<0)setOdSlideIdx(i=>Math.min(i+1,imgs.length-1));else setOdSlideIdx(i=>Math.max(i-1,0))}}}>
+              {imgs.length>0?(
+                <>
+                  <div className="od-slides" style={{transform:`translateX(-${odSlideIdx*100}%)`}}>
+                    {imgs.map((img,i)=><img key={i} src={img.url} alt={img.name} className="od-slide" onClick={()=>setOdLightboxImg(img.url)}/>)}
                   </div>
-                  {od.spots_total>0&&(
-                    <div style={{marginTop:'1rem'}}>
-                      <div style={{display:'flex',justifyContent:'space-between',fontSize:11,marginBottom:4,color:'var(--text-muted)'}}><span>{sl} spot{sl!==1?'s':''} left</span><span>{od.spots_taken||0}/{od.spots_total}</span></div>
-                      <div style={{height:5,background:'var(--dark-4)',borderRadius:3}}><div style={{height:'100%',background:'var(--gold)',borderRadius:3,width:`${Math.min(100,((od.spots_taken||0)/od.spots_total)*100)}%`}}/></div>
-                    </div>
-                  )}
+                  {imgs.length>1&&<>
+                    <div className="od-counter">{odSlideIdx+1} / {imgs.length}</div>
+                    <div className="od-dots">{imgs.map((_,i)=><div key={i} className={`od-dot${i===odSlideIdx?' active':''}`}/>)}</div>
+                  </>}
+                </>
+              ):<div className="od-placeholder">✦</div>}
+            </div>
+            {/* 3. Content */}
+            <div className="od-content">
+              {/* a. Title */}
+              <div className="od-title">{od.title}</div>
+              {/* b. CTA row */}
+              <div className="od-cta-row">
+                <div className="od-price-large">{isFr?<em>Free</em>:`$${Number(od.price).toFixed(0)}`}</div>
+                <button className="od-enroll-btn" disabled={isFu} onClick={openEnroll}>
+                  {isFu?'Sold Out':isW?'Reserve a Spot →':isFr?'Get Access →':`Enroll — $${Number(od.price).toFixed(0)} →`}
+                </button>
+              </div>
+              {/* c. Type + spots row */}
+              <div className="od-type-row">
+                <span className={`cb-type-badge ${isW?'inperson':'online'}`}>{isW?'Workshop':'Online Course'}</span>
+                {isW&&sl!==null&&<span style={{fontSize:'0.72rem',color:sl<(od.spots_total||1)*0.2?'#C0392B':'var(--text-muted)'}}>{sl} spot{sl!==1?'s':''} left</span>}
+              </div>
+              {/* d. Event details card */}
+              {isW&&<div className="od-event-card">
+                <div className="od-event-label">Event Details</div>
+                {wDateStr&&<div className="od-event-row"><div className="od-event-icon"><span style={{fontSize:13}}>📅</span></div><div><div className="od-event-info-label">Date</div><div className="od-event-info-value">{wDateStr}</div></div></div>}
+                {wTimeStr&&<div className="od-event-row"><div className="od-event-icon"><span style={{fontSize:13}}>🕐</span></div><div><div className="od-event-info-label">Time</div><div className="od-event-info-value">{wTimeStr}</div></div></div>}
+                {od.duration_label&&<div className="od-event-row"><div className="od-event-icon"><span style={{fontSize:13}}>⏱</span></div><div><div className="od-event-info-label">Duration</div><div className="od-event-info-value">{od.duration_label}</div></div></div>}
+                <div className="od-event-row"><div className="od-event-icon"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div><div><div className="od-event-info-label">Location</div><div className="od-event-info-value" style={{color:'var(--text-muted)',fontSize:'0.8rem'}}>Address confirmed after enrollment</div></div></div>
+                {od.spots_total>0&&<div className="od-spots-section">
+                  <div className="od-spots-row">
+                    <span className="od-spots-text" style={almostFull?{color:'#C0392B',fontWeight:600}:{}}>{almostFull?'Almost full — ':''}{sl} spot{sl!==1?'s':''} remaining</span>
+                    <span className="od-spots-count">{od.spots_taken||0}/{od.spots_total}</span>
+                  </div>
+                  <div className="od-spots-bar"><div className={`od-spots-fill${almostFull?' urgent':''}`} style={{width:`${fillPct}%`}}/></div>
+                </div>}
+              </div>}
+              {/* e. Divider */}
+              <div style={{height:1,background:'var(--dark-4)',marginBottom:20}}/>
+              {/* f. Description */}
+              {od.description&&<><div className="od-section-label">About</div><p className="od-description">{od.description}</p></>}
+              {/* g. Policy */}
+              {workspace?.policy_enabled&&policyLines.length>0&&<>
+                <div className="od-section-label" style={{marginTop:8}}>Booking Policy</div>
+                {policyLines.map((line,i)=><div key={i} className="cb-policy-line">{line}</div>)}
+                <div style={{marginBottom:20}}/>
+              </>}
+              {/* h. Content gate */}
+              {hasContent&&(enrolled?(
+                <div style={{marginBottom:20}}>
+                  {pdfs.map((f,i)=><a key={i} href={f.url} target="_blank" rel="noreferrer" style={{display:'flex',alignItems:'center',gap:'.5rem',padding:'.65rem 1rem',border:'1px solid var(--dark-4)',borderRadius:9,marginBottom:'.5rem',color:'var(--text)',textDecoration:'none',fontSize:13}}>📄 {f.name}</a>)}
+                  {vids.map((v,i)=><video key={i} src={v.url} controls style={{width:'100%',borderRadius:10,marginBottom:'.75rem'}}/>)}
+                  {od.content_url&&<a href={od.content_url} target="_blank" rel="noreferrer" style={{display:'flex',alignItems:'center',gap:'.5rem',padding:'.65rem 1rem',background:'var(--gold-dim)',border:'1px solid var(--gold-border)',borderRadius:9,marginBottom:'.5rem',color:'var(--gold)',textDecoration:'none',fontSize:13,fontWeight:600}}>→ Access Content</a>}
                 </div>
-              )}
-              {!isW&&od.duration_label&&<div style={{fontSize:13,color:'var(--text-muted)',marginBottom:'1rem'}}>⏱ {od.duration_label}</div>}
-              {(imgs.length>0||pdfs.length>0||vids.length>0||od.content_url)&&(
-                isEnrolled(od.id)?(
-                  <>
-                    {imgs.length>0&&(
-                      <div style={{display:'flex',gap:'.6rem',overflowX:'auto',marginBottom:'1.25rem',paddingBottom:4}}>
-                        {imgs.map((img,i)=><img key={i} src={img.url} alt={img.name} style={{width:200,height:140,objectFit:'cover',borderRadius:10,flexShrink:0}}/>)}
-                      </div>
-                    )}
-                    {pdfs.map((f,i)=><a key={i} href={f.url} target="_blank" rel="noreferrer" style={{display:'flex',alignItems:'center',gap:'.5rem',padding:'.65rem 1rem',border:'1px solid var(--dark-4)',borderRadius:9,marginBottom:'.5rem',color:'var(--text)',textDecoration:'none',fontSize:13}}>📄 {f.name}</a>)}
-                    {vids.map((v,i)=><video key={i} src={v.url} controls style={{width:'100%',borderRadius:10,marginBottom:'.75rem'}}/>)}
-                    {od.content_url&&<a href={od.content_url} target="_blank" rel="noreferrer" style={{display:'flex',alignItems:'center',gap:'.5rem',padding:'.65rem 1rem',background:'var(--gold-dim)',border:'1px solid var(--gold-border)',borderRadius:9,marginBottom:'.5rem',color:'var(--gold)',textDecoration:'none',fontSize:13,fontWeight:600}}>→ Access Content</a>}
-                  </>
-                ):(
-                  <div className="cb-content-gate">
-                    <div className="cb-gate-icon">
-                      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                        <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                      </svg>
-                    </div>
-                    <p className="cb-gate-title">Enroll to access</p>
-                    <p className="cb-gate-sub">{isFr?'Free — enter your email to get instant access':'Purchase this course to unlock the content'}</p>
-                    <button className="cb-enroll-btn" style={{marginTop:16}} onClick={()=>{setOfferingDetail(null);setEnrollOffering(od);setEnrollForm({name:'',email:'',phone:''});setEnrollDone(false);setEnrollError('');setEnrollOpen(true)}}>
-                      {isFr?'Get Access — Free':`Enroll — $${Number(od.price).toFixed(0)}`}
-                    </button>
-                  </div>
-                )
-              )}
-            </div>
-            <div style={{position:'fixed',bottom:0,left:0,right:0,padding:'1rem 1.25rem',background:'var(--dark)',borderTop:'1px solid var(--dark-4)',display:'flex',alignItems:'center',gap:'1rem',zIndex:20}}>
-              <div style={{fontFamily:'Playfair Display,serif',fontSize:18,fontWeight:700,color:'var(--gold)',minWidth:60}}>{isFr?'Free':`$${Number(od.price).toFixed(0)}`}</div>
-              <button className="cb-enroll-btn" disabled={isFu} style={{flex:1,padding:14,fontSize:14,opacity:isFu?.5:1,cursor:isFu?'default':'pointer'}}
-                onClick={()=>{setOfferingDetail(null);setEnrollOffering(od);setEnrollForm({name:'',email:'',phone:''});setEnrollDone(false);setEnrollError('');setEnrollOpen(true)}}>
-                {isFu?'Sold Out':isW?'Reserve a Spot →':isFr?'Enroll Free →':`Enroll — $${Number(od.price).toFixed(0)} →`}
-              </button>
+              ):(
+                <div className="cb-content-gate" style={{marginBottom:20}}>
+                  <div className="cb-gate-icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+                  <p className="cb-gate-title">Enroll to access</p>
+                  <p className="cb-gate-sub">{isFr?'Free — enter your email to get instant access':'Purchase this course to unlock the content'}</p>
+                  <button className="cb-enroll-btn" style={{marginTop:16}} onClick={openEnroll}>{isFr?'Get Access — Free':`Enroll — $${Number(od.price).toFixed(0)}`}</button>
+                </div>
+              ))}
+              {/* i. Footer */}
+              <div className="od-footer">
+                <div className="od-footer-powered">Powered by</div>
+                <span className="od-footer-brand" onClick={()=>window.open('https://beorganized.io','_blank')}>Organized.</span>
+              </div>
             </div>
           </div>
         )
@@ -1516,6 +1551,46 @@ const CSS = `
 .cb-gate-icon{color:var(--accent,var(--gold));margin-bottom:12px}
 .cb-gate-title{font-family:'Playfair Display',serif;font-size:1.1rem;color:var(--text);margin:0 0 8px}
 .cb-gate-sub{font-size:.82rem;color:var(--text-muted);margin:0;line-height:1.5}
+.od-header{position:sticky;top:0;z-index:10;background:var(--nav-bg);display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid rgba(255,255,255,0.08);flex-shrink:0}
+.od-back{color:var(--nav-text);font-size:0.75rem;letter-spacing:.06em;opacity:.8;background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:6px;font-family:'DM Sans',sans-serif}
+.od-type-badge{font-size:0.6rem;letter-spacing:.12em;text-transform:uppercase;padding:4px 12px;border-radius:20px;border:1px solid rgba(255,255,255,0.2);color:var(--nav-text);opacity:.8}
+.od-header-price{font-family:'Playfair Display',serif;color:var(--accent);font-size:1rem}
+.od-slider{height:260px;position:relative;overflow:hidden;background:var(--nav-bg);flex-shrink:0}
+.od-slides{display:flex;height:100%;transition:transform 0.35s cubic-bezier(0.25,0.46,0.45,0.94)}
+.od-slide{min-width:100%;height:100%;object-fit:cover;flex-shrink:0;cursor:zoom-in}
+.od-placeholder{min-width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:2.5rem;color:var(--accent);opacity:.3}
+.od-dots{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);display:flex;gap:5px;pointer-events:none}
+.od-dot{width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,0.4);transition:all .2s}
+.od-dot.active{background:#fff;width:14px;border-radius:3px}
+.od-counter{position:absolute;top:12px;right:12px;font-size:0.6rem;letter-spacing:.1em;color:rgba(255,255,255,0.8);background:rgba(0,0,0,0.35);padding:3px 9px;border-radius:20px;font-family:'DM Sans',sans-serif}
+.od-img-lightbox{position:fixed;inset:0;z-index:999;background:rgba(0,0,0,.96);display:flex;align-items:center;justify-content:center}
+.od-img-lightbox img{max-width:95vw;max-height:90vh;object-fit:contain}
+.od-content{padding:20px 20px 40px}
+.od-title{font-family:'Playfair Display',serif;font-size:1.8rem;font-weight:700;color:var(--text);line-height:1.2;margin-bottom:16px}
+.od-cta-row{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.od-price-large{font-family:'Playfair Display',serif;font-size:1.5rem;color:var(--accent);flex-shrink:0;font-style:italic}
+.od-enroll-btn{flex:1;background:var(--nav-bg);color:var(--nav-text);border:none;border-radius:8px;padding:14px;font-family:'DM Sans',sans-serif;font-size:0.72rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:opacity .2s}
+.od-enroll-btn:disabled{opacity:.4;cursor:default}
+.od-type-row{display:flex;align-items:center;gap:10px;margin-bottom:20px}
+.od-event-card{background:rgba(0,0,0,0.04);border-radius:12px;padding:16px;margin-bottom:20px;border:1px solid var(--dark-4)}
+.od-event-label{font-size:0.58rem;letter-spacing:.15em;text-transform:uppercase;color:var(--accent);font-weight:600;margin-bottom:14px}
+.od-event-row{display:flex;align-items:flex-start;gap:10px;margin-bottom:12px}
+.od-event-row:last-of-type{margin-bottom:0}
+.od-event-icon{width:28px;height:28px;border-radius:6px;background:rgba(201,168,76,0.1);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.od-event-info-label{font-size:0.62rem;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted)}
+.od-event-info-value{font-size:0.85rem;color:var(--text);font-weight:500;margin-top:2px}
+.od-spots-section{margin-top:14px;padding-top:14px;border-top:1px solid var(--dark-4)}
+.od-spots-row{display:flex;justify-content:space-between;margin-bottom:6px}
+.od-spots-text{font-size:0.75rem;color:var(--text-muted)}
+.od-spots-count{font-size:0.75rem;font-weight:600;color:var(--text)}
+.od-spots-bar{height:4px;background:var(--dark-4);border-radius:2px;overflow:hidden}
+.od-spots-fill{height:100%;background:var(--accent);border-radius:2px;transition:width .4s ease}
+.od-spots-fill.urgent{background:#C0392B}
+.od-section-label{font-size:0.58rem;letter-spacing:.15em;text-transform:uppercase;color:var(--accent);font-weight:600;margin-bottom:10px}
+.od-description{font-size:0.88rem;line-height:1.75;color:var(--text-muted);margin-bottom:24px}
+.od-footer{margin-top:32px;background:var(--nav-bg);padding:28px 20px;text-align:center;border-radius:12px}
+.od-footer-powered{font-size:0.55rem;letter-spacing:.2em;text-transform:uppercase;color:rgba(255,255,255,0.35);margin-bottom:6px}
+.od-footer-brand{font-family:'Playfair Display',serif;font-size:1.15rem;color:var(--accent);cursor:pointer;letter-spacing:.06em;display:block;margin-top:4px}
 .cb-enroll-btn{background:var(--btn-bg,var(--gold));color:var(--btn-text,#141210);border:none;padding:11px 20px;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;border-radius:1px;transition:all .25s;white-space:nowrap}
 .cb-enroll-btn:hover{background:var(--gold-light)}
 
