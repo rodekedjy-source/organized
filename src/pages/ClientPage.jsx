@@ -210,6 +210,12 @@ export default function ClientPage() {
   const [checkoutError,      setCheckoutError]      = useState('')
   const [checkoutSubmitting, setCheckoutSubmitting] = useState(false)
   const [checkoutDone,       setCheckoutDone]       = useState(false)
+  const [checkoutAddress,    setCheckoutAddress]    = useState({ street:'', apt:'', city:'', province:'', postal:'', country:'Canada' })
+  const [checkoutPhone,      setCheckoutPhone]      = useState('')
+  const [checkoutAgreed,     setCheckoutAgreed]     = useState(false)
+  const [addressSuggestions, setAddressSuggestions] = useState([])
+  const [addressLoading,     setAddressLoading]     = useState(false)
+  const [cardholderName,     setCardholderName]     = useState('')
   const checkoutStripeRef  = useRef(null)
   const checkoutElementsRef = useRef(null)
   const checkoutCardRef    = useRef(null)
@@ -440,7 +446,42 @@ export default function ClientPage() {
     setCheckoutError('')
     setCheckoutDone(false)
     setCheckoutSecret(null)
+    setCheckoutAddress({ street:'', apt:'', city:'', province:'', postal:'', country:'Canada' })
+    setCheckoutPhone('')
+    setCheckoutAgreed(false)
+    setAddressSuggestions([])
+    setCardholderName('')
     setCheckoutOpen(true)
+  }
+
+  async function fetchAddressSuggestions(query) {
+    if (query.length < 3) { setAddressSuggestions([]); return }
+    setAddressLoading(true)
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5&addressdetails=1`,
+        { headers: { 'Accept-Language': 'en' } }
+      )
+      const data = await res.json()
+      setAddressSuggestions(data)
+    } catch(e) {
+      setAddressSuggestions([])
+    } finally {
+      setAddressLoading(false)
+    }
+  }
+
+  function selectAddress(suggestion) {
+    const a = suggestion.address
+    setCheckoutAddress({
+      street: [a.house_number, a.road].filter(Boolean).join(' '),
+      apt: '',
+      city: a.city || a.town || a.village || '',
+      province: a.state || a.province || '',
+      postal: a.postcode || '',
+      country: a.country || 'Canada',
+    })
+    setAddressSuggestions([])
   }
 
   async function initCheckoutStripe() {
@@ -459,6 +500,13 @@ export default function ClientPage() {
       const price = checkoutItem.type === 'product' && isDiscountActive(checkoutItem.item)
         ? Number(checkoutItem.item.discount_price)
         : Number(checkoutItem.item.price)
+      const shippingAddress = [
+        checkoutAddress.street,
+        checkoutAddress.apt ? checkoutAddress.apt : null,
+        checkoutAddress.city,
+        `${checkoutAddress.province} ${checkoutAddress.postal}`.trim(),
+        checkoutAddress.country,
+      ].filter(Boolean).join(', ')
       const { data, error } = await supabase.functions.invoke('create-checkout-payment-intent', {
         body: {
           workspace_id: workspace.id,
@@ -470,6 +518,7 @@ export default function ClientPage() {
           item_id: checkoutItem.item.id,
           item_name: checkoutItem.type === 'product' ? checkoutItem.item.name : checkoutItem.item.title,
           quantity: checkoutItem.quantity || 1,
+          shipping_address: shippingAddress,
         }
       })
       if (error || !data?.client_secret) { setCheckoutError(data?.error || 'Could not initialize payment. Try again.'); return }
@@ -477,7 +526,10 @@ export default function ClientPage() {
       setCheckoutPiId(data.payment_intent_id)
       const elements = checkoutStripeRef.current.elements({ clientSecret: data.client_secret })
       checkoutElementsRef.current = elements
-      const card = elements.create('card', { style: { base: { color: '#1A0E00', fontFamily: 'DM Sans,sans-serif', fontSize: '14px', '::placeholder': { color: '#9A8A6A' } } } })
+      const card = elements.create('card', {
+        hidePostalCode: true,
+        style: { base: { fontFamily: 'DM Sans, sans-serif', fontSize: '15px', color: '#1A0900', '::placeholder': { color: '#A08050' } } }
+      })
       checkoutCardRef.current = card
       setCheckoutStep(2)
       setTimeout(() => { card.mount('#checkout-card-element') }, 80)
@@ -492,10 +544,29 @@ export default function ClientPage() {
     if (!checkoutStripeRef.current || !checkoutCardRef.current || !checkoutSecret) return
     setCheckoutSubmitting(true)
     setCheckoutError('')
+    const countryCode = checkoutAddress.country === 'Canada' ? 'CA'
+      : checkoutAddress.country === 'United States' ? 'US'
+      : checkoutAddress.country
     try {
       const { paymentIntent, error } = await checkoutStripeRef.current.confirmCardPayment(
         checkoutSecret,
-        { payment_method: { card: checkoutCardRef.current, billing_details: { name: checkoutForm.name, email: checkoutForm.email } } }
+        {
+          payment_method: {
+            card: checkoutCardRef.current,
+            billing_details: {
+              name: cardholderName || checkoutForm.name,
+              email: checkoutForm.email,
+              address: {
+                line1: checkoutAddress.street,
+                line2: checkoutAddress.apt || null,
+                city: checkoutAddress.city,
+                state: checkoutAddress.province,
+                postal_code: checkoutAddress.postal,
+                country: countryCode,
+              }
+            }
+          }
+        }
       )
       if (error) { setCheckoutError(error.message); return }
       if (paymentIntent.status === 'succeeded') { setCheckoutDone(true) }
@@ -1267,76 +1338,133 @@ export default function ClientPage() {
       })()}
 
       {/* ═══════════ CHECKOUT MODAL ═══════════ */}
-      {checkoutOpen&&checkoutItem&&(
-        <div className="cb-overlay open" style={{zIndex:950,background:'var(--body-bg,#FAF5EE)',overflowY:'auto',overflowX:'hidden'}}>
-          {/* Header */}
-          <div className="od-header">
-            <button className="od-back" onClick={()=>{checkoutStep===2&&!checkoutDone?setCheckoutStep(1):setCheckoutOpen(false)}}>
-              {checkoutStep===2&&!checkoutDone?'← Back':'✕'}
-            </button>
-            <span className="od-type-badge">{checkoutItem.type==='product'?'Purchase':'Enrollment'}</span>
-            <div className="od-header-price">
-              {checkoutItem.type==='product'&&isDiscountActive(checkoutItem.item)
-                ?`$${Number(checkoutItem.item.discount_price).toFixed(0)}`
-                :`$${Number(checkoutItem.item.price).toFixed(0)}`}
+      {checkoutOpen&&checkoutItem&&(()=>{
+        const coPrice = checkoutItem.type==='product'&&isDiscountActive(checkoutItem.item)
+          ? Number(checkoutItem.item.discount_price) : Number(checkoutItem.item.price)
+        const coName  = checkoutItem.type==='product' ? checkoutItem.item.name : checkoutItem.item.title
+        const step1Valid = checkoutForm.name.trim()&&checkoutForm.email.trim()&&checkoutAddress.street.trim()&&checkoutAddress.city.trim()&&checkoutAddress.province.trim()&&checkoutAddress.postal.trim()&&checkoutAddress.country.trim()
+        return(
+          <div className="cb-overlay open" style={{zIndex:950,background:'var(--body-bg,#FAF5EE)',overflowY:'auto',overflowX:'hidden'}}>
+            {/* Header */}
+            <div className="od-header">
+              <button className="od-back" onClick={()=>{checkoutStep===2&&!checkoutDone?setCheckoutStep(1):setCheckoutOpen(false)}}>
+                {checkoutStep===2&&!checkoutDone?'← Back':'✕'}
+              </button>
+              <span className="od-type-badge">{checkoutItem.type==='product'?'Purchase':'Enrollment'}</span>
+              <div className="od-header-price">${coPrice.toFixed(0)}</div>
             </div>
-          </div>
 
-          {!checkoutDone?(
-            <div className="od-content">
-              {/* Item summary — always visible */}
-              <div style={{background:'var(--dark-2)',border:'1px solid var(--dark-4)',borderRadius:12,padding:'14px 16px',marginBottom:24,display:'flex',alignItems:'center',justifyContent:'space-between',gap:12}}>
-                <div>
-                  <div style={{fontSize:'0.65rem',letterSpacing:'.1em',textTransform:'uppercase',color:'var(--text-muted)',marginBottom:3}}>{checkoutItem.type==='product'?'Product':'Course'}</div>
-                  <div style={{fontFamily:'Playfair Display,serif',fontSize:'1rem',color:'var(--text)'}}>{checkoutItem.type==='product'?checkoutItem.item.name:checkoutItem.item.title}</div>
-                </div>
-                <div style={{fontFamily:'Playfair Display,serif',fontSize:'1.25rem',color:'var(--accent)',flexShrink:0}}>
-                  {checkoutItem.type==='product'&&isDiscountActive(checkoutItem.item)
-                    ?`$${Number(checkoutItem.item.discount_price).toFixed(0)}`
-                    :`$${Number(checkoutItem.item.price).toFixed(0)}`}
-                </div>
-              </div>
+            {!checkoutDone?(
+              <div className="od-content">
 
-              {checkoutStep===1&&(
-                <>
-                  <div className="od-section-label">Your Details</div>
-                  <div style={{display:'flex',flexDirection:'column',gap:'.65rem',marginBottom:'1.25rem'}}>
-                    <input type="text" value={checkoutForm.name} onChange={e=>setCheckoutForm(f=>({...f,name:e.target.value}))} placeholder="Full name" className="cb-input" style={{margin:0}}/>
-                    <input type="email" value={checkoutForm.email} onChange={e=>setCheckoutForm(f=>({...f,email:e.target.value}))} placeholder="Email address" className="cb-input" style={{margin:0}}/>
+                {/* ── STEP 1 — Contact + Shipping ─────────────────── */}
+                {checkoutStep===1&&(<>
+                  <div className="co-section-label">Contact</div>
+                  <input type="text" className="co-field" placeholder="Full name" required autoComplete="name" value={checkoutForm.name} onChange={e=>setCheckoutForm(f=>({...f,name:e.target.value}))}/>
+                  <input type="email" className="co-field" placeholder="Email address" required autoComplete="email" value={checkoutForm.email} onChange={e=>setCheckoutForm(f=>({...f,email:e.target.value}))}/>
+                  <input type="tel" className="co-field" placeholder="Phone (optional)" autoComplete="tel" value={checkoutPhone} onChange={e=>setCheckoutPhone(e.target.value)}/>
+
+                  <div className="co-section-label">Shipping Address</div>
+                  <div style={{position:'relative'}}>
+                    <input
+                      type="text" className="co-field"
+                      placeholder="Street address" required
+                      autoComplete="street-address"
+                      value={checkoutAddress.street}
+                      onChange={e=>{
+                        setCheckoutAddress(a=>({...a,street:e.target.value}))
+                        fetchAddressSuggestions(e.target.value)
+                      }}
+                    />
+                    {addressSuggestions.length>0&&(
+                      <div className="co-suggestions">
+                        {addressSuggestions.map((s,i)=>(
+                          <div key={i} className="co-suggestion" onClick={()=>selectAddress(s)}>
+                            {s.display_name}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {addressLoading&&<div style={{fontSize:'0.7rem',color:'var(--text-muted)',marginTop:-6,marginBottom:8,paddingLeft:2}}>Searching…</div>}
                   </div>
-                  {checkoutError&&<p style={{fontSize:12,color:'#e05c5c',marginBottom:'1rem',lineHeight:1.5}}>{checkoutError}</p>}
-                  <button className="od-enroll-btn" style={{width:'100%',padding:14,opacity:(!checkoutForm.name.trim()||!checkoutForm.email.trim()||checkoutSubmitting)?0.45:1}} disabled={!checkoutForm.name.trim()||!checkoutForm.email.trim()||checkoutSubmitting} onClick={initCheckoutStripe}>
+                  <input type="text" className="co-field" placeholder="Apt / Suite (optional)" autoComplete="address-line2" value={checkoutAddress.apt} onChange={e=>setCheckoutAddress(a=>({...a,apt:e.target.value}))}/>
+                  <div className="co-field-row">
+                    <input type="text" className="co-field" placeholder="City" required autoComplete="address-level2" value={checkoutAddress.city} onChange={e=>setCheckoutAddress(a=>({...a,city:e.target.value}))}/>
+                    <input type="text" className="co-field" placeholder="Province / State" required autoComplete="address-level1" value={checkoutAddress.province} onChange={e=>setCheckoutAddress(a=>({...a,province:e.target.value}))}/>
+                  </div>
+                  <div className="co-field-row">
+                    <input type="text" className="co-field" placeholder="Postal code" required autoComplete="postal-code" value={checkoutAddress.postal} onChange={e=>setCheckoutAddress(a=>({...a,postal:e.target.value}))}/>
+                    <select className="co-field" autoComplete="country-name" value={checkoutAddress.country} onChange={e=>setCheckoutAddress(a=>({...a,country:e.target.value}))}>
+                      {['Canada','United States','France','Haiti','Other'].map(c=><option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+
+                  {checkoutError&&<p style={{fontSize:12,color:'#e05c5c',margin:'4px 0 12px',lineHeight:1.5}}>{checkoutError}</p>}
+                  <button className="co-pay-btn" style={{marginTop:8,opacity:(!step1Valid||checkoutSubmitting)?0.4:1}} disabled={!step1Valid||checkoutSubmitting} onClick={initCheckoutStripe}>
                     {checkoutSubmitting?'Initializing…':'Continue to Payment →'}
                   </button>
-                </>
-              )}
+                </>)}
 
-              {checkoutStep===2&&(
-                <>
-                  <div className="od-section-label" style={{marginBottom:10}}>Payment</div>
-                  <div id="checkout-card-element" style={{background:'var(--dark-2)',border:'1px solid var(--dark-4)',borderRadius:8,padding:'14px 12px',marginBottom:16}}/>
-                  {checkoutError&&<p style={{fontSize:12,color:'#e05c5c',marginBottom:'.75rem',lineHeight:1.5}}>{checkoutError}</p>}
-                  <button className="od-enroll-btn" style={{width:'100%',padding:14,opacity:checkoutSubmitting?0.55:1}} disabled={checkoutSubmitting} onClick={confirmCheckout}>
-                    {checkoutSubmitting?'Processing…':`Pay $${(checkoutItem.type==='product'&&isDiscountActive(checkoutItem.item)?Number(checkoutItem.item.discount_price):Number(checkoutItem.item.price)).toFixed(0)} →`}
+                {/* ── STEP 2 — Payment + Summary ───────────────────── */}
+                {checkoutStep===2&&(<>
+                  {/* Order summary */}
+                  <div className="co-summary-card">
+                    <div className="co-summary-row">
+                      <span>{coName}</span>
+                      {checkoutItem.type==='product'&&<span>× {checkoutItem.quantity||1}</span>}
+                    </div>
+                    <div className="co-summary-row">
+                      <span>Unit price</span>
+                      <span>${coPrice.toFixed(2)}</span>
+                    </div>
+                    <div className="co-summary-row">
+                      <span>Subtotal</span>
+                      <span>${(coPrice*(checkoutItem.quantity||1)).toFixed(2)}</span>
+                    </div>
+                    <div className="co-summary-row">
+                      <span>Shipping</span>
+                      <span style={{color:'var(--text-muted)',fontStyle:'italic'}}>Calculated by studio</span>
+                    </div>
+                    <div className="co-summary-row co-summary-total">
+                      <span>Total</span>
+                      <span>${(coPrice*(checkoutItem.quantity||1)).toFixed(2)}</span>
+                    </div>
+                  </div>
+
+                  {/* Card fields */}
+                  <div className="co-section-label">Payment</div>
+                  <input type="text" className="co-field" placeholder="Name on card" autoComplete="cc-name" value={cardholderName} onChange={e=>setCardholderName(e.target.value)}/>
+                  <div id="checkout-card-element" className="co-card-element"/>
+
+                  {/* Policy checkbox */}
+                  <label className="cb-policy-agree" style={{marginBottom:20}}>
+                    <input type="checkbox" onChange={e=>setCheckoutAgreed(e.target.checked)} checked={checkoutAgreed}/>
+                    <span>I agree to the{' '}<span style={{color:'var(--accent)'}}>shop policy</span>{' '}and understand all sales are final unless otherwise stated.</span>
+                  </label>
+
+                  {checkoutError&&<p style={{fontSize:12,color:'#e05c5c',marginBottom:12,lineHeight:1.5}}>{checkoutError}</p>}
+                  <button className="co-pay-btn" disabled={!checkoutAgreed||checkoutSubmitting} onClick={confirmCheckout}>
+                    {checkoutSubmitting?'Processing…':`Pay $${coPrice.toFixed(0)} →`}
                   </button>
-                  <div style={{textAlign:'center',marginTop:14,fontSize:'0.68rem',color:'var(--text-muted)',letterSpacing:'.04em'}}>🔒 Secured by Stripe</div>
-                </>
-              )}
-            </div>
-          ):(
-            <div className="od-content" style={{display:'flex',flexDirection:'column',alignItems:'center',textAlign:'center',paddingTop:56}}>
-              <div style={{fontSize:56,marginBottom:16}}>✅</div>
-              <div style={{fontFamily:'Playfair Display,serif',fontSize:'1.6rem',color:'var(--text)',marginBottom:12}}>Payment confirmed!</div>
-              <p style={{fontSize:'0.88rem',color:'var(--text-muted)',lineHeight:1.75,maxWidth:280}}>
-                {checkoutItem.type==='product'
-                  ?'Your order is being prepared. We\'ll be in touch shortly.'
-                  :'Check your inbox — access details are on their way.'}
-              </p>
-              <button onClick={()=>setCheckoutOpen(false)} style={{marginTop:28,background:'none',border:'1px solid var(--dark-4)',color:'var(--text-muted)',padding:'10px 28px',borderRadius:8,cursor:'pointer',fontSize:13,fontFamily:'DM Sans,sans-serif'}}>Close</button>
-            </div>
-          )}
-        </div>
-      )}
+                  <div className="co-secure">🔒 Secured by Stripe</div>
+                </>)}
+
+              </div>
+            ):(
+              <div className="od-content" style={{display:'flex',flexDirection:'column',alignItems:'center',textAlign:'center',paddingTop:56}}>
+                <div style={{fontSize:56,marginBottom:16}}>✅</div>
+                <div style={{fontFamily:'Playfair Display,serif',fontSize:'1.6rem',color:'var(--text)',marginBottom:12}}>Payment confirmed!</div>
+                <p style={{fontSize:'0.88rem',color:'var(--text-muted)',lineHeight:1.75,maxWidth:280}}>
+                  {checkoutItem.type==='product'
+                    ?'Your order is being prepared. We\'ll be in touch shortly.'
+                    :'Check your inbox — access details are on their way.'}
+                </p>
+                <button onClick={()=>setCheckoutOpen(false)} style={{marginTop:28,background:'none',border:'1px solid var(--dark-4)',color:'var(--text-muted)',padding:'10px 28px',borderRadius:8,cursor:'pointer',fontSize:13,fontFamily:'DM Sans,sans-serif'}}>Close</button>
+              </div>
+            )}
+          </div>
+        )
+      })()}
 
       {/* ═══════════ BOOKING OVERLAY ═══════════ */}
       <div className={`cb-overlay${bkOpen?' open':''}`}>
@@ -1929,4 +2057,22 @@ const CSS = `
 .od-stock-low{background:rgba(192,57,43,0.1);color:#C0392B}
 .od-stock-out{background:rgba(0,0,0,0.06);color:var(--text-muted)}
 .od-price-original{font-size:0.9rem;color:var(--text-muted);text-decoration:line-through;margin-right:6px;display:block;margin-bottom:2px}
+
+.co-section-label{font-size:0.6rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--accent);font-weight:600;margin:20px 0 10px}
+.co-field{width:100%;padding:12px 14px;border:1px solid var(--dark-4);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:0.88rem;color:var(--text);background:#fff;margin-bottom:10px;outline:none;transition:border-color 0.2s;box-sizing:border-box;-webkit-appearance:none;display:block}
+.co-field:focus{border-color:var(--accent)}
+.co-field-row{display:flex;gap:10px}
+.co-field-row .co-field{flex:1;min-width:0}
+.co-suggestions{background:#fff;border:1px solid var(--dark-4);border-radius:8px;margin-top:-8px;margin-bottom:10px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.08)}
+.co-suggestion{padding:10px 14px;font-size:0.82rem;color:var(--text);cursor:pointer;border-bottom:1px solid var(--dark-4);line-height:1.4}
+.co-suggestion:last-child{border-bottom:none}
+.co-suggestion:active,.co-suggestion:hover{background:var(--dark-3)}
+.co-summary-card{background:var(--dark-2);border-radius:10px;padding:16px;margin-bottom:20px}
+.co-summary-row{display:flex;justify-content:space-between;font-size:0.82rem;color:var(--text-muted);margin-bottom:6px}
+.co-summary-row:last-child{margin-bottom:0}
+.co-summary-total{font-size:1rem;font-weight:700;color:var(--accent);border-top:1px solid var(--dark-4);padding-top:10px;margin-top:10px}
+.co-card-element{border:1px solid var(--dark-4);border-radius:8px;padding:14px;background:#fff;margin-bottom:16px}
+.co-pay-btn{width:100%;background:var(--nav-bg);color:var(--nav-text);border:none;border-radius:8px;padding:16px;font-family:'DM Sans',sans-serif;font-size:0.78rem;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;cursor:pointer;margin-bottom:12px;transition:opacity 0.2s}
+.co-pay-btn:disabled{opacity:0.4;cursor:default}
+.co-secure{text-align:center;font-size:0.7rem;color:var(--text-muted);letter-spacing:0.05em}
 `
