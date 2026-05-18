@@ -200,6 +200,20 @@ export default function ClientPage() {
   const [pdLightboxImg,   setPdLightboxImg]   = useState(null)
   const pdTouchX = useRef(0)
 
+  // ── Checkout state (shop + learn paid) ───────────────────────────────────
+  const [checkoutOpen,       setCheckoutOpen]       = useState(false)
+  const [checkoutItem,       setCheckoutItem]       = useState(null)
+  const [checkoutSecret,     setCheckoutSecret]     = useState(null)
+  const [checkoutPiId,       setCheckoutPiId]       = useState(null)
+  const [checkoutForm,       setCheckoutForm]       = useState({ name:'', email:'' })
+  const [checkoutStep,       setCheckoutStep]       = useState(1)
+  const [checkoutError,      setCheckoutError]      = useState('')
+  const [checkoutSubmitting, setCheckoutSubmitting] = useState(false)
+  const [checkoutDone,       setCheckoutDone]       = useState(false)
+  const checkoutStripeRef  = useRef(null)
+  const checkoutElementsRef = useRef(null)
+  const checkoutCardRef    = useRef(null)
+
   // ── Booking state ─────────────────────────────────────────────────────────
   const [bkOpen,         setBkOpen]         = useState(false)
   const [bkPage,         setBkPage]         = useState(1)
@@ -291,9 +305,9 @@ export default function ClientPage() {
 
   // ── BUG 9 — scroll lock for all overlays ─────────────────────────────────
   useEffect(() => {
-    document.body.style.overflow = (bkOpen||portfolioOpen||cartOpen||policyOpen||lbOpen||enrollOpen||!!offeringDetail||!!productDetail) ? 'hidden' : ''
+    document.body.style.overflow = (bkOpen||portfolioOpen||cartOpen||policyOpen||lbOpen||enrollOpen||!!offeringDetail||!!productDetail||checkoutOpen) ? 'hidden' : ''
     return () => { document.body.style.overflow = '' }
-  }, [bkOpen, portfolioOpen, cartOpen, policyOpen, lbOpen, enrollOpen, offeringDetail, productDetail])
+  }, [bkOpen, portfolioOpen, cartOpen, policyOpen, lbOpen, enrollOpen, offeringDetail, productDetail, checkoutOpen])
   useEffect(() => { setOdSlideIdx(0); setOdLightboxImg(null) }, [offeringDetail?.id])
   useEffect(() => { setPdSlideIdx(0); setPdLightboxImg(null) }, [productDetail?.id])
 
@@ -416,6 +430,78 @@ export default function ClientPage() {
       const enrolled = JSON.parse(localStorage.getItem('enrolled_offerings') || '[]')
       return enrolled.includes(offeringId)
     } catch { return false }
+  }
+
+  // ── Checkout (shop + paid enrollments) ───────────────────────────────────
+  function openCheckout(type, item) {
+    setCheckoutItem({ type, item, quantity: 1 })
+    setCheckoutForm({ name:'', email:'' })
+    setCheckoutStep(1)
+    setCheckoutError('')
+    setCheckoutDone(false)
+    setCheckoutSecret(null)
+    setCheckoutOpen(true)
+  }
+
+  async function initCheckoutStripe() {
+    setCheckoutSubmitting(true)
+    setCheckoutError('')
+    try {
+      if (!window.Stripe) {
+        await new Promise((res, rej) => {
+          const s = document.createElement('script'); s.src = 'https://js.stripe.com/v3/'
+          s.onload = res; s.onerror = rej; document.head.appendChild(s)
+        })
+      }
+      const pk = import.meta.env.VITE_STRIPE_PK
+      if (!pk) { setCheckoutError('Payment not configured. Contact the studio directly.'); return }
+      checkoutStripeRef.current = window.Stripe(pk)
+      const price = checkoutItem.type === 'product' && isDiscountActive(checkoutItem.item)
+        ? Number(checkoutItem.item.discount_price)
+        : Number(checkoutItem.item.price)
+      const { data, error } = await supabase.functions.invoke('create-checkout-payment-intent', {
+        body: {
+          workspace_id: workspace.id,
+          amount: price,
+          currency: checkoutItem.item.currency?.toLowerCase() || workspace.currency?.toLowerCase() || 'cad',
+          client_name: checkoutForm.name,
+          client_email: checkoutForm.email,
+          order_type: checkoutItem.type,
+          item_id: checkoutItem.item.id,
+          item_name: checkoutItem.type === 'product' ? checkoutItem.item.name : checkoutItem.item.title,
+          quantity: checkoutItem.quantity || 1,
+        }
+      })
+      if (error || !data?.client_secret) { setCheckoutError(data?.error || 'Could not initialize payment. Try again.'); return }
+      setCheckoutSecret(data.client_secret)
+      setCheckoutPiId(data.payment_intent_id)
+      const elements = checkoutStripeRef.current.elements({ clientSecret: data.client_secret })
+      checkoutElementsRef.current = elements
+      const card = elements.create('card', { style: { base: { color: '#1A0E00', fontFamily: 'DM Sans,sans-serif', fontSize: '14px', '::placeholder': { color: '#9A8A6A' } } } })
+      checkoutCardRef.current = card
+      setCheckoutStep(2)
+      setTimeout(() => { card.mount('#checkout-card-element') }, 80)
+    } catch(e) {
+      setCheckoutError('Payment initialization failed. Try again.')
+    } finally {
+      setCheckoutSubmitting(false)
+    }
+  }
+
+  async function confirmCheckout() {
+    if (!checkoutStripeRef.current || !checkoutCardRef.current || !checkoutSecret) return
+    setCheckoutSubmitting(true)
+    setCheckoutError('')
+    try {
+      const { paymentIntent, error } = await checkoutStripeRef.current.confirmCardPayment(
+        checkoutSecret,
+        { payment_method: { card: checkoutCardRef.current, billing_details: { name: checkoutForm.name, email: checkoutForm.email } } }
+      )
+      if (error) { setCheckoutError(error.message); return }
+      if (paymentIntent.status === 'succeeded') { setCheckoutDone(true) }
+    } finally {
+      setCheckoutSubmitting(false)
+    }
   }
 
   // ── Go to page ────────────────────────────────────────────────────────────
@@ -821,7 +907,7 @@ export default function ClientPage() {
               ):(
                 <div className="cb-product-price">${Number(featuredProduct.price).toFixed(0)}</div>
               )}
-              <button className="cb-add-bag" disabled={featuredProduct.stock===0} onClick={e=>{e.stopPropagation();addToCart(featuredProduct)}}>{featuredProduct.stock===0?'Sold Out':'Add to Bag'}</button>
+              <button className="cb-add-bag" disabled={featuredProduct.stock===0} onClick={e=>{e.stopPropagation();Number(featuredProduct.price)>0?openCheckout('product',featuredProduct):addToCart(featuredProduct)}}>{featuredProduct.stock===0?'Sold Out':'Add to Bag'}</button>
             </div>
           </div>
         </div>}
@@ -845,7 +931,7 @@ export default function ClientPage() {
                   ):(
                     <div className="cb-product-price">${Number(p.price).toFixed(0)}</div>
                   )}
-                  <button className="cb-add-bag" disabled={p.stock===0} onClick={e=>{e.stopPropagation();addToCart(p)}}>{p.stock===0?'Sold Out':'Add to Bag'}</button>
+                  <button className="cb-add-bag" disabled={p.stock===0} onClick={e=>{e.stopPropagation();Number(p.price)>0?openCheckout('product',p):addToCart(p)}}>{p.stock===0?'Sold Out':'Add to Bag'}</button>
                 </div>
               </div>
             </div>
@@ -965,7 +1051,7 @@ export default function ClientPage() {
                 </button>
               </>):(<>
                 <p style={{fontSize:13,color:'var(--text-muted)',marginBottom:'1.25rem'}}>Price: <strong style={{color:'var(--gold)'}}>${Number(enrollOffering.price).toFixed(0)}</strong></p>
-                <button onClick={()=>{setEnrollOpen(false)}} className="cb-enroll-btn" style={{width:'100%',padding:14,fontSize:13}}>Pay &amp; Enroll — ${Number(enrollOffering.price).toFixed(0)} → (Coming soon)</button>
+                <button onClick={()=>{setEnrollOpen(false);openCheckout('enrollment',enrollOffering)}} className="cb-enroll-btn" style={{width:'100%',padding:14,fontSize:13}}>Pay &amp; Enroll — ${Number(enrollOffering.price).toFixed(0)} →</button>
               </>)}
             </>):(
               <div style={{textAlign:'center',padding:'2rem 0'}}>
@@ -1128,7 +1214,7 @@ export default function ClientPage() {
                 {p.stock===0?(
                   <button disabled className="od-enroll-btn">Sold Out</button>
                 ):(
-                  <button className="od-enroll-btn" onClick={()=>addToCart(p)}>Add to Bag →</button>
+                  <button className="od-enroll-btn" onClick={()=>Number(p.price)>0?openCheckout('product',p):addToCart(p)}>Add to Bag →</button>
                 )}
               </div>
               {/* c. Stock badge row */}
@@ -1179,6 +1265,78 @@ export default function ClientPage() {
           </div>
         )
       })()}
+
+      {/* ═══════════ CHECKOUT MODAL ═══════════ */}
+      {checkoutOpen&&checkoutItem&&(
+        <div className="cb-overlay open" style={{zIndex:950,background:'var(--body-bg,#FAF5EE)',overflowY:'auto',overflowX:'hidden'}}>
+          {/* Header */}
+          <div className="od-header">
+            <button className="od-back" onClick={()=>{checkoutStep===2&&!checkoutDone?setCheckoutStep(1):setCheckoutOpen(false)}}>
+              {checkoutStep===2&&!checkoutDone?'← Back':'✕'}
+            </button>
+            <span className="od-type-badge">{checkoutItem.type==='product'?'Purchase':'Enrollment'}</span>
+            <div className="od-header-price">
+              {checkoutItem.type==='product'&&isDiscountActive(checkoutItem.item)
+                ?`$${Number(checkoutItem.item.discount_price).toFixed(0)}`
+                :`$${Number(checkoutItem.item.price).toFixed(0)}`}
+            </div>
+          </div>
+
+          {!checkoutDone?(
+            <div className="od-content">
+              {/* Item summary — always visible */}
+              <div style={{background:'var(--dark-2)',border:'1px solid var(--dark-4)',borderRadius:12,padding:'14px 16px',marginBottom:24,display:'flex',alignItems:'center',justifyContent:'space-between',gap:12}}>
+                <div>
+                  <div style={{fontSize:'0.65rem',letterSpacing:'.1em',textTransform:'uppercase',color:'var(--text-muted)',marginBottom:3}}>{checkoutItem.type==='product'?'Product':'Course'}</div>
+                  <div style={{fontFamily:'Playfair Display,serif',fontSize:'1rem',color:'var(--text)'}}>{checkoutItem.type==='product'?checkoutItem.item.name:checkoutItem.item.title}</div>
+                </div>
+                <div style={{fontFamily:'Playfair Display,serif',fontSize:'1.25rem',color:'var(--accent)',flexShrink:0}}>
+                  {checkoutItem.type==='product'&&isDiscountActive(checkoutItem.item)
+                    ?`$${Number(checkoutItem.item.discount_price).toFixed(0)}`
+                    :`$${Number(checkoutItem.item.price).toFixed(0)}`}
+                </div>
+              </div>
+
+              {checkoutStep===1&&(
+                <>
+                  <div className="od-section-label">Your Details</div>
+                  <div style={{display:'flex',flexDirection:'column',gap:'.65rem',marginBottom:'1.25rem'}}>
+                    <input type="text" value={checkoutForm.name} onChange={e=>setCheckoutForm(f=>({...f,name:e.target.value}))} placeholder="Full name" className="cb-input" style={{margin:0}}/>
+                    <input type="email" value={checkoutForm.email} onChange={e=>setCheckoutForm(f=>({...f,email:e.target.value}))} placeholder="Email address" className="cb-input" style={{margin:0}}/>
+                  </div>
+                  {checkoutError&&<p style={{fontSize:12,color:'#e05c5c',marginBottom:'1rem',lineHeight:1.5}}>{checkoutError}</p>}
+                  <button className="od-enroll-btn" style={{width:'100%',padding:14,opacity:(!checkoutForm.name.trim()||!checkoutForm.email.trim()||checkoutSubmitting)?0.45:1}} disabled={!checkoutForm.name.trim()||!checkoutForm.email.trim()||checkoutSubmitting} onClick={initCheckoutStripe}>
+                    {checkoutSubmitting?'Initializing…':'Continue to Payment →'}
+                  </button>
+                </>
+              )}
+
+              {checkoutStep===2&&(
+                <>
+                  <div className="od-section-label" style={{marginBottom:10}}>Payment</div>
+                  <div id="checkout-card-element" style={{background:'var(--dark-2)',border:'1px solid var(--dark-4)',borderRadius:8,padding:'14px 12px',marginBottom:16}}/>
+                  {checkoutError&&<p style={{fontSize:12,color:'#e05c5c',marginBottom:'.75rem',lineHeight:1.5}}>{checkoutError}</p>}
+                  <button className="od-enroll-btn" style={{width:'100%',padding:14,opacity:checkoutSubmitting?0.55:1}} disabled={checkoutSubmitting} onClick={confirmCheckout}>
+                    {checkoutSubmitting?'Processing…':`Pay $${(checkoutItem.type==='product'&&isDiscountActive(checkoutItem.item)?Number(checkoutItem.item.discount_price):Number(checkoutItem.item.price)).toFixed(0)} →`}
+                  </button>
+                  <div style={{textAlign:'center',marginTop:14,fontSize:'0.68rem',color:'var(--text-muted)',letterSpacing:'.04em'}}>🔒 Secured by Stripe</div>
+                </>
+              )}
+            </div>
+          ):(
+            <div className="od-content" style={{display:'flex',flexDirection:'column',alignItems:'center',textAlign:'center',paddingTop:56}}>
+              <div style={{fontSize:56,marginBottom:16}}>✅</div>
+              <div style={{fontFamily:'Playfair Display,serif',fontSize:'1.6rem',color:'var(--text)',marginBottom:12}}>Payment confirmed!</div>
+              <p style={{fontSize:'0.88rem',color:'var(--text-muted)',lineHeight:1.75,maxWidth:280}}>
+                {checkoutItem.type==='product'
+                  ?'Your order is being prepared. We\'ll be in touch shortly.'
+                  :'Check your inbox — access details are on their way.'}
+              </p>
+              <button onClick={()=>setCheckoutOpen(false)} style={{marginTop:28,background:'none',border:'1px solid var(--dark-4)',color:'var(--text-muted)',padding:'10px 28px',borderRadius:8,cursor:'pointer',fontSize:13,fontFamily:'DM Sans,sans-serif'}}>Close</button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ═══════════ BOOKING OVERLAY ═══════════ */}
       <div className={`cb-overlay${bkOpen?' open':''}`}>
