@@ -181,6 +181,7 @@ export default function ClientPage() {
   const [cartItems,      setCartItems]      = useState([])
   const [openFAQ,        setOpenFAQ]        = useState(null)
   const [floatOpen,      setFloatOpen]      = useState(false)
+  const [freeItemsMsg,   setFreeItemsMsg]   = useState('')
   const [shopFilter,     setShopFilter]     = useState('all')
   const [learnFilter,    setLearnFilter]    = useState('all')
 
@@ -316,6 +317,20 @@ export default function ClientPage() {
   }, [bkOpen, portfolioOpen, cartOpen, policyOpen, lbOpen, enrollOpen, offeringDetail, productDetail, checkoutOpen])
   useEffect(() => { setOdSlideIdx(0); setOdLightboxImg(null) }, [offeringDetail?.id])
   useEffect(() => { setPdSlideIdx(0); setPdLightboxImg(null) }, [productDetail?.id])
+
+  // ── Cart sessionStorage — restore on workspace load ───────────────────────
+  useEffect(() => {
+    if (!workspace?.id) return
+    try {
+      const saved = sessionStorage.getItem('organized_cart_' + workspace.id)
+      if (saved) { const parsed = JSON.parse(saved); if (Array.isArray(parsed) && parsed.length > 0) setCartItems(parsed) }
+    } catch(e) {}
+  }, [workspace?.id])
+  // ── Cart sessionStorage — save whenever cart changes ─────────────────────
+  useEffect(() => {
+    if (!workspace?.id) return
+    sessionStorage.setItem('organized_cart_' + workspace.id, JSON.stringify(cartItems))
+  }, [cartItems]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── BUG 6 — init Stripe on deposit page ───────────────────────────────────
   useEffect(() => {
@@ -528,7 +543,7 @@ export default function ClientPage() {
           client_email: checkoutForm.email,
           order_type: checkoutItem.type,
           item_id: checkoutItem.item.id,
-          item_name: checkoutItem.type === 'product' ? checkoutItem.item.name : checkoutItem.item.title,
+          item_name: (checkoutItem.type === 'product' || checkoutItem.type === 'cart') ? checkoutItem.item.name : checkoutItem.item.title,
           quantity: checkoutItem.quantity || 1,
           shipping_address: shippingAddress,
         }
@@ -581,7 +596,13 @@ export default function ClientPage() {
         }
       )
       if (error) { setCheckoutError(error.message); return }
-      if (paymentIntent.status === 'succeeded') { setCheckoutDone(true) }
+      if (paymentIntent.status === 'succeeded') {
+        setCheckoutDone(true)
+        if (checkoutItem?.type === 'cart' || checkoutItem?.type === 'product') {
+          setCartItems([])
+          if (workspace?.id) sessionStorage.removeItem('organized_cart_' + workspace.id)
+        }
+      }
     } finally {
       setCheckoutSubmitting(false)
     }
@@ -746,6 +767,48 @@ export default function ClientPage() {
     if (!p.discount_ends_at) return true
     return new Date(p.discount_ends_at) > new Date()
   }
+  // ── Cart computed: paid vs free split ────────────────────────────────────
+  const paidItems = cartItems.filter(i => isDiscountActive(i) ? Number(i.discount_price) > 0 : Number(i.price) > 0)
+  const freeItems = cartItems.filter(i => isDiscountActive(i) ? Number(i.discount_price) === 0 : Number(i.price) === 0)
+  const paidTotal = paidItems.reduce((s,i) => s + (isDiscountActive(i) ? Number(i.discount_price) : Number(i.price)) * i.qty, 0)
+
+  function openCartCheckout() {
+    if (paidItems.length === 1) {
+      openCheckout('product', paidItems[0])
+      setCartOpen(false)
+      return
+    }
+    const totalQty = paidItems.reduce((s,i) => s+i.qty, 0)
+    setCheckoutItem({
+      type: 'cart',
+      items: paidItems,
+      quantity: totalQty,
+      item: { id: 'cart-' + Date.now(), name: `${paidItems.length} item${paidItems.length!==1?'s':''}`, price: paidTotal, currency: paidItems[0].currency || 'CAD' }
+    })
+    setCheckoutForm({ name:'', email:'' })
+    setCheckoutStep(1)
+    setCheckoutError('')
+    setCheckoutDone(false)
+    setCheckoutSecret(null)
+    setCheckoutAddress({ street:'', apt:'', city:'', province:'', postal:'', country:'Canada' })
+    setCheckoutPhone('')
+    setCheckoutAgreed(false)
+    setAddressSuggestions([])
+    setCardholderName('')
+    setCheckoutOpen(true)
+    setCartOpen(false)
+  }
+
+  function getFreeItems() {
+    setFreeItemsMsg("Check your inbox — we'll be in touch!")
+    setTimeout(() => {
+      setCartItems([])
+      if (workspace?.id) sessionStorage.removeItem('organized_cart_' + workspace.id)
+      setFreeItemsMsg('')
+      setCartOpen(false)
+    }, 2000)
+  }
+
   const featuredProduct = workspace?.featured_product_id ? products.find(p=>p.id===workspace.featured_product_id)||products[0] : products[0]
   const otherProducts   = products.filter(p=>p.id!==featuredProduct?.id)
   const avgRating       = reviews.length ? (reviews.reduce((s,r)=>s+r.rating,0)/reviews.length).toFixed(1) : null
@@ -990,7 +1053,7 @@ export default function ClientPage() {
               ):(
                 <div className="cb-product-price">${Number(featuredProduct.price).toFixed(0)}</div>
               )}
-              <button className="cb-add-bag" disabled={featuredProduct.stock===0} onClick={e=>{e.stopPropagation();Number(featuredProduct.price)>0?openCheckout('product',featuredProduct):addToCart(featuredProduct)}}>{featuredProduct.stock===0?'Sold Out':'Add to Bag'}</button>
+              <button className="cb-add-bag" disabled={featuredProduct.stock===0} onClick={e=>{e.stopPropagation();addToCart(featuredProduct)}}>{featuredProduct.stock===0?'Sold Out':'Add to Bag'}</button>
             </div>
           </div>
         </div>}
@@ -1014,7 +1077,7 @@ export default function ClientPage() {
                   ):(
                     <div className="cb-product-price">${Number(p.price).toFixed(0)}</div>
                   )}
-                  <button className="cb-add-bag" disabled={p.stock===0} onClick={e=>{e.stopPropagation();Number(p.price)>0?openCheckout('product',p):addToCart(p)}}>{p.stock===0?'Sold Out':'Add to Bag'}</button>
+                  <button className="cb-add-bag" disabled={p.stock===0} onClick={e=>{e.stopPropagation();addToCart(p)}}>{p.stock===0?'Sold Out':'Add to Bag'}</button>
                 </div>
               </div>
             </div>
@@ -1296,7 +1359,7 @@ export default function ClientPage() {
                 {p.stock===0?(
                   <button disabled className="od-enroll-btn">Sold Out</button>
                 ):(
-                  <button className="od-enroll-btn" onClick={()=>Number(p.price)>0?openCheckout('product',p):addToCart(p)}>Add to Bag →</button>
+                  <button className="od-enroll-btn" onClick={()=>addToCart(p)}>Add to Bag →</button>
                 )}
               </div>
               {/* c. Stock badge row */}
@@ -1352,7 +1415,7 @@ export default function ClientPage() {
       {checkoutOpen&&checkoutItem&&(()=>{
         const coPrice = checkoutItem.type==='product'&&isDiscountActive(checkoutItem.item)
           ? Number(checkoutItem.item.discount_price) : Number(checkoutItem.item.price)
-        const coName  = checkoutItem.type==='product' ? checkoutItem.item.name : checkoutItem.item.title
+        const coName  = (checkoutItem.type==='product'||checkoutItem.type==='cart') ? checkoutItem.item.name : checkoutItem.item.title
         const step1Valid = checkoutForm.name.trim()&&checkoutForm.email.trim()&&checkoutAddress.street.trim()&&checkoutAddress.city.trim()&&checkoutAddress.province.trim()&&checkoutAddress.postal.trim()&&checkoutAddress.country.trim()
         return(
           <div className="cb-overlay open" style={{zIndex:950,background:'var(--body-bg,#FAF5EE)',overflowY:'auto',overflowX:'hidden'}}>
@@ -1466,7 +1529,7 @@ export default function ClientPage() {
                 <div style={{fontSize:56,marginBottom:16}}>✅</div>
                 <div style={{fontFamily:'Playfair Display,serif',fontSize:'1.6rem',color:'var(--text)',marginBottom:12}}>Payment confirmed!</div>
                 <p style={{fontSize:'0.88rem',color:'var(--text-muted)',lineHeight:1.75,maxWidth:280}}>
-                  {checkoutItem.type==='product'
+                  {(checkoutItem.type==='product'||checkoutItem.type==='cart')
                     ?'Your order is being prepared. We\'ll be in touch shortly.'
                     :'Check your inbox — access details are on their way.'}
                 </p>
@@ -1712,12 +1775,25 @@ export default function ClientPage() {
         <div style={{flex:1,overflowY:'auto',padding:'16px 20px'}}>
           {cartItems.length===0?<div style={{textAlign:'center',padding:'60px 0',color:'var(--text-muted)',fontSize:13}}>Your bag is empty.</div>:cartItems.map(item=><div key={item.id} style={{display:'flex',gap:12,padding:'14px 0',borderBottom:'1px solid var(--dark-4)'}}>
             <div style={{width:44,height:44,background:'var(--dark-4)',borderRadius:2,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>✦</div>
-            <div style={{flex:1}}><div style={{fontSize:13,color:'var(--text)'}}>{item.name}</div><div style={{fontSize:13,color:'var(--gold)',fontFamily:'Playfair Display,serif'}}>${Number(item.price).toFixed(0)}</div><div style={{display:'flex',alignItems:'center',gap:10,marginTop:8}}><button className="cb-qty-btn" onClick={()=>changeQty(item.id,-1)}>−</button><span style={{fontSize:13,color:'var(--text)'}}>{item.qty}</span><button className="cb-qty-btn" onClick={()=>changeQty(item.id,1)}>+</button></div></div>
+            <div style={{flex:1}}><div style={{fontSize:13,color:'var(--text)'}}>{item.name}</div><div style={{fontSize:13,color:'var(--gold)',fontFamily:'Playfair Display,serif'}}>${(isDiscountActive(item)?Number(item.discount_price):Number(item.price)).toFixed(0)}</div><div style={{display:'flex',alignItems:'center',gap:10,marginTop:8}}><button className="cb-qty-btn" onClick={()=>changeQty(item.id,-1)}>−</button><span style={{fontSize:13,color:'var(--text)'}}>{item.qty}</span><button className="cb-qty-btn" onClick={()=>changeQty(item.id,1)}>+</button></div></div>
           </div>)}
         </div>
         {cartItems.length>0&&<div style={{padding:'16px 20px 24px',borderTop:'1px solid var(--dark-4)',flexShrink:0}}>
-          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}><span style={{fontSize:11,letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--text-muted)'}}>Subtotal</span><span style={{fontFamily:'Playfair Display,serif',fontSize:22,color:'var(--gold)'}}>${cartTotal}</span></div>
-          <button className="cb-btn-primary" style={{width:'100%',padding:14}}>Proceed to Checkout →</button>
+          {freeItemsMsg&&<div style={{fontSize:12,color:'var(--gold)',marginBottom:10,textAlign:'center',letterSpacing:'.04em'}}>{freeItemsMsg}</div>}
+          {paidItems.length>0&&(
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+              <span style={{fontSize:11,letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--text-muted)'}}>Subtotal</span>
+              <span style={{fontFamily:'Playfair Display,serif',fontSize:22,color:'var(--gold)'}}>${paidTotal.toFixed(0)}</span>
+            </div>
+          )}
+          {freeItems.length>0&&paidItems.length>0&&(
+            <div style={{fontSize:11,color:'var(--text-muted)',marginBottom:10,textAlign:'center'}}>{freeItems.length} free item{freeItems.length!==1?'s':''} included</div>
+          )}
+          {paidItems.length>0?(
+            <button className="cb-btn-primary" style={{width:'100%',padding:14}} onClick={openCartCheckout}>Checkout — ${paidTotal.toFixed(0)} →</button>
+          ):(
+            <button className="cb-btn-primary" style={{width:'100%',padding:14}} onClick={getFreeItems}>Get Your Items →</button>
+          )}
         </div>}
       </div>
 
