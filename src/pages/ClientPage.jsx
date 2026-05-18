@@ -507,6 +507,18 @@ export default function ClientPage() {
         `${checkoutAddress.province} ${checkoutAddress.postal}`.trim(),
         checkoutAddress.country,
       ].filter(Boolean).join(', ')
+      console.log('checkout payload:', {
+        workspace_id: workspace.id,
+        amount: checkoutItem.type === 'product'
+          ? (isDiscountActive(checkoutItem.item)
+            ? checkoutItem.item.discount_price
+            : checkoutItem.item.price)
+          : checkoutItem.item.price,
+        order_type: checkoutItem.type,
+        item_id: checkoutItem.item.id,
+        client_name: checkoutForm.name,
+        client_email: checkoutForm.email,
+      })
       const { data, error } = await supabase.functions.invoke('create-checkout-payment-intent', {
         body: {
           workspace_id: workspace.id,
@@ -521,7 +533,7 @@ export default function ClientPage() {
           shipping_address: shippingAddress,
         }
       })
-      if (error || !data?.client_secret) { setCheckoutError(data?.error || 'Could not initialize payment. Try again.'); return }
+      if (error || !data?.client_secret) { setCheckoutError('Could not initialize payment: ' + (data?.error || error?.message || JSON.stringify(error))); return }
       setCheckoutSecret(data.client_secret)
       setCheckoutPiId(data.payment_intent_id)
       const elements = checkoutStripeRef.current.elements({ clientSecret: data.client_secret })
@@ -534,7 +546,7 @@ export default function ClientPage() {
       setCheckoutStep(2)
       setTimeout(() => { card.mount('#checkout-card-element') }, 80)
     } catch(e) {
-      setCheckoutError('Payment initialization failed. Try again.')
+      setCheckoutError('Could not initialize payment: ' + (e?.message || JSON.stringify(e)))
     } finally {
       setCheckoutSubmitting(false)
     }
