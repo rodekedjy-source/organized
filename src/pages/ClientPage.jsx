@@ -1061,7 +1061,6 @@ export default function ClientPage() {
                     </div>
                     <div className="cb-offering-title" style={{marginTop:0,marginBottom:6,fontSize:18}}>{o.title}</div>
                     {o.description&&<p className="cb-offering-desc" style={{marginBottom:12,WebkitLineClamp:2,display:'-webkit-box',WebkitBoxOrient:'vertical',overflow:'hidden'}}>{o.description}</p>}
-                    {o.workshop_location&&<div style={{fontSize:12,color:'var(--text-muted)',marginBottom:10}}>📍 {o.workshop_location}</div>}
                     {o.spots_total>0&&(
                       <div style={{marginBottom:14}}>
                         <div style={{display:'flex',justifyContent:'space-between',fontSize:10,marginBottom:4}}>

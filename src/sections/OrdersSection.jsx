@@ -1,6 +1,15 @@
 import { useState, useEffect, useCallback } from 'react'
-import { fetchOrders, updateOrderStatus } from '../api/orders'
+import {
+  fetchOrders,
+  updateOrderStatus,
+  updateOrderTracking,
+  markOrderDelivered,
+  notifyOrderShipped,
+  notifyOrderDelivered,
+} from '../api/orders'
 import { formatCurrency } from '../lib/formatters'
+
+const CARRIERS = ['Canada Post', 'UPS', 'FedEx', 'Purolator', 'Other']
 
 // ── Status badge ──────────────────────────────────────────────────────────────
 function StatusBadge({ status }) {
@@ -8,6 +17,8 @@ function StatusBadge({ status }) {
     pending:   { background: 'var(--bg)', color: 'var(--ink-3)', border: '1px solid var(--border-2)' },
     confirmed: { background: 'rgba(34,197,94,.10)', color: '#16a34a', border: '1px solid rgba(34,197,94,.2)' },
     paid:      { background: 'rgba(34,197,94,.10)', color: '#16a34a', border: '1px solid rgba(34,197,94,.2)' },
+    shipped:   { background: 'rgba(59,130,246,.10)', color: '#2563eb', border: '1px solid rgba(59,130,246,.2)' },
+    delivered: { background: 'rgba(201,168,76,.12)', color: '#92701a', border: '1px solid rgba(201,168,76,.25)' },
     cancelled: { background: 'rgba(192,57,43,.08)', color: 'var(--red)', border: '1px solid rgba(192,57,43,.15)' },
     refunded:  { background: 'rgba(192,57,43,.08)', color: 'var(--red)', border: '1px solid rgba(192,57,43,.15)' },
   }
@@ -19,12 +30,21 @@ function StatusBadge({ status }) {
   )
 }
 
-// ── Order row ─────────────────────────────────────────────────────────────────
-function OrderRow({ order, onStatusChange }) {
-  const [expanded, setExpanded]   = useState(false)
-  const [acting,   setActing]     = useState(false)
+function fmtDate(d) {
+  if (!d) return ''
+  try { return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) }
+  catch { return d }
+}
 
-  const date = new Date(order.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+// ── Order row ─────────────────────────────────────────────────────────────────
+function OrderRow({ order, workspace, onStatusChange, onShip, onDeliver }) {
+  const [expanded,     setExpanded]     = useState(false)
+  const [acting,       setActing]       = useState(false)
+  const [shipCarrier,  setShipCarrier]  = useState(CARRIERS[0])
+  const [shipTracking, setShipTracking] = useState('')
+  const [shipLoading,  setShipLoading]  = useState(false)
+
+  const date    = fmtDate(order.created_at)
   const shortId = order.id.slice(0, 8).toUpperCase()
 
   async function act(newStatus) {
@@ -33,7 +53,26 @@ function OrderRow({ order, onStatusChange }) {
     setActing(false)
   }
 
-  const btnBase = { height: 34, borderRadius: 7, fontSize: '.78rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', border: 'none', padding: '0 1rem', transition: 'opacity .15s' }
+  async function handleSaveShipping() {
+    if (!shipTracking.trim()) return
+    setShipLoading(true)
+    await onShip(order, shipCarrier, shipTracking.trim())
+    setShipLoading(false)
+    setShipTracking('')
+  }
+
+  async function handleMarkDelivered() {
+    setShipLoading(true)
+    await onDeliver(order)
+    setShipLoading(false)
+  }
+
+  const btnBase     = { height: 34, borderRadius: 7, fontSize: '.78rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', border: 'none', padding: '0 1rem', transition: 'opacity .15s' }
+  const inputStyle  = { height: 34, borderRadius: 7, border: '1px solid var(--border-2)', padding: '0 .75rem', fontSize: '.82rem', fontFamily: 'inherit', background: 'var(--bg)', color: 'var(--ink)', outline: 'none', width: '100%', boxSizing: 'border-box' }
+  const selectStyle = { ...inputStyle, cursor: 'pointer' }
+
+  const isShipped   = !!(order.tracking_number)
+  const isDelivered = !!(order.delivered_at)
 
   return (
     <div style={{ borderBottom: '1px solid var(--border)' }}>
@@ -49,9 +88,9 @@ function OrderRow({ order, onStatusChange }) {
           <div style={{ fontWeight: 600, fontSize: '.88rem', color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {order.client_name || '—'}
           </div>
-          {order.client_email && (
+          {order.product_name && (
             <div style={{ fontSize: '.75rem', color: 'var(--ink-3)', marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {order.client_email}
+              {order.product_name}
             </div>
           )}
         </div>
@@ -84,6 +123,8 @@ function OrderRow({ order, onStatusChange }) {
       {/* Expanded detail */}
       {expanded && (
         <div style={{ padding: '0 1.25rem 1rem 1.25rem', borderTop: '1px solid var(--border)', background: 'var(--bg)' }}>
+
+          {/* Meta grid */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '.5rem .75rem', padding: '.75rem 0', fontSize: '.8rem' }}>
             <div>
               <span style={{ color: 'var(--ink-3)', fontSize: '.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.07em' }}>Order ID</span>
@@ -99,11 +140,92 @@ function OrderRow({ order, onStatusChange }) {
                 <div style={{ color: 'var(--ink-2)', marginTop: 2 }}>{order.client_email}</div>
               </div>
             )}
+            {order.shipping_address && (
+              <div style={{ gridColumn: '1 / -1' }}>
+                <span style={{ color: 'var(--ink-3)', fontSize: '.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.07em' }}>Ships to</span>
+                <div style={{ color: 'var(--ink-2)', marginTop: 2, lineHeight: 1.5 }}>{order.shipping_address}</div>
+              </div>
+            )}
           </div>
 
-          {/* Actions */}
-          {(order.status === 'pending' || (order.status !== 'cancelled' && order.status !== 'refunded')) && (
-            <div style={{ display: 'flex', gap: '.5rem', paddingTop: '.5rem' }}>
+          {/* ── SHIPPING SECTION ─────────────────────────────── */}
+          {order.status !== 'cancelled' && order.status !== 'refunded' && (
+            <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1rem', marginTop: '.25rem' }}>
+              <div style={{ fontSize: '.62rem', fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: '.75rem' }}>
+                Shipping
+              </div>
+
+              {/* Not yet shipped */}
+              {!isShipped && !isDelivered && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '.5rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '.5rem' }}>
+                    <div>
+                      <div style={{ fontSize: '.68rem', color: 'var(--ink-3)', marginBottom: 4, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em' }}>Carrier</div>
+                      <select value={shipCarrier} onChange={e => setShipCarrier(e.target.value)} style={selectStyle}>
+                        {CARRIERS.map(c => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '.68rem', color: 'var(--ink-3)', marginBottom: 4, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em' }}>Tracking number</div>
+                      <input
+                        type="text"
+                        placeholder="e.g. 1234567890"
+                        value={shipTracking}
+                        onChange={e => setShipTracking(e.target.value)}
+                        style={inputStyle}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <button
+                      disabled={shipLoading || !shipTracking.trim()}
+                      onClick={handleSaveShipping}
+                      style={{ ...btnBase, background: 'var(--gold)', color: '#fff', opacity: (shipLoading || !shipTracking.trim()) ? .45 : 1 }}
+                    >
+                      {shipLoading ? 'Saving…' : 'Save & Notify Client →'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Shipped, not delivered */}
+              {isShipped && !isDelivered && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '.5rem' }}>
+                  <div style={{ fontSize: '.82rem', color: 'var(--ink-2)', display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
+                    <span><span style={{ color: 'var(--ink-3)', fontWeight: 600 }}>Carrier: </span>{order.carrier}</span>
+                    <span>
+                      <span style={{ color: 'var(--ink-3)', fontWeight: 600 }}>Tracking: </span>
+                      <span style={{ fontFamily: 'monospace', background: 'var(--border)', padding: '1px 5px', borderRadius: 3 }}>{order.tracking_number}</span>
+                    </span>
+                    {order.shipped_at && (
+                      <span><span style={{ color: 'var(--ink-3)', fontWeight: 600 }}>Shipped: </span>{fmtDate(order.shipped_at)}</span>
+                    )}
+                  </div>
+                  <div>
+                    <button
+                      disabled={shipLoading}
+                      onClick={handleMarkDelivered}
+                      style={{ ...btnBase, background: 'var(--gold)', color: '#fff', opacity: shipLoading ? .45 : 1 }}
+                    >
+                      {shipLoading ? 'Saving…' : 'Mark as Delivered'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Delivered */}
+              {isDelivered && (
+                <div style={{ fontSize: '.82rem', color: 'var(--ink-2)' }}>
+                  <span style={{ color: '#16a34a', fontWeight: 600 }}>✓ Delivered</span>
+                  {order.delivered_at && <span style={{ color: 'var(--ink-3)', marginLeft: 6 }}>on {fmtDate(order.delivered_at)}</span>}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Order status actions */}
+          {order.status !== 'cancelled' && order.status !== 'refunded' && order.status !== 'delivered' && (
+            <div style={{ display: 'flex', gap: '.5rem', paddingTop: '.75rem', borderTop: '1px solid var(--border)', marginTop: '.75rem' }}>
               {order.status === 'pending' && (
                 <button
                   disabled={acting}
@@ -112,14 +234,12 @@ function OrderRow({ order, onStatusChange }) {
                   {acting ? 'Saving…' : 'Mark as Confirmed'}
                 </button>
               )}
-              {order.status !== 'cancelled' && order.status !== 'refunded' && (
-                <button
-                  disabled={acting}
-                  onClick={() => act('cancelled')}
-                  style={{ ...btnBase, background: 'transparent', border: '1px solid rgba(192,57,43,.3)', color: 'var(--red)', opacity: acting ? .5 : 1 }}>
-                  {acting ? 'Saving…' : 'Cancel Order'}
-                </button>
-              )}
+              <button
+                disabled={acting}
+                onClick={() => act('cancelled')}
+                style={{ ...btnBase, background: 'transparent', border: '1px solid rgba(192,57,43,.3)', color: 'var(--red)', opacity: acting ? .5 : 1 }}>
+                {acting ? 'Saving…' : 'Cancel Order'}
+              </button>
             </div>
           )}
         </div>
@@ -163,7 +283,25 @@ export default function OrdersSection({ workspace, toast }) {
     load()
   }
 
-  // Stats
+  async function handleShip(order, carrier, tracking_number) {
+    const { error } = await updateOrderTracking(order.id, { carrier, tracking_number })
+    if (error) { toast('Could not save tracking.'); return }
+    const updatedOrder  = { ...order, carrier, tracking_number }
+    const bookingLink   = workspace?.slug ? `https://beorganized.io/${workspace.slug}` : 'https://beorganized.io'
+    await notifyOrderShipped(updatedOrder, workspace?.name || '', bookingLink)
+    await load()
+    toast('Client notified ✓')
+  }
+
+  async function handleDeliver(order) {
+    const { error } = await markOrderDelivered(order.id)
+    if (error) { toast('Could not update order.'); return }
+    const bookingLink = workspace?.slug ? `https://beorganized.io/${workspace.slug}` : 'https://beorganized.io'
+    await notifyOrderDelivered(order, workspace?.name || '', bookingLink)
+    await load()
+    toast('Marked as delivered ✓')
+  }
+
   const total   = orders.length
   const revenue = orders.filter(o => o.payment_status === 'paid').reduce((s, o) => s + Number(o.total_amount || 0), 0)
   const pending = orders.filter(o => o.status === 'pending').length
@@ -181,8 +319,8 @@ export default function OrdersSection({ workspace, toast }) {
       {/* Stats */}
       <div style={{ display: 'flex', gap: '.75rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
         <StatCard label="Total Orders" value={total} />
-        <StatCard label="Revenue" value={formatCurrency(revenue)} />
-        <StatCard label="Pending" value={pending} />
+        <StatCard label="Revenue"      value={formatCurrency(revenue)} />
+        <StatCard label="Pending"      value={pending} />
       </div>
 
       {/* List */}
@@ -198,7 +336,14 @@ export default function OrdersSection({ workspace, toast }) {
           </div>
         ) : (
           orders.map(order => (
-            <OrderRow key={order.id} order={order} onStatusChange={handleStatusChange} />
+            <OrderRow
+              key={order.id}
+              order={order}
+              workspace={workspace}
+              onStatusChange={handleStatusChange}
+              onShip={handleShip}
+              onDeliver={handleDeliver}
+            />
           ))
         )}
       </div>

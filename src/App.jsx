@@ -7,6 +7,7 @@ import Dashboard         from './pages/Dashboard'
 import ClientPage        from './pages/ClientPage'
 import CancelAppointment from './pages/CancelAppointment'
 import ReviewPage        from './pages/ReviewPage'
+import TrackOrder        from './pages/TrackOrder'
 import Legal               from './pages/Legal'
 import AdminConsole        from './pages/AdminConsole'
 import Suspended           from './pages/Suspended'
@@ -73,6 +74,9 @@ export default function App() {
 
       {/* Suspended beta page */}
       <Route path="/suspended" element={<Suspended />} />
+
+      {/* Order tracking — public */}
+      <Route path="/track/:token" element={<TrackOrder />} />
 
       {/* Client booking page — public, must be last */}
       <Route path="/book/:slug" element={<ClientPage />} />
