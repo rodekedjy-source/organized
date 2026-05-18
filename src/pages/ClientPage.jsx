@@ -195,6 +195,10 @@ export default function ClientPage() {
   const [odSlideIdx,      setOdSlideIdx]      = useState(0)
   const [odLightboxImg,   setOdLightboxImg]   = useState(null)
   const odTouchX = useRef(0)
+  const [productDetail,   setProductDetail]   = useState(null)
+  const [pdSlideIdx,      setPdSlideIdx]      = useState(0)
+  const [pdLightboxImg,   setPdLightboxImg]   = useState(null)
+  const pdTouchX = useRef(0)
 
   // ── Booking state ─────────────────────────────────────────────────────────
   const [bkOpen,         setBkOpen]         = useState(false)
@@ -287,10 +291,11 @@ export default function ClientPage() {
 
   // ── BUG 9 — scroll lock for all overlays ─────────────────────────────────
   useEffect(() => {
-    document.body.style.overflow = (bkOpen||portfolioOpen||cartOpen||policyOpen||lbOpen||enrollOpen||!!offeringDetail) ? 'hidden' : ''
+    document.body.style.overflow = (bkOpen||portfolioOpen||cartOpen||policyOpen||lbOpen||enrollOpen||!!offeringDetail||!!productDetail) ? 'hidden' : ''
     return () => { document.body.style.overflow = '' }
-  }, [bkOpen, portfolioOpen, cartOpen, policyOpen, lbOpen, enrollOpen, offeringDetail])
+  }, [bkOpen, portfolioOpen, cartOpen, policyOpen, lbOpen, enrollOpen, offeringDetail, productDetail])
   useEffect(() => { setOdSlideIdx(0); setOdLightboxImg(null) }, [offeringDetail?.id])
+  useEffect(() => { setPdSlideIdx(0); setPdLightboxImg(null) }, [productDetail?.id])
 
   // ── BUG 6 — init Stripe on deposit page ───────────────────────────────────
   useEffect(() => {
@@ -822,7 +827,7 @@ export default function ClientPage() {
         </div>}
         <div className="cb-products-grid">
           {otherProducts.map(p=>(
-            <div key={p.id} className={`cb-product-card${p.stock===0?' sold-out':''}`}>
+            <div key={p.id} className={`cb-product-card${p.stock===0?' sold-out':''}`} onClick={()=>setProductDetail(p)}>
               <div className="cb-product-img">{(p.image_url||p.images?.[0])?<img src={p.image_url||p.images?.[0]} alt={p.name} style={{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'cover'}}/>:<div className="cb-ph">✦</div>}
                 {p.stock===0&&<div className="cb-badge cb-badge-so">Sold Out</div>}
                 {p.stock>0&&p.stock<=3&&<div className="cb-badge cb-badge-lim">Only {p.stock} left</div>}
@@ -840,7 +845,7 @@ export default function ClientPage() {
                   ):(
                     <div className="cb-product-price">${Number(p.price).toFixed(0)}</div>
                   )}
-                  <button className="cb-add-bag" disabled={p.stock===0} onClick={()=>addToCart(p)}>{p.stock===0?'Sold Out':'Add to Bag'}</button>
+                  <button className="cb-add-bag" disabled={p.stock===0} onClick={e=>{e.stopPropagation();addToCart(p)}}>{p.stock===0?'Sold Out':'Add to Bag'}</button>
                 </div>
               </div>
             </div>
@@ -1072,6 +1077,100 @@ export default function ClientPage() {
                 </div>
               ))}
               {/* i. Footer */}
+              <div className="od-footer">
+                <div className="od-footer-powered">Powered by</div>
+                <span className="od-footer-brand" onClick={()=>window.open('https://beorganized.io','_blank')}>Organized.</span>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* ═══════════ PRODUCT DETAIL ═══════════ */}
+      {productDetail&&(()=>{
+        const p=productDetail
+        const imgs=(p.images&&p.images.length>0)?p.images:(p.image_url?[p.image_url]:[])
+        const disc=isDiscountActive(p)
+        const displayPrice=disc?Number(p.discount_price):Number(p.price)
+        return(
+          <div className="cb-overlay open" style={{overflowY:'auto',overflowX:'hidden'}}>
+            {pdLightboxImg&&<div className="od-img-lightbox" onClick={()=>setPdLightboxImg(null)}><img src={pdLightboxImg} alt=""/></div>}
+            {/* 1. Sticky header */}
+            <div className="od-header">
+              <button className="od-back" onClick={()=>setProductDetail(null)}>← Back</button>
+              <span className="od-type-badge">Product</span>
+              <div className="od-header-price">{disc?`$${Number(p.discount_price).toFixed(0)}`:`$${Number(p.price).toFixed(0)}`}</div>
+            </div>
+            {/* 2. Image slider */}
+            <div className="od-slider" onTouchStart={e=>{pdTouchX.current=e.touches[0].clientX}} onTouchEnd={e=>{const dx=e.changedTouches[0].clientX-pdTouchX.current;if(Math.abs(dx)>40){if(dx<0)setPdSlideIdx(i=>Math.min(i+1,imgs.length-1));else setPdSlideIdx(i=>Math.max(i-1,0))}}}>
+              {imgs.length>0?(
+                <>
+                  <div className="od-slides" style={{transform:`translateX(-${pdSlideIdx*100}%)`}}>
+                    {imgs.map((img,i)=><img key={i} src={img} alt={p.name} className="od-slide" onClick={()=>setPdLightboxImg(img)}/>)}
+                  </div>
+                  {imgs.length>1&&<>
+                    <div className="od-counter">{pdSlideIdx+1} / {imgs.length}</div>
+                    <div className="od-dots">{imgs.map((_,i)=><div key={i} className={`od-dot${i===pdSlideIdx?' active':''}`}/>)}</div>
+                  </>}
+                </>
+              ):<div className="od-placeholder">✦</div>}
+            </div>
+            {/* 3. Content */}
+            <div className="od-content">
+              {/* a. Product name */}
+              <div className="od-title">{p.name}</div>
+              {/* b. Price + CTA row */}
+              <div className="od-cta-row">
+                <div>
+                  {disc&&<span className="od-price-original">${Number(p.price).toFixed(0)}</span>}
+                  <span className="od-price-large">${displayPrice.toFixed(0)}</span>
+                </div>
+                {p.stock===0?(
+                  <button disabled className="od-enroll-btn">Sold Out</button>
+                ):(
+                  <button className="od-enroll-btn" onClick={()=>addToCart(p)}>Add to Bag →</button>
+                )}
+              </div>
+              {/* c. Stock badge row */}
+              <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:20,flexWrap:'wrap'}}>
+                {p.stock===0?(
+                  <span className="od-stock-badge od-stock-out">Sold Out</span>
+                ):p.stock<=3?(
+                  <span className="od-stock-badge od-stock-low">Only {p.stock} left</span>
+                ):(
+                  <span className="od-stock-badge od-stock-in">In Stock</span>
+                )}
+                {disc&&p.discount_ends_at&&(
+                  <span style={{fontSize:'0.7rem',color:'var(--text-muted)'}}>Sale ends {new Date(p.discount_ends_at).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span>
+                )}
+              </div>
+              {/* d. Divider */}
+              <div style={{height:1,background:'var(--dark-4)',marginBottom:20}}/>
+              {/* e. Description */}
+              {p.description&&<><div className="od-section-label">About This Product</div><p className="od-description">{p.description}</p></>}
+              {/* f. Shipping info */}
+              <div className="od-event-card" style={{marginBottom:20}}>
+                <div className="od-event-label">Shipping &amp; Pickup</div>
+                <div className="od-event-row">
+                  <div className="od-event-icon">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+                  </div>
+                  <div>
+                    <div className="od-event-info-label">Pickup</div>
+                    <div className="od-event-info-value">Available for studio pickup</div>
+                  </div>
+                </div>
+                <div className="od-event-row">
+                  <div className="od-event-icon">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+                  </div>
+                  <div>
+                    <div className="od-event-info-label">Shipping</div>
+                    <div className="od-event-info-value">Shipping available — contact studio for details</div>
+                  </div>
+                </div>
+              </div>
+              {/* g. Footer */}
               <div className="od-footer">
                 <div className="od-footer-powered">Powered by</div>
                 <span className="od-footer-brand" onClick={()=>window.open('https://beorganized.io','_blank')}>Organized.</span>
@@ -1666,4 +1765,10 @@ const CSS = `
 .cb-cart-drawer.open{transform:translateX(0)}
 .cb-qty-btn{width:22px;height:22px;border:1px solid var(--dark-5);background:transparent;color:var(--text-muted);cursor:pointer;border-radius:1px;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all .15s}
 .cb-qty-btn:hover{border-color:var(--gold-border);color:var(--gold)}
+
+.od-stock-badge{display:inline-flex;align-items:center;gap:5px;font-size:0.65rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;padding:4px 12px;border-radius:20px;margin-bottom:20px}
+.od-stock-in{background:rgba(26,120,80,0.1);color:#1A7850}
+.od-stock-low{background:rgba(192,57,43,0.1);color:#C0392B}
+.od-stock-out{background:rgba(0,0,0,0.06);color:var(--text-muted)}
+.od-price-original{font-size:0.9rem;color:var(--text-muted);text-decoration:line-through;margin-right:6px;display:block;margin-bottom:2px}
 `
