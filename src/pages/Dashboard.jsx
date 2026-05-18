@@ -803,6 +803,7 @@ export default function Dashboard() {
   const [subscription,setSubscription]=useState(null)
   const [lang,setLang]=useState('en')
   const [pendingReviews,setPendingReviews]=useState(0)
+  const [pendingOrders,setPendingOrders]=useState(0)
   const [avatarExpanded,setAvatarExpanded]=useState(false)
   const [avatarUploading,setAvatarUploading]=useState(false)
   const navigate = useNavigate()
@@ -846,6 +847,11 @@ export default function Dashboard() {
     if(ws?.id){
       supabase.from('reviews').select('id',{count:'exact'}).eq('workspace_id',ws.id).eq('is_approved',false)
         .then(({count})=>setPendingReviews(count||0))
+    }
+    // Pending orders badge
+    if(ws?.id){
+      supabase.from('orders').select('id',{count:'exact'}).eq('workspace_id',ws.id).eq('status','confirmed').is('deleted_at',null)
+        .then(({count})=>setPendingOrders(count||0))
     }
   }
 
@@ -1078,6 +1084,9 @@ export default function Dashboard() {
               </div>
               {n.key==='reviews'&&pendingReviews>0&&(
                 <span style={{background:'#f59e0b',color:'#fff',borderRadius:100,padding:'1px 7px',fontSize:'.65rem',fontWeight:700,flexShrink:0}}>{pendingReviews}</span>
+              )}
+              {n.key==='orders'&&pendingOrders>0&&(
+                <span style={{background:'#C9A84C',color:'#1A0900',borderRadius:100,padding:'1px 7px',fontSize:'.65rem',fontWeight:700,flexShrink:0}}>{pendingOrders}</span>
               )}
             </div>
           ))}
