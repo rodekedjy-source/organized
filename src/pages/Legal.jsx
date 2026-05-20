@@ -224,9 +224,9 @@ const css = `
   }
 `
 
-const EFFECTIVE_DATE = 'May 8, 2026'
+const EFFECTIVE_DATE = 'May 19, 2026'
 const COMPANY = 'Organized.'
-const CONTACT_EMAIL = 'legal@beorganized.io'
+const CONTACT_EMAIL = 'hello@beorganized.io'
 const WEBSITE = 'beorganized.io'
 
 function Divider() {
@@ -365,22 +365,6 @@ function TermsContent() {
 
       <div className="legal-section">
         <div className="legal-section-num">Section 12</div>
-        <h2>Responsabilité des Vendeurs et Expédition</h2>
-        <p>{COMPANY} est une plateforme technologique qui permet aux professionnels indépendants de gérer leur business. Les produits, services et formations listés sur les pages des professionnels sont vendus PAR ces professionnels, et non par {COMPANY}.</p>
-        <p>{COMPANY} n'est pas partie prenante dans les transactions commerciales entre les professionnels et leurs clients. À ce titre :</p>
-        <ul>
-          <li>La livraison, les délais d'expédition et les frais de port sont sous l'entière responsabilité du professionnel vendeur.</li>
-          <li>Les politiques de retour et de remboursement sont définies par chaque professionnel indépendamment.</li>
-          <li>{COMPANY} ne peut être tenu responsable des retards, pertes, dommages ou litiges relatifs aux commandes de produits physiques.</li>
-          <li>En cas de litige, le client doit contacter directement le professionnel concerné.</li>
-        </ul>
-        <p>{COMPANY} fournit uniquement l'infrastructure technique permettant aux professionnels de gérer leurs paiements via Stripe. Les fonds sont transférés directement au professionnel vendeur.</p>
-      </div>
-
-      <Divider/>
-
-      <div className="legal-section">
-        <div className="legal-section-num">Section 12 — EN</div>
         <h2>Vendor Responsibility &amp; Shipping</h2>
         <p>{COMPANY} is a technology platform that enables independent professionals to manage their business. Products, services and formations listed on professional pages are sold BY those professionals, not by {COMPANY}.</p>
         <p>{COMPANY} is not a party to commercial transactions between professionals and their clients. Therefore:</p>
@@ -480,7 +464,6 @@ function PrivacyContent() {
           <li><strong>Stripe</strong> — Payment processing and payouts. Stripe's privacy policy governs payment data handling.</li>
           <li><strong>Resend</strong> — Transactional email delivery (booking confirmations, reminders)</li>
           <li><strong>Vercel</strong> — Hosting and content delivery network</li>
-          <li><strong>fal.ai</strong> — AI-powered product photo enhancement (Pro feature; images are processed transiently and not retained)</li>
         </ul>
         <p>Each provider is contractually obligated to protect your information and may not use it for any purpose other than providing services to us.</p>
         <div className="legal-highlight">
