@@ -423,25 +423,23 @@ footer { background:#090907; padding:2.5rem 3rem; border-top:1px solid rgba(255,
 `
 
 const plans = [
-  { tier:'Essential', amt:19, desc:'Everything you need to take bookings and grow your client base.', hot:false,
+  { tier:'Essential', amt:19, desc:'Everything you need to take bookings, sell products, and start teaching.', hot:false,
     feats:[
-      {y:true,  t:'Public profile & booking page'},
-      {y:true,  t:'Dashboard & calendar'},
-      {y:true,  t:'Appointments & scheduling'},
-      {y:true,  t:'Automated reminders — no more no-shows'},
-      {y:true,  t:'Up to 50 active clients'},
-      {y:false, t:'Product shop & formations'},
-      {y:false, t:'AI Product Photo Enhancement'},
-      {y:false, t:'Full analytics & custom branding'},
+      {y:true,  t:'Public booking page'},
+      {y:true,  t:'Shop — sell up to 10 products'},
+      {y:true,  t:'Formations — up to 2 courses'},
+      {y:true,  t:'Automatic booking confirmations'},
+      {y:true,  t:'Client management'},
+      {y:true,  t:'Email notifications'},
     ]},
   { tier:'Pro', amt:39, desc:'For professionals who want to stand out, sell more, and build a brand.', hot:true,
     feats:[
       {y:true, t:'Everything in Essential'},
-      {y:true, t:'Unlimited clients'},
-      {y:true, t:'Product shop & formations'},
-      {y:true, t:'AI Product Photo Enhancement ✦'},
-      {y:true, t:'Full analytics & custom branding'},
+      {y:true, t:'Unlimited products & formations'},
+      {y:true, t:'Order tracking system'},
+      {y:true, t:'Discount & promotional pricing'},
       {y:true, t:'Priority support'},
+      {y:true, t:'Early access to new features'},
     ]},
 ]
 
@@ -463,14 +461,19 @@ const faqs = [
 const COPY = {
   en: {
     nav_how:'How it works', nav_pricing:'Pricing', nav_faq:'FAQ', nav_signin:'Sign in', nav_cta:'Get started free',
-    hero_label:'Built for service professionals',
-    hero_sub_start:"Let your clients book you directly —",
-    hero_sub_strong:"no more back-and-forth\u00A0DMs,",
-    hero_sub_end:"no more confusion, no more missed opportunity.",
+    hero_label:'Built for beauty professionals',
+    hero_sub_start:"Book clients. Sell products. Teach what you know. Everything your beauty business needs — in one place.",
+    hero_sub_strong:"",
+    hero_sub_end:"",
     hero_cta:'Claim Your Spot — Free', hero_see:'See how it works',
-    hero_note:'Early access is open — limited spots · Free during beta · No credit card',
+    hero_note:'Free during beta · No credit card · Limited spots',
     sf_tag:'Sound familiar?', sf_h2_s:'This is how every booking', sf_h2_em:'starts.',
     sf_sub:'Back-and-forth. Every single time. Meanwhile the client loses patience — and you lose money.',
+    sf_pains:[
+      'You sell products but clients pay via e-transfer or cash — no system',
+      'You have skills to teach but no way to sell a course or workshop',
+      'Your revenue is capped at your appointment hours',
+    ],
     sf_quote:'"And that\'s just to confirm one appointment."',
     sf_hint:'Stop managing bookings.', sf_hint_s:'Start taking them.',
     lilas_tag:'The professional we built this for', lilas_h2_s:'This is', lilas_h2_em:'your week.',
@@ -482,9 +485,24 @@ const COPY = {
     after_b:['Zero unanswered messages — clients book themselves','4 hrs/day freed — spent doing what she loves','Never missed a booking again'],
     lilas_q:'"This is the week thousands of service professionals are living right now. We built\u00A0Organized to end it."',
     lilas_attr:'— The Organized. team',
-    phone_tag:'Your public profile', phone_h2_s:'One link.', phone_h2_em:'Everything they need.',
+    phone_tag:'Your public page — three businesses in one', phone_h2_s:'One link.', phone_h2_em:'Everything they need.',
     phone_tab_book:'Book', phone_tab_shop:'Shop', phone_tab_form:'Formations', phone_stitle:'Services', phone_book_btn:'Book',
-    phone_desc:"Drop it in your bio. Your clients book appointments, shop your products, and enroll in your courses — without ever DMing you. You focus on the craft. Organized handles everything else.",
+    phone_desc:"One link your clients can book from, shop from, and learn from.",
+    phone_pills:['📅 Booking','🛍 Shop','🎓 Formations'],
+    shop_tag:'Your shop', shop_h2_s:'Sell products', shop_h2_em:'while you sleep.',
+    shop_desc:'Add your products once. Your clients browse, buy, and track their orders — automatically.',
+    shop_pts:[
+      {icon:'💳',title:'Stripe payments built in',desc:'Funds go directly to your account — no middleman, no delays.'},
+      {icon:'📦',title:'Order tracking by email',desc:'Clients receive automatic updates from purchase to delivery.'},
+      {icon:'⚙️',title:'Full inventory control',desc:'Manage products, discounts, and orders from your dashboard.'},
+    ],
+    learn_tag:'Your academy', learn_h2_s:'Monetize', learn_h2_em:'what you know.',
+    learn_desc:'Create online courses or in-person workshops. Your students enroll, pay, and receive access — all automated.',
+    learn_pts:[
+      {icon:'🎓',title:'Online courses',desc:'Students get instant access after payment — no manual steps.'},
+      {icon:'🗓️',title:'Workshops & in-person',desc:'Manage spots, waitlists, and automatic reminders.'},
+      {icon:'🎯',title:'Free or paid',desc:'You set the price. Offer free resources or monetize your expertise.'},
+    ],
     phone_pts:[
       {icon:'📅',title:'Appointments booked 24/7',desc:'Real-time availability. Automated confirmations. Zero back-and-forth.'},
       {icon:'🛍️',title:'Products sold directly',desc:'Your shop lives on your profile. Clients discover and order instantly.'},
@@ -524,21 +542,26 @@ const COPY = {
     pricing_banner:'Currently free during beta — paid plans coming soon',
     pricing_per:'/month · after beta', pricing_join:"Join beta — it's free", pricing_start:'Start free',
     faq_tag:'Questions', faq_h2_s:"The answers you're", faq_h2_em:'looking for.',
-    cta_label:'The decision', cta_h2_1:'Your craft is', cta_h2_em:'exceptional.', cta_h2_2:'Your system should be too.',
-    cta_sub:"Stop running your business from a DM inbox. Fifteen beta spots. Free access. Honest feedback in return. That's the deal.",
+    cta_label:'The decision', cta_h2_1:'Your craft is', cta_h2_em:'exceptional.', cta_h2_2:'Now build the business around it.',
+    cta_sub:'Bookings, shop, and formations — all from one link.',
     cta_btn:'Claim your beta spot — free', cta_ghost:'Read the FAQ',
     footer_links:['Privacy','Terms','Contact'],
   },
   fr: {
     nav_how:'Comment ça marche', nav_pricing:'Tarifs', nav_faq:'FAQ', nav_signin:'Connexion', nav_cta:'Commencer gratuitement',
-    hero_label:'Conçu pour les professionnelles du service',
-    hero_sub_start:"Laissez vos clients vous réserver directement —",
-    hero_sub_strong:"fini les allers-retours,",
-    hero_sub_end:"la confusion et les occasions manquées.",
+    hero_label:'Conçu pour les pros de la beauté',
+    hero_sub_start:"Prenez des rendez-vous. Vendez vos produits. Monétisez vos compétences. Tout ce dont votre business a besoin — au même endroit.",
+    hero_sub_strong:"",
+    hero_sub_end:"",
     hero_cta:'Réserver ma place — Gratuit', hero_see:'Voir comment ça marche',
-    hero_note:'Accès anticipé ouvert — places limitées · Gratuit en bêta · Sans carte de crédit',
+    hero_note:'Gratuit en beta · Sans carte de crédit · Places limitées',
     sf_tag:'Ça vous parle ?', sf_h2_s:"C'est comme ça que chaque réservation", sf_h2_em:'commence.',
     sf_sub:"Aller-retour. À chaque fois. Pendant ce temps, la cliente perd patience — et vous perdez de l'argent.",
+    sf_pains:[
+      'Vous vendez des produits mais sans système de paiement en ligne',
+      'Vous avez des compétences à enseigner mais aucun moyen de vendre une formation',
+      'Votre revenu est limité à vos heures de rendez-vous',
+    ],
     sf_quote:"\"Et c'est juste pour confirmer un seul rendez-vous.\"",
     sf_hint:'Arrêtez de gérer vos réservations.', sf_hint_s:'Commencez à les prendre.',
     lilas_tag:'La professionnelle pour qui on a tout bâti', lilas_h2_s:"C'est", lilas_h2_em:'votre semaine.',
@@ -550,9 +573,24 @@ const COPY = {
     after_b:["Zéro message sans réponse — les clients réservent eux-mêmes","4h/jour libérées — consacrées à ce qu'elle aime","Plus jamais de réservation manquée"],
     lilas_q:"\"C'est la semaine que vivent des milliers de professionnelles en ce moment. On a bâti\u00A0Organized pour y mettre fin.\"",
     lilas_attr:"— L'équipe Organized.",
-    phone_tag:'Votre profil public', phone_h2_s:'Un seul lien.', phone_h2_em:'Tout ce dont elles ont besoin.',
+    phone_tag:'Votre page publique — trois activités en une', phone_h2_s:'Un seul lien.', phone_h2_em:'Tout ce dont elles ont besoin.',
     phone_tab_book:'Réserver', phone_tab_shop:'Boutique', phone_tab_form:'Formations', phone_stitle:'Services', phone_book_btn:'Réserver',
-    phone_desc:"Mettez-le dans votre bio. Vos clients réservent, magasinent vos produits et s'inscrivent à vos formations — sans jamais vous écrire. Vous vous concentrez sur votre art. Organized gère tout le reste.",
+    phone_desc:"Un seul lien pour prendre rendez-vous, acheter vos produits et accéder à vos formations.",
+    phone_pills:['📅 Réservation','🛍 Boutique','🎓 Formations'],
+    shop_tag:'Votre boutique', shop_h2_s:'Vendez vos produits', shop_h2_em:'pendant que vous dormez.',
+    shop_desc:'Ajoutez vos produits une fois. Vos clients achètent et suivent leurs commandes — automatiquement.',
+    shop_pts:[
+      {icon:'💳',title:'Paiements Stripe intégrés',desc:'Les fonds arrivent directement sur votre compte — sans intermédiaire.'},
+      {icon:'📦',title:'Suivi de commande par email',desc:'Vos clientes reçoivent des mises à jour automatiques de l\'achat à la livraison.'},
+      {icon:'⚙️',title:'Gestion complète des stocks',desc:'Gérez produits, rabais et commandes depuis votre tableau de bord.'},
+    ],
+    learn_tag:'Votre académie', learn_h2_s:'Monétisez', learn_h2_em:'votre expertise.',
+    learn_desc:'Créez des cours en ligne ou des ateliers en personne. Vos étudiants s\'inscrivent, paient et reçoivent l\'accès — automatiquement.',
+    learn_pts:[
+      {icon:'🎓',title:'Cours en ligne',desc:'Accès immédiat après paiement — aucune étape manuelle.'},
+      {icon:'🗓️',title:'Ateliers & en personne',desc:'Gérez les places, listes d\'attente et rappels automatiques.'},
+      {icon:'🎯',title:'Gratuit ou payant',desc:'Vous fixez le prix. Offrez des ressources gratuites ou monétisez votre expertise.'},
+    ],
     phone_pts:[
       {icon:'📅',title:'Rendez-vous 24h/24',desc:'Disponibilités en temps réel. Confirmations automatiques. Zéro aller-retour.'},
       {icon:'🛍️',title:'Produits vendus directement',desc:'Votre boutique est sur votre profil. Les clients découvrent et commandent instantanément.'},
@@ -592,33 +630,31 @@ const COPY = {
     pricing_banner:'Actuellement gratuit en bêta — forfaits payants bientôt',
     pricing_per:'/mois · après la bêta', pricing_join:"Rejoindre la bêta — gratuit", pricing_start:'Commencer gratuitement',
     faq_tag:'Questions', faq_h2_s:"Les réponses que vous", faq_h2_em:'cherchez.',
-    cta_label:'La décision', cta_h2_1:'Votre art est', cta_h2_em:'exceptionnel.', cta_h2_2:"Votre système devrait l'être aussi.",
-    cta_sub:"Arrêtez de gérer votre business depuis une boîte de réception. Quinze places bêta. Accès gratuit. Retours honnêtes en échange. C'est l'accord.",
+    cta_label:'La décision', cta_h2_1:'Votre talent est', cta_h2_em:'exceptionnel.', cta_h2_2:'Construisez maintenant le business autour.',
+    cta_sub:'Rendez-vous, boutique et formations — depuis un seul lien.',
     cta_btn:'Réserver votre place bêta — gratuit', cta_ghost:'Lire la FAQ',
     footer_links:['Confidentialité','Conditions','Contact'],
   }
 }
 
 const plans_fr = [
-  { tier:'Essential', amt:19, desc:'Tout ce dont vous avez besoin pour prendre des réservations et faire grandir votre clientèle.', hot:false,
+  { tier:'Essential', amt:19, desc:'Tout ce dont vous avez besoin pour prendre des réservations, vendre des produits et enseigner.', hot:false,
     feats:[
-      {y:true,  t:'Profil public & page de réservation'},
-      {y:true,  t:'Tableau de bord & calendrier'},
-      {y:true,  t:'Rendez-vous & planification'},
-      {y:true,  t:'Rappels automatiques — fini les no-shows'},
-      {y:true,  t:"Jusqu'à 50 clientes actives"},
-      {y:false, t:'Boutique produits & formations'},
-      {y:false, t:'Amélioration IA des photos produits'},
-      {y:false, t:'Analytiques complètes & branding personnalisé'},
+      {y:true,  t:'Page de réservation publique'},
+      {y:true,  t:'Boutique — jusqu\'à 10 produits'},
+      {y:true,  t:'Formations — jusqu\'à 2 cours'},
+      {y:true,  t:'Confirmations de réservation automatiques'},
+      {y:true,  t:'Gestion des clientes'},
+      {y:true,  t:'Notifications par email'},
     ]},
   { tier:'Pro', amt:39, desc:'Pour les professionnelles qui veulent se démarquer, vendre plus et bâtir une marque.', hot:true,
     feats:[
       {y:true, t:'Tout ce qui est dans Essential'},
-      {y:true, t:'Clientes illimitées'},
-      {y:true, t:'Boutique produits & formations'},
-      {y:true, t:'Amélioration IA des photos produits ✦'},
-      {y:true, t:'Analytiques complètes & branding personnalisé'},
+      {y:true, t:'Produits & formations illimités'},
+      {y:true, t:'Système de suivi des commandes'},
+      {y:true, t:'Rabais & prix promotionnels'},
       {y:true, t:'Support prioritaire'},
+      {y:true, t:'Accès anticipé aux nouvelles fonctionnalités'},
     ]},
 ]
 
@@ -758,9 +794,9 @@ export default function Landing() {
           </div>
           <h1 className="hero-h1">
             {lang==='en' ? (
-              <>Every unanswered{'\u00A0'}<span translate="no">DM</span>{'\u00A0'}is<br/>a booking <em>you lost.</em><br/>You're leaving money<br/>on the <em>table.</em></>
+              <>One link.<br/>Three revenue <em>streams.</em></>
             ) : (
-              <>Chaque <span translate="no">DM</span> sans réponse<br/>est une réservation <em>perdue.</em><br/>Vous laissez de l'argent<br/>sur la <em>table.</em></>
+              <>Un seul lien.<br/>Trois sources de <em>revenus.</em></>
             )}
           </h1>
           <div className="hero-divider"/>
@@ -790,6 +826,13 @@ export default function Landing() {
             </div>
             <h2 className="sf-h2">{t.sf_h2_s} <em>{t.sf_h2_em}</em></h2>
             <p className="sf-sub">{t.sf_sub}</p>
+            {t.sf_pains&&<div style={{display:'flex',flexDirection:'column',gap:'.55rem',marginTop:'1.25rem',textAlign:'left',maxWidth:'380px',margin:'1.25rem auto 0'}}>
+              {t.sf_pains.map((pain,i)=>(
+                <div key={i} style={{display:'flex',alignItems:'flex-start',gap:'.65rem',fontSize:'.84rem',color:'var(--ink-2)',lineHeight:1.45}}>
+                  <span style={{color:'var(--gold)',flexShrink:0,fontWeight:700,marginTop:'1px'}}>—</span>{pain}
+                </div>
+              ))}
+            </div>}
           </div>
 
           {/* 3D Phone */}
@@ -1046,6 +1089,91 @@ export default function Landing() {
                 </div>
                 <div className="ip-footer"><div className="ip-powered">Powered by <span translate="no">Organized.</span></div></div>
               </div>
+            </div>
+            {t.phone_pills&&<div style={{display:'flex',gap:'.6rem',justifyContent:'center',marginTop:'1.5rem',flexWrap:'wrap'}}>
+              {t.phone_pills.map((pill,i)=>(
+                <span key={i} style={{fontSize:'.72rem',fontWeight:500,color:'var(--gold)',background:'rgba(181,137,58,.1)',border:'1px solid rgba(181,137,58,.2)',borderRadius:'100px',padding:'.3rem .85rem',letterSpacing:'.02em'}}>{pill}</span>
+              ))}
+            </div>}
+          </div>
+        </div>
+      </div>
+
+      {/* SHOP SECTION */}
+      <div style={{background:'var(--ink)',padding:'7rem 3.5rem'}}>
+        <div style={{maxWidth:'1100px',margin:'0 auto',display:'grid',gridTemplateColumns:'1fr 1fr',gap:'6rem',alignItems:'center'}} className="phone-inner">
+          <div data-rv="left">
+            <div className="sec-tag"><div className="sec-tag-line"/><span className="sec-tag-text" style={{color:'rgba(181,137,58,.7)'}}>{t.shop_tag}</span></div>
+            <h2 className="phone-h2" style={{color:'#fff'}}>{t.shop_h2_s}<br/><em style={{color:'var(--gold)'}}>{t.shop_h2_em}</em></h2>
+            <p className="phone-desc" style={{color:'rgba(255,255,255,.4)'}}>{t.shop_desc}</p>
+            <div className="phone-points">
+              {t.shop_pts.map((p,i)=>(
+                <div key={i} className="phone-point" data-rv data-delay={i*80}>
+                  <div className="phone-point-icon" style={{background:'rgba(181,137,58,.15)'}}>{p.icon}</div>
+                  <div className="phone-point-text">
+                    <div className="phone-point-title" style={{color:'rgba(255,255,255,.75)'}}>{p.title}</div>
+                    <div className="phone-point-desc" style={{color:'rgba(255,255,255,.35)'}}>{p.desc}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div data-rv="right" data-delay="150" style={{display:'flex',justifyContent:'center'}}>
+            <div style={{background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.08)',borderRadius:'20px',padding:'2rem',width:'100%',maxWidth:'340px'}}>
+              <div style={{fontSize:'.65rem',letterSpacing:'.1em',textTransform:'uppercase',color:'rgba(181,137,58,.6)',fontWeight:500,marginBottom:'1.25rem'}}>Your Shop</div>
+              {[{name:'Argan Oil Treatment',price:'$38',stock:'12 in stock'},{name:'Curl Define Cream',price:'$26',stock:'8 in stock'},{name:'Edge Control Gel',price:'$18',stock:'24 in stock'}].map((item,i)=>(
+                <div key={i} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'.75rem .9rem',background:'rgba(255,255,255,.04)',borderRadius:'10px',marginBottom:'.5rem',border:'1px solid rgba(255,255,255,.06)'}}>
+                  <div>
+                    <div style={{fontSize:'.8rem',fontWeight:500,color:'rgba(255,255,255,.7)',marginBottom:'.15rem'}}>{item.name}</div>
+                    <div style={{fontSize:'.68rem',color:'rgba(255,255,255,.3)'}}>{item.stock}</div>
+                  </div>
+                  <div style={{fontFamily:'Playfair Display,serif',fontSize:'1.05rem',color:'var(--gold)',fontWeight:700}}>{item.price}</div>
+                </div>
+              ))}
+              <div style={{marginTop:'1.25rem',background:'rgba(181,137,58,.12)',border:'1px solid rgba(181,137,58,.2)',borderRadius:'12px',padding:'.85rem',textAlign:'center'}}>
+                <div style={{fontSize:'.68rem',color:'rgba(181,137,58,.7)',letterSpacing:'.06em',textTransform:'uppercase',fontWeight:500}}>This week</div>
+                <div style={{fontFamily:'Playfair Display,serif',fontSize:'1.75rem',color:'var(--gold)',fontWeight:700,marginTop:'.25rem'}}>$364</div>
+                <div style={{fontSize:'.65rem',color:'rgba(255,255,255,.3)',marginTop:'.2rem'}}>14 orders · Stripe payouts daily</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* LEARN / ACADEMY SECTION */}
+      <div style={{background:'var(--cream)',padding:'7rem 3.5rem'}}>
+        <div style={{maxWidth:'1100px',margin:'0 auto',display:'grid',gridTemplateColumns:'1fr 1fr',gap:'6rem',alignItems:'center'}} className="phone-inner">
+          <div data-rv="right" data-delay="150" style={{display:'flex',justifyContent:'center',order:1}}>
+            <div style={{background:'var(--white)',border:'1px solid var(--border)',borderRadius:'20px',padding:'2rem',width:'100%',maxWidth:'340px',boxShadow:'0 16px 48px rgba(0,0,0,.07)'}}>
+              <div style={{fontSize:'.65rem',letterSpacing:'.1em',textTransform:'uppercase',color:'var(--gold)',fontWeight:500,marginBottom:'1.25rem'}}>Your Academy</div>
+              {[{name:'Curl Care Masterclass',type:'Online · 6 modules',enrolled:18,price:'$149'},{name:'Loc Starter Workshop',type:'In-person · 3 hrs',enrolled:6,price:'$95'},{name:'Business Starter Kit',type:'Online · Free',enrolled:34,price:'Free'}].map((course,i)=>(
+                <div key={i} style={{padding:'.75rem .9rem',background:'var(--cream)',borderRadius:'10px',marginBottom:'.5rem',border:'1px solid var(--border)'}}>
+                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'.25rem'}}>
+                    <div style={{fontSize:'.8rem',fontWeight:500,color:'var(--ink)'}}>{course.name}</div>
+                    <div style={{fontFamily:'Playfair Display,serif',fontSize:'1rem',color:'var(--gold)',fontWeight:700,flexShrink:0,marginLeft:'.5rem'}}>{course.price}</div>
+                  </div>
+                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                    <div style={{fontSize:'.68rem',color:'var(--ink-3)'}}>{course.type}</div>
+                    <div style={{fontSize:'.65rem',color:'var(--gold)',background:'rgba(181,137,58,.1)',padding:'.15rem .5rem',borderRadius:'8px'}}>{course.enrolled} enrolled</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div data-rv="left" style={{order:0}}>
+            <div className="sec-tag"><div className="sec-tag-line"/><span className="sec-tag-text">{t.learn_tag}</span></div>
+            <h2 className="phone-h2">{t.learn_h2_s}<br/><em>{t.learn_h2_em}</em></h2>
+            <p className="phone-desc">{t.learn_desc}</p>
+            <div className="phone-points">
+              {t.learn_pts.map((p,i)=>(
+                <div key={i} className="phone-point" data-rv data-delay={i*80}>
+                  <div className="phone-point-icon">{p.icon}</div>
+                  <div className="phone-point-text">
+                    <div className="phone-point-title">{p.title}</div>
+                    <div className="phone-point-desc">{p.desc}</div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
