@@ -488,7 +488,7 @@ const COPY = {
     phone_tag:'Your public page — three businesses in one', phone_h2_s:'One link.', phone_h2_em:'Everything they need.',
     phone_tab_book:'Book', phone_tab_shop:'Shop', phone_tab_form:'Formations', phone_stitle:'Services', phone_book_btn:'Book',
     phone_desc:"One link your clients can book from, shop from, and learn from.",
-    phone_pills:['📅 Booking','🛍 Shop','🎓 Formations'],
+    phone_pills:['Booking','Shop','Formations'],
     shop_tag:'Your shop', shop_h2_s:'Sell products', shop_h2_em:'while you sleep.',
     shop_desc:'Add your products once. Your clients browse, buy, and track their orders — automatically.',
     shop_pts:[
@@ -576,7 +576,7 @@ const COPY = {
     phone_tag:'Votre page publique — trois activités en une', phone_h2_s:'Un seul lien.', phone_h2_em:'Tout ce dont elles ont besoin.',
     phone_tab_book:'Réserver', phone_tab_shop:'Boutique', phone_tab_form:'Formations', phone_stitle:'Services', phone_book_btn:'Réserver',
     phone_desc:"Un seul lien pour prendre rendez-vous, acheter vos produits et accéder à vos formations.",
-    phone_pills:['📅 Réservation','🛍 Boutique','🎓 Formations'],
+    phone_pills:['Réservation','Boutique','Formations'],
     shop_tag:'Votre boutique', shop_h2_s:'Vendez vos produits', shop_h2_em:'pendant que vous dormez.',
     shop_desc:'Ajoutez vos produits une fois. Vos clients achètent et suivent leurs commandes — automatiquement.',
     shop_pts:[
@@ -703,6 +703,43 @@ const SF_MSGS_FR = [
 ]
 const SF_TYPING = [2, 4, 6, 7, 9, 11]
 
+
+const LANDING_THEMES = [
+  {
+    name: 'Rose Blossom',
+    heroBg: '#F2C4CE',
+    navBg: '#3D1A24',
+    navText: '#FFE4EC',
+    accent: '#C4607A',
+    bodyBg: '#FFF8FA',
+    text: '#2A0E18',
+    btnBg: '#3D1A24',
+    btnText: '#FFE4EC',
+  },
+  {
+    name: 'Warm Beige',
+    heroBg: '#D4C4A8',
+    navBg: '#1A0900',
+    navText: '#F0DEB8',
+    accent: '#B8924A',
+    bodyBg: '#FAF5EE',
+    text: '#1A0900',
+    btnBg: '#B8924A',
+    btnText: '#1A0900',
+  },
+  {
+    name: 'Midnight Luxe',
+    heroBg: '#080808',
+    navBg: '#000000',
+    navText: '#C9A84C',
+    accent: '#C9A84C',
+    bodyBg: '#FFFFFF',
+    text: '#0A0A0A',
+    btnBg: '#C9A84C',
+    btnText: '#080808',
+  },
+]
+
 export default function Landing() {
   const navigate = useNavigate()
   const [scrolled, setScrolled] = useState(false)
@@ -711,11 +748,13 @@ export default function Landing() {
   const [sfVisible, setSfVisible] = useState([])
   const [sfTyping, setSfTyping] = useState(null)
   const [sfStarted, setSfStarted] = useState(false)
+  const [themeIdx, setThemeIdx] = useState(0)
   const sfRef = useRef(null)
   const sfEndRef = useRef(null)
   useReveal()
 
   const t = COPY[lang]
+  const theme = LANDING_THEMES[themeIdx]
   const activePlans = lang === 'en' ? plans : plans_fr
   const activeFaqs  = lang === 'en' ? faqs  : faqs_fr
   const SF_MSGS = lang === 'en' ? SF_MSGS_EN : SF_MSGS_FR
@@ -760,6 +799,11 @@ export default function Landing() {
       sfEndRef.current.parentElement.scrollTop = sfEndRef.current.parentElement.scrollHeight
     }
   }, [sfVisible, sfTyping])
+
+  useEffect(() => {
+    const timer = setInterval(() => setThemeIdx(i => (i + 1) % 3), 3000)
+    return () => clearInterval(timer)
+  }, [])
 
   return (
     <div>
@@ -1062,39 +1106,45 @@ export default function Landing() {
           </div>
           <div className="phone-wrap" data-rv="right" data-delay="150">
             <div className="phone-glow-bg"/>
-            <div className="iphone">
-              <div className="iphone-notch"><div className="iphone-pill"/></div>
-              <div className="iphone-body">
-                <div className="ip-topbar"><div className="ip-name">Elixir Hair Studio</div><div className="ip-badge">organized.</div></div>
-                <div className="ip-hero">
-                  <div className="ip-av">E</div>
-                  <div className="ip-title">Elixir Hair Studio</div>
-                  <div className="ip-sub">Natural Hair Specialist · Montreal, QC</div>
+            <div className="iphone" style={{transition:'background 0.5s ease'}}>
+              <div className="iphone-notch" style={{background:theme.navBg,transition:'background 0.4s'}}><div className="iphone-pill" style={{background:theme.navBg}}/></div>
+              <div className="iphone-body" style={{background:theme.bodyBg,transition:'background 0.4s'}}>
+                <div className="ip-topbar" style={{background:theme.navBg,transition:'background 0.4s'}}>
+                  <div className="ip-name" style={{color:theme.navText,transition:'color 0.4s'}}>Elixir Hair Studio</div>
+                  <div className="ip-badge" style={{color:theme.accent,transition:'color 0.4s'}}>organized.</div>
                 </div>
-                <div className="ip-tabs">
-                  <div className="ip-tab on">{t.phone_tab_book}</div>
-                  <div className="ip-tab">{t.phone_tab_shop}</div>
-                  <div className="ip-tab">{t.phone_tab_form}</div>
+                <div className="ip-hero" style={{background:theme.heroBg,transition:'background 0.4s'}}>
+                  <div className="ip-av" style={{background:theme.heroBg,borderColor:theme.accent,color:theme.accent,transition:'background 0.4s, color 0.4s, border-color 0.4s'}}>E</div>
+                  <div className="ip-title" style={{color:theme.text,transition:'color 0.4s'}}>Elixir Hair Studio</div>
+                  <div className="ip-sub" style={{color:theme.text,opacity:.5,transition:'color 0.4s'}}>Natural Hair Specialist · Montreal, QC</div>
+                </div>
+                <div className="ip-tabs" style={{background:theme.navBg,transition:'background 0.4s'}}>
+                  <div className="ip-tab on" style={{color:theme.accent,borderBottomColor:theme.accent,transition:'color 0.4s'}}>{t.phone_tab_book}</div>
+                  <div className="ip-tab" style={{color:theme.navText,opacity:.4,transition:'color 0.4s'}}>{t.phone_tab_shop}</div>
+                  <div className="ip-tab" style={{color:theme.navText,opacity:.4,transition:'color 0.4s'}}>{t.phone_tab_form}</div>
                 </div>
                 <div className="ip-scroll">
-                  <div className="ip-stitle">{t.phone_stitle}</div>
+                  <div className="ip-stitle" style={{color:theme.text,transition:'color 0.4s'}}>{t.phone_stitle}</div>
                   {[['Box Braids','4–6 hrs','$180'],['Silk Press','2 hrs','$95'],['Loc Retwist','1.5 hrs','$120'],['Color & Cut','3 hrs','$220']].map(([n,d,p],i)=>(
                     <div key={i} className="ip-svc">
-                      <div className="ip-bar"/>
-                      <div className="ip-info"><div className="ip-sname">{n}</div><div className="ip-dur">{d}</div></div>
-                      <div className="ip-price">{p}</div>
-                      <button className="ip-book">{t.phone_book_btn}</button>
+                      <div className="ip-bar" style={{background:theme.accent,transition:'background 0.4s'}}/>
+                      <div className="ip-info"><div className="ip-sname" style={{color:theme.text,transition:'color 0.4s'}}>{n}</div><div className="ip-dur">{d}</div></div>
+                      <div className="ip-price" style={{color:theme.accent,transition:'color 0.4s'}}>{p}</div>
+                      <button className="ip-book" style={{background:theme.btnBg,color:theme.btnText,transition:'background 0.4s, color 0.4s'}}>{t.phone_book_btn}</button>
                     </div>
                   ))}
                 </div>
-                <div className="ip-footer"><div className="ip-powered">Powered by <span translate="no">Organized.</span></div></div>
+                <div className="ip-footer" style={{background:theme.bodyBg,transition:'background 0.4s'}}><div className="ip-powered" style={{color:theme.accent,transition:'color 0.4s'}}>Powered by <span translate="no">Organized.</span></div></div>
               </div>
             </div>
-            {t.phone_pills&&<div style={{display:'flex',gap:'.6rem',justifyContent:'center',marginTop:'1.5rem',flexWrap:'wrap'}}>
-              {t.phone_pills.map((pill,i)=>(
-                <span key={i} style={{fontSize:'.72rem',fontWeight:500,color:'var(--gold)',background:'rgba(181,137,58,.1)',border:'1px solid rgba(181,137,58,.2)',borderRadius:'100px',padding:'.3rem .85rem',letterSpacing:'.02em'}}>{pill}</span>
-              ))}
-            </div>}
+            <div style={{textAlign:'center',marginTop:'1.5rem'}}>
+              <div style={{display:'inline-block',fontSize:'.7rem',fontWeight:500,color:'var(--gold)',background:'rgba(181,137,58,.08)',border:'1px solid rgba(181,137,58,.2)',borderRadius:'100px',padding:'.25rem .9rem',letterSpacing:'.06em',textTransform:'uppercase',marginBottom:'.75rem',transition:'opacity 0.3s ease'}}>{theme.name}</div>
+              {t.phone_pills&&<div style={{display:'flex',gap:'.6rem',justifyContent:'center',flexWrap:'wrap'}}>
+                {t.phone_pills.map((pill,i)=>(
+                  <span key={i} style={{fontSize:'.72rem',fontWeight:500,color:'var(--gold)',background:'rgba(181,137,58,.1)',border:'1px solid rgba(181,137,58,.2)',borderRadius:'100px',padding:'.3rem .85rem',letterSpacing:'.02em'}}>{pill}</span>
+                ))}
+              </div>}
+            </div>
           </div>
         </div>
       </div>
@@ -1317,7 +1367,7 @@ export default function Landing() {
                           <div style={{width:4,height:4,borderRadius:'50%',background:'#4ade80'}}/>3 confirmed
                         </div>
                       </div>
-                      {[['A','Amara D.','Box Braids','10:00 AM','$180','#8b5cf6'],['K','Kezia B.','Silk Press','1:00 PM','$95','#ec4899'],['Z','Zoe M.','Loc Retwist','4:30 PM','$120','#f97316']].map(([av,name,svc,time,price,col],i)=>(
+                      {[['A','Amara D.','Box Braids','10:00 AM','$180','#8b5cf6'],['K','Kezia B.','Silk Press','1:00 PM','$95','#ec4899'],['M','Maya T.','Color & Cut','4:30 PM','$220','#f97316']].map(([av,name,svc,time,price,col],i)=>(
                         <div key={i} style={{display:'flex',alignItems:'center',gap:'.45rem',padding:'.35rem 0',borderTop:i>0?'1px solid var(--border)':'none'}}>
                           <div style={{width:24,height:24,borderRadius:'50%',background:col,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'.52rem',fontWeight:700,color:'#fff',flexShrink:0}}>{av}</div>
                           <div style={{flex:1,minWidth:0}}>
