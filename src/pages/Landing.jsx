@@ -1104,9 +1104,9 @@ export default function Landing() {
               ))}
             </div>
           </div>
-          <div className="phone-wrap" data-rv="right" data-delay="150">
+          <div className="phone-wrap" data-rv="right" data-delay="150" style={{display:'flex',flexDirection:'column',alignItems:'center',gap:'24px',width:'100%',maxWidth:'480px',margin:'0 auto'}}>
             <div className="phone-glow-bg"/>
-            <div className="iphone" style={{transition:'background 0.5s ease'}}>
+            <div className="iphone" style={{width:'min(320px, 85vw)',margin:'0 auto',transition:'background 0.5s ease'}}>
               <div className="iphone-notch" style={{background:theme.navBg,transition:'background 0.4s'}}><div className="iphone-pill" style={{background:theme.navBg}}/></div>
               <div className="iphone-body" style={{background:theme.bodyBg,transition:'background 0.4s'}}>
                 <div className="ip-topbar" style={{background:theme.navBg,transition:'background 0.4s'}}>
@@ -1137,9 +1137,9 @@ export default function Landing() {
                 <div className="ip-footer" style={{background:theme.bodyBg,transition:'background 0.4s'}}><div className="ip-powered" style={{color:theme.accent,transition:'color 0.4s'}}>Powered by <span translate="no">Organized.</span></div></div>
               </div>
             </div>
-            <div style={{textAlign:'center',marginTop:'1.5rem'}}>
-              <div style={{display:'inline-block',fontSize:'.7rem',fontWeight:500,color:'var(--gold)',background:'rgba(181,137,58,.08)',border:'1px solid rgba(181,137,58,.2)',borderRadius:'100px',padding:'.25rem .9rem',letterSpacing:'.06em',textTransform:'uppercase',marginBottom:'.75rem',transition:'opacity 0.3s ease'}}>{theme.name}</div>
-              {t.phone_pills&&<div style={{display:'flex',gap:'.6rem',justifyContent:'center',flexWrap:'wrap'}}>
+            <div style={{width:'100%'}}>
+              <div style={{textAlign:'center',width:'100%',fontSize:'.7rem',fontWeight:500,color:'var(--gold)',background:'rgba(181,137,58,.08)',border:'1px solid rgba(181,137,58,.2)',borderRadius:'100px',padding:'.25rem .9rem',letterSpacing:'.06em',textTransform:'uppercase',marginBottom:'.75rem',transition:'opacity 0.3s ease',display:'block'}}>{theme.name}</div>
+              {t.phone_pills&&<div style={{display:'flex',flexWrap:'wrap',justifyContent:'center',gap:'10px',width:'100%'}}>
                 {t.phone_pills.map((pill,i)=>(
                   <span key={i} style={{fontSize:'.72rem',fontWeight:500,color:'var(--gold)',background:'rgba(181,137,58,.1)',border:'1px solid rgba(181,137,58,.2)',borderRadius:'100px',padding:'.3rem .85rem',letterSpacing:'.02em'}}>{pill}</span>
                 ))}
