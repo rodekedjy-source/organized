@@ -409,6 +409,10 @@ footer { background:#090907; padding:2.5rem 3rem; border-top:1px solid rgba(255,
 .dash-chip-gold { border-color:rgba(181,137,58,.25); box-shadow:0 10px 36px rgba(181,137,58,.14); }
 @media(max-width:900px){ .dash-chip{display:none;} }
 
+/* ─── VIDEO PHONE MOCKUP ─── */
+.vid-phone-wrap { animation:dashPhoneFloat 6s ease-in-out infinite; width:238px; height:500px; border-radius:48px; background:linear-gradient(145deg,#3d3d3f 0%,#1c1c1e 40%,#2c2c2e 100%); padding:9px; box-shadow:inset 0 0 0 1px rgba(255,255,255,.09),0 2px 0 0 #4a4a4c,-14px 20px 48px rgba(0,0,0,.28),-28px 40px 80px rgba(0,0,0,.18); position:relative; z-index:2; flex-shrink:0; }
+.vid-screen { width:100%; height:100%; border-radius:41px; background:#000; overflow:hidden; display:flex; flex-direction:column; }
+
 /* LILAS QUOTE — scroll-triggered gold highlight */
 .lilas-quote { transition: background .9s ease, border-color .9s ease, box-shadow .9s ease; }
 .lilas-quote p { transition: color .9s ease; }
@@ -1069,21 +1073,72 @@ export default function Landing() {
               ))}
             </div>
           </div>
-          <div data-rv="right" data-delay="150" style={{display:'flex',flexDirection:'column',alignItems:'center',gap:20,width:'100%',maxWidth:390,margin:'0 auto'}}>
+          <div data-rv="right" data-delay="150" style={{display:'flex',flexDirection:'column',alignItems:'center',gap:20,width:'100%',maxWidth:560,margin:'0 auto'}}>
 
-            {/* Tab buttons */}
-            <div style={{display:'flex',gap:8,background:'rgba(0,0,0,0.06)',borderRadius:100,padding:'4px'}}>
-              {['booking','shop','learn'].map(tab=>(
-                <button key={tab} onClick={()=>setActiveVideo(tab)} style={{padding:'8px 20px',borderRadius:100,border:'none',cursor:'pointer',fontFamily:'inherit',fontSize:'0.72rem',fontWeight:600,letterSpacing:'0.1em',textTransform:'uppercase',background:activeVideo===tab?'#C9A84C':'transparent',color:activeVideo===tab?'#1A0900':'#8B7355',transition:'all 0.2s'}}>
-                  {tab==='booking'?'Booking':tab==='shop'?'Shop':'Learn'}
-                </button>
-              ))}
+            {/* Phone + floating chips */}
+            <div style={{position:'relative',display:'flex',justifyContent:'center',alignItems:'center',minHeight:'580px',width:'100%'}}>
+
+              {/* Chip TL — active tab (dynamic) */}
+              <div className="dash-chip" style={{left:'5%',top:'6%',animation:'chipFloat1 4.5s ease-in-out 0.2s infinite'}}>
+                <div style={{fontSize:'.58rem',color:'var(--ink-3)',letterSpacing:'.08em',textTransform:'uppercase',marginBottom:'.3rem',fontWeight:500}}>
+                  {activeVideo==='booking'?'📅 Booking':activeVideo==='shop'?'🛍 Shop':'🎓 Learn'}
+                </div>
+                <div style={{fontFamily:'Playfair Display,serif',fontSize:'1.1rem',fontWeight:700,color:'var(--ink)',lineHeight:1}}>
+                  {activeVideo==='booking'?'Book Now':activeVideo==='shop'?'Shop':'Learn'}
+                </div>
+                <div style={{fontSize:'.65rem',color:'#4ade80',marginTop:'.3rem',fontWeight:500}}>
+                  {activeVideo==='booking'?'24/7 open':activeVideo==='shop'?'Always open':'On demand'}
+                </div>
+              </div>
+
+              {/* Chip TR — theme */}
+              <div className="dash-chip dash-chip-gold" style={{right:'5%',top:'18%',animation:'chipFloat2 5.5s ease-in-out 0.5s infinite'}}>
+                <div style={{fontSize:'.58rem',color:'var(--gold)',letterSpacing:'.08em',textTransform:'uppercase',marginBottom:'.3rem',fontWeight:500}}>Theme</div>
+                <div style={{fontSize:'.82rem',fontWeight:600,color:'var(--ink)',marginBottom:'.15rem'}}>⭐ Rose Blossom</div>
+                <div style={{fontSize:'.65rem',color:'var(--ink-3)'}}>Your brand colors</div>
+              </div>
+
+              {/* Chip BL — Shop */}
+              <div className="dash-chip dash-chip-gold" style={{left:'5%',bottom:'14%',animation:'chipFloat1 5s ease-in-out 0.8s infinite'}}>
+                <div style={{fontSize:'.58rem',color:'var(--gold)',letterSpacing:'.08em',textTransform:'uppercase',marginBottom:'.3rem',fontWeight:500}}>Your Shop</div>
+                <div style={{fontSize:'.82rem',fontWeight:600,color:'var(--ink)',marginBottom:'.15rem'}}>🛍 Shop</div>
+                <div style={{fontSize:'.65rem',color:'var(--ink-3)'}}>Sell while you sleep</div>
+              </div>
+
+              {/* Chip BR — Learn */}
+              <div className="dash-chip dash-chip-dark" style={{right:'5%',bottom:'20%',animation:'chipFloat2 4s ease-in-out 1.1s infinite'}}>
+                <div style={{fontSize:'.58rem',color:'rgba(255,255,255,.4)',letterSpacing:'.08em',textTransform:'uppercase',marginBottom:'.3rem',fontWeight:500}}>Academy</div>
+                <div style={{fontSize:'.82rem',fontWeight:600,color:'#fff',marginBottom:'.15rem'}}>🎓 Learn</div>
+                <div style={{fontSize:'.65rem',color:'rgba(255,255,255,.35)'}}>Teach what you know</div>
+              </div>
+
+              {/* Phone frame with video crossfade */}
+              <div className="vid-phone-wrap">
+                <div className="dash-btn-r"/><div className="dash-btn-l1"/><div className="dash-btn-l2"/>
+                <div className="vid-screen">
+                  <div className="dash-island"/>
+                  <div style={{flex:1,position:'relative'}}>
+                    {['booking','shop','learn'].map(tab=>(
+                      <video key={tab} src={VIDEOS[tab]} autoPlay muted loop playsInline
+                        style={{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'cover',
+                                opacity:activeVideo===tab?1:0,transition:'opacity 0.5s ease'}}/>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
             </div>
 
-            {/* Video player — phone frame */}
-            <div style={{width:'100%',maxWidth:340,borderRadius:40,overflow:'hidden',background:'#000',boxShadow:'0 30px 80px rgba(0,0,0,0.25)',border:'8px solid #1A1A1A',aspectRatio:'9/19.5',position:'relative'}}>
+            {/* Tab switcher */}
+            <div style={{display:'flex',gap:8,background:'rgba(0,0,0,0.06)',borderRadius:100,padding:'4px'}}>
               {['booking','shop','learn'].map(tab=>(
-                <video key={tab} src={VIDEOS[tab]} autoPlay muted loop playsInline style={{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'cover',opacity:activeVideo===tab?1:0,transition:'opacity 0.4s ease'}}/>
+                <button key={tab} onClick={()=>setActiveVideo(tab)}
+                  style={{padding:'8px 20px',borderRadius:100,border:'none',cursor:'pointer',fontFamily:'inherit',
+                          fontSize:'0.72rem',fontWeight:600,letterSpacing:'0.1em',textTransform:'uppercase',
+                          background:activeVideo===tab?'#C9A84C':'transparent',
+                          color:activeVideo===tab?'#1A0900':'#8B7355',transition:'all 0.2s'}}>
+                  {tab==='booking'?'Booking':tab==='shop'?'Shop':'Learn'}
+                </button>
               ))}
             </div>
 
