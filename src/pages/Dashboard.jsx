@@ -13,6 +13,11 @@ import ReviewsSection       from '../sections/ReviewsSection'
 import ServicesSection      from '../sections/ServicesSection'
 import SettingsSection      from '../sections/SettingsSection'
 import PolicySection       from '../sections/PolicySection'
+import FloatingTabBar from '../sections/FloatingTabBar'
+import HomeTab        from '../sections/HomeTab'
+import BookingTab     from '../sections/BookingTab'
+import ShopTab        from '../sections/ShopTab'
+import LearnTab       from '../sections/LearnTab'
 
 const LANG = {
   en: {
@@ -802,6 +807,7 @@ export default function Dashboard() {
   const [theme,setThemeState]=useState(()=>localStorage.getItem('org-theme')||'light')
   const [subscription,setSubscription]=useState(null)
   const [lang,setLang]=useState('en')
+  const [activeTab,setActiveTab]=useState('home')
   const [pendingReviews,setPendingReviews]=useState(0)
   const [pendingOrders,setPendingOrders]=useState(0)
   const [avatarExpanded,setAvatarExpanded]=useState(false)
@@ -966,6 +972,9 @@ export default function Dashboard() {
             Organized<span className="brand-dot">.</span>
           </div>
         </div>
+        <button onClick={()=>navigateTo('settings')} style={{background:'none',border:'none',cursor:'pointer',width:34,height:34,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',color:'var(--ink-3)',flexShrink:0}} aria-label="Settings">
+          <span style={{width:18,height:18,display:'flex'}}>{I.gear}</span>
+        </button>
       </div>
 
       {/* SIDEBAR */}
@@ -1117,9 +1126,20 @@ export default function Dashboard() {
       </div>
 
       {/* MAIN */}
-      <main className="main-content">
-        {renderPage()}
+      <main className="main-content" style={{paddingBottom:'96px'}}>
+        {(()=>{
+          const tabProps={workspace,toast,lang,session,ownerData,refetchWorkspace:fetchWorkspace,refetch:fetchWorkspace,theme,setTheme,setPage:navigateTo,subscription}
+          if(page==='settings') return renderPage()
+          return <>
+            {activeTab==='home'    && <HomeTab    {...tabProps}/>}
+            {activeTab==='booking' && <BookingTab {...tabProps}/>}
+            {activeTab==='shop'    && <ShopTab    {...tabProps}/>}
+            {activeTab==='learn'   && <LearnTab   {...tabProps}/>}
+          </>
+        })()}
       </main>
+
+      <FloatingTabBar activeTab={activeTab} onTabChange={(tab)=>{setActiveTab(tab);setPage('overview');setPageStack([])}} />
 
       {/* TOAST */}
       {toastMsg&&(
