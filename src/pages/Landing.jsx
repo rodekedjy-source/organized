@@ -418,8 +418,8 @@ footer { background:#090907; padding:2.5rem 3rem; border-top:1px solid rgba(255,
 .vid-status-icons { display:flex; align-items:center; gap:4px; }
 .vid-browser-bar { position:absolute; top:52px; left:12px; right:12px; height:32px; background:#f1f1f1; border-radius:10px; display:flex; align-items:center; justify-content:center; z-index:18; }
 .vid-browser-bar span { font-size:11px; font-weight:500; color:#555; letter-spacing:0.2px; }
-.vid-screen-area { position:absolute; top:94px; left:4px; right:4px; bottom:4px; border-radius:10px; overflow:hidden; }
-.vid-screen { position:absolute; top:0; left:0; width:100%; height:100%; object-fit:cover; object-position:left top; }
+.vid-screen-area { position:absolute; top:94px; left:4px; right:4px; bottom:4px; border-radius:10px; overflow:hidden; background:#fff; }
+.vid-screen { position:absolute; top:0; left:0; width:100%; height:100%; object-fit:contain; object-position:top center; background:#fff; }
 
 /* LILAS QUOTE — scroll-triggered gold highlight */
 .lilas-quote { transition: background .9s ease, border-color .9s ease, box-shadow .9s ease; }
