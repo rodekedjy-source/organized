@@ -438,8 +438,8 @@ const plans = [
   { tier:'Essential', amt:19, desc:'Everything you need to take bookings, sell products, and start teaching.', hot:false,
     feats:[
       {y:true,  t:'Public booking page'},
-      {y:true,  t:'Shop — sell up to 10 products'},
-      {y:true,  t:'Formations — up to 2 courses'},
+      {y:true,  t:'Accept deposits & payments'},
+      {y:true,  t:'0% commission on bookings'},
       {y:true,  t:'Automatic booking confirmations'},
       {y:true,  t:'Client management'},
       {y:true,  t:'Email notifications'},
@@ -447,7 +447,8 @@ const plans = [
   { tier:'Pro', amt:39, desc:'For professionals who want to stand out, sell more, and build a brand.', hot:true,
     feats:[
       {y:true, t:'Everything in Essential'},
-      {y:true, t:'Unlimited products & formations'},
+      {y:true, t:'Shop — unlimited products'},
+      {y:true, t:'Formations & Workshops — unlimited'},
       {y:true, t:'Order tracking system'},
       {y:true, t:'Discount & promotional pricing'},
       {y:true, t:'Priority support'},
@@ -653,8 +654,8 @@ const plans_fr = [
   { tier:'Essential', amt:19, desc:'Tout ce dont vous avez besoin pour prendre des réservations, vendre des produits et enseigner.', hot:false,
     feats:[
       {y:true,  t:'Page de réservation publique'},
-      {y:true,  t:'Boutique — jusqu\'à 10 produits'},
-      {y:true,  t:'Formations — jusqu\'à 2 cours'},
+      {y:true,  t:'Accepter dépôts & paiements'},
+      {y:true,  t:'0% de commission sur les réservations'},
       {y:true,  t:'Confirmations de réservation automatiques'},
       {y:true,  t:'Gestion des clientes'},
       {y:true,  t:'Notifications par email'},
@@ -662,7 +663,8 @@ const plans_fr = [
   { tier:'Pro', amt:39, desc:'Pour les professionnelles qui veulent se démarquer, vendre plus et bâtir une marque.', hot:true,
     feats:[
       {y:true, t:'Tout ce qui est dans Essential'},
-      {y:true, t:'Produits & formations illimités'},
+      {y:true, t:'Boutique — produits illimités'},
+      {y:true, t:'Formations & Ateliers — illimités'},
       {y:true, t:'Système de suivi des commandes'},
       {y:true, t:'Rabais & prix promotionnels'},
       {y:true, t:'Support prioritaire'},
