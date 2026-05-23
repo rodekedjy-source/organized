@@ -442,7 +442,7 @@ function MonthlyGoal({ appts, workspace, refetchWorkspace, lang='en' }) {
 }
 
 // ── TOP SERVICE INSIGHT ────────────────────────────────────────────────────────
-function TopServiceInsight({ appts }) {
+function TopServiceInsight({ appts, onClick }) {
   const map={}
   appts.filter(a=>a.status==='confirmed').forEach(a=>{
     const name=svcName(a);if(name==='—') return
@@ -451,7 +451,7 @@ function TopServiceInsight({ appts }) {
   })
   const entries=Object.entries(map).sort((a,b)=>b[1].rev-a[1].rev)
   if(!entries.length) return (
-    <div className="card" style={{marginBottom:0}}>
+    <div className="card" style={{marginBottom:0,cursor:onClick?'pointer':undefined}} onClick={onClick}>
       <div className="card-head"><div className="card-title">Your top service</div></div>
       <div style={{padding:'1.4rem',fontSize:'.82rem',color:'var(--ink-3)'}}>Confirm your first appointment to see which service drives your business.</div>
     </div>
@@ -460,7 +460,7 @@ function TopServiceInsight({ appts }) {
   const totalRev=appts.filter(a=>a.status==='confirmed').reduce((s,a)=>s+Number(a.amount||0),0)
   const share=totalRev>0?Math.round((rev/totalRev)*100):0
   return (
-    <div className="card" style={{marginBottom:0}}>
+    <div className="card" style={{marginBottom:0,cursor:onClick?'pointer':undefined}} onClick={onClick}>
       <div className="card-head">
         <div className="card-title">Your top service</div>
         <span className="top-badge">{I.star} #1</span>
@@ -927,7 +927,7 @@ function InteractiveCal({ allAppts, blockedDates, onDayClick }) {
 }
 
 // ── OVERVIEW ──────────────────────────────────────────────────────────────────
-export default function OverviewSection({ workspace, session, ownerData, toast, setPage, refetchWorkspace, lang='en' }) {
+export default function OverviewSection({ workspace, session, ownerData, toast, setPage, refetchWorkspace, lang='en', onNavigate }) {
   const [appts,setAppts]=useState([])
   const [allAppts,setAllAppts]=useState([])
   const [blockedDates,setBlockedDates]=useState([])
@@ -1011,8 +1011,6 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
             stats.cancelled>0?`${stats.cancelled} ${lang==='fr'?'annulé(s)':lang==='es'?'cancelados':'cancelled'}`:
             stats.confirmed>0?`${stats.confirmed} ${lang==='fr'?'confirmé(s)':lang==='es'?'confirmados':'confirmed'}`:'—',
       up:stats.pending===0,isCancelled:stats.pending===0&&stats.cancelled>0,page:'appointments'},
-    {label:lang==='fr'?'Produits':lang==='es'?'Productos':'Products',value:stats.products,delta:lang==='fr'?'Listés dans votre boutique':lang==='es'?'Listados en tu tienda':'Listed in your shop',up:true,page:'products'},
-    {label:lang==='fr'?'Élèves':lang==='es'?'Estudiantes':'Students',value:stats.students,delta:lang==='fr'?'Total des inscriptions':lang==='es'?'Total de matrículas':'Total enrollments',up:true,page:'formations'},
   ]
   return (
     <div>
@@ -1055,7 +1053,7 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
       <CoachSlider appts={allAppts} stats={stats} workspace={workspace} session={session} lang={lang}/>
       <div className="stats-scroll">
         {cards.map((s,i)=>(
-          <button key={i} className="stat-card stat-card-btn" onClick={()=>s.page==='revenue'?setShowRevenue(true):setPage(s.page)}>
+          <button key={i} className="stat-card stat-card-btn" onClick={()=>onNavigate?.(s.page)}>
             <div className="stat-label">{s.label}</div>
             <div className="stat-value">{s.value}</div>
             <div className={`stat-delta ${s.isCancelled?'delta-down':s.up?'delta-up':'delta-down'}`}>{s.delta}</div>
@@ -1071,13 +1069,36 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
         <MonthlyGoal appts={allAppts} workspace={workspace} refetchWorkspace={refetchWorkspace} lang={lang}/>
       </div>
       <div className="grid-2" style={{marginBottom:'1.25rem'}}>
-        <TopServiceInsight appts={allAppts}/>
-        <div className="card" style={{marginBottom:0}}>
+        <TopServiceInsight appts={allAppts} onClick={()=>onNavigate?.('services')}/>
+        <div className="card" style={{marginBottom:0,cursor:'pointer'}} onClick={()=>onNavigate?.('availability')}>
           <div className="card-head">
-            <div className="card-title" style={{cursor:'pointer'}} onClick={()=>setPage('availability')}>{t(lang,'calendar')}</div>
-            <span style={{fontSize:'.72rem',color:'var(--ink-3)'}}>{t(lang,'tap_date')}</span>
+            <div>
+              <div className="card-title">{t(lang,'calendar')}</div>
+              <div style={{fontSize:'.72rem',color:'var(--ink-3)'}}>{t(lang,'tap_date')}</div>
+              <div style={{fontSize:12,color:'#C9A84C',marginTop:2}}>Set up your availability →</div>
+            </div>
           </div>
-          <div className="card-body"><InteractiveCal allAppts={allAppts} blockedDates={blockedDates} onDayClick={setSelectedDay}/></div>
+          <div className="card-body" onClick={e=>e.stopPropagation()}><InteractiveCal allAppts={allAppts} blockedDates={blockedDates} onDayClick={setSelectedDay}/></div>
+        </div>
+      </div>
+      <div className="card" style={{marginBottom:'1.25rem',cursor:'pointer'}} onClick={()=>onNavigate?.('portfolio')}>
+        <div className="card-head">
+          <div>
+            <div style={{fontSize:'.65rem',fontWeight:700,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'.25rem'}}>PORTFOLIO</div>
+            <div className="card-title">Your work</div>
+            <div className="card-sub">Showcase your best photos</div>
+          </div>
+          <div className="stat-arrow">&#8594;</div>
+        </div>
+      </div>
+      <div className="card" style={{marginBottom:'1.25rem',cursor:'pointer'}} onClick={()=>onNavigate?.('reviews')}>
+        <div className="card-head">
+          <div>
+            <div style={{fontSize:'.65rem',fontWeight:700,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'.25rem'}}>REVIEWS</div>
+            <div className="card-title">Client reviews</div>
+            <div className="card-sub">See what clients are saying</div>
+          </div>
+          <div className="stat-arrow">&#8594;</div>
         </div>
       </div>
       <div className="card">
@@ -1095,7 +1116,7 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
         ):(
           <div>
             {appts.map(a=>(
-              <div key={a.id} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'.85rem 1.25rem',borderBottom:'1px solid var(--border)',gap:'.75rem'}}>
+              <div key={a.id} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'.85rem 1.25rem',borderBottom:'1px solid var(--border)',gap:'.75rem',cursor:'pointer'}} onClick={()=>onNavigate?.('appointments')}>
                 <div style={{flex:1,minWidth:0}}>
                   <div style={{fontWeight:600,fontSize:'.88rem',color:'var(--ink)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{a.client_name}</div>
                   <div style={{fontSize:'.72rem',color:'var(--ink-3)',marginTop:2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{svcName(a)}</div>
