@@ -411,12 +411,13 @@ footer { background:#090907; padding:2.5rem 3rem; border-top:1px solid rgba(255,
 
 /* ─── VIDEO PHONE MOCKUP ─── */
 .vid-phone-wrap { animation:dashPhoneFloat 6s ease-in-out infinite; width:238px; height:500px; border-radius:48px; background:linear-gradient(145deg,#3d3d3f 0%,#1c1c1e 40%,#2c2c2e 100%); padding:9px; box-shadow:inset 0 0 0 1px rgba(255,255,255,.09),0 2px 0 0 #4a4a4c,-14px 20px 48px rgba(0,0,0,.28),-28px 40px 80px rgba(0,0,0,.18); position:relative; z-index:2; flex-shrink:0; }
-.vid-phone-inner { position:relative; width:100%; height:100%; background:#000; border-radius:44px; overflow:hidden; display:flex; align-items:center; justify-content:center; }
+.vid-phone-inner { position:relative; width:100%; height:100%; background:#000; border-radius:44px; overflow:hidden; }
+.vid-screen-area { position:absolute; top:10px; left:5px; right:5px; bottom:10px; border-radius:38px; overflow:hidden; background:#fff; }
 .vid-dynamic-island { position:absolute; top:12px; left:50%; transform:translateX(-50%); width:90px; height:26px; background:#000; border-radius:20px; z-index:10; }
-.vid-status-bar { position:absolute; top:14px; left:0; right:0; padding:0 20px; display:flex; justify-content:space-between; align-items:center; z-index:9; pointer-events:none; }
+.vid-status-bar { position:absolute; top:14px; left:0; right:0; padding:0 20px; display:flex; justify-content:space-between; align-items:center; z-index:10; pointer-events:none; }
 .vid-status-time { font-size:11px; font-weight:600; color:#fff; margin-left:4px; }
 .vid-status-icons { display:flex; align-items:center; gap:4px; }
-.vid-screen { position:absolute; top:0; left:50%; transform:translateX(-50%); height:100%; width:auto; min-width:100%; object-fit:cover; border-radius:44px; }
+.vid-screen { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:20% top; }
 
 /* LILAS QUOTE — scroll-triggered gold highlight */
 .lilas-quote { transition: background .9s ease, border-color .9s ease, box-shadow .9s ease; }
@@ -1149,11 +1150,13 @@ export default function Landing() {
                     </div>
                   </div>
                   {/* Video crossfade */}
-                  {['booking','shop','learn'].map(tab=>(
-                    <video key={tab} src={VIDEOS[tab]} autoPlay muted loop playsInline
-                      className="vid-screen"
-                      style={{opacity:activeVideo===tab?1:0,transition:'opacity 0.5s ease'}}/>
-                  ))}
+                  <div className="vid-screen-area">
+                    {['booking','shop','learn'].map(tab=>(
+                      <video key={tab} src={VIDEOS[tab]} autoPlay muted loop playsInline
+                        className="vid-screen"
+                        style={{opacity:activeVideo===tab?1:0,transition:'opacity 0.5s ease'}}/>
+                    ))}
+                  </div>
                 </div>
               </div>
 
