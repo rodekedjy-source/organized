@@ -1,15 +1,6 @@
 export default function FloatingTabBar({ activeTab, onTabChange }) {
   const TABS = [
     {
-      key: 'home', label: 'Home',
-      icon: (a) => (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={a ? 2.2 : 1.6} width="22" height="22">
-          <path d="M3 12L12 4l9 8" strokeLinecap="round" strokeLinejoin="round"/>
-          <path d="M5 10v9a1 1 0 001 1h4v-5h4v5h4a1 1 0 001-1v-9" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
-      ),
-    },
-    {
       key: 'booking', label: 'Booking',
       icon: (a) => (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={a ? 2.2 : 1.6} width="22" height="22">
