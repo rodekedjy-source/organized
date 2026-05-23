@@ -411,7 +411,12 @@ footer { background:#090907; padding:2.5rem 3rem; border-top:1px solid rgba(255,
 
 /* ─── VIDEO PHONE MOCKUP ─── */
 .vid-phone-wrap { animation:dashPhoneFloat 6s ease-in-out infinite; width:238px; height:500px; border-radius:48px; background:linear-gradient(145deg,#3d3d3f 0%,#1c1c1e 40%,#2c2c2e 100%); padding:9px; box-shadow:inset 0 0 0 1px rgba(255,255,255,.09),0 2px 0 0 #4a4a4c,-14px 20px 48px rgba(0,0,0,.28),-28px 40px 80px rgba(0,0,0,.18); position:relative; z-index:2; flex-shrink:0; }
-.vid-screen { width:100%; height:100%; border-radius:41px; background:#000; overflow:hidden; display:flex; flex-direction:column; }
+.vid-phone-inner { position:relative; width:100%; height:100%; background:#000; border-radius:44px; overflow:hidden; }
+.vid-dynamic-island { position:absolute; top:12px; left:50%; transform:translateX(-50%); width:90px; height:26px; background:#000; border-radius:20px; z-index:10; }
+.vid-status-bar { position:absolute; top:14px; left:0; right:0; padding:0 20px; display:flex; justify-content:space-between; align-items:center; z-index:9; pointer-events:none; }
+.vid-status-time { font-size:11px; font-weight:600; color:#fff; margin-left:4px; }
+.vid-status-icons { display:flex; align-items:center; gap:4px; }
+.vid-screen { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:center top; border-radius:44px; }
 
 /* LILAS QUOTE — scroll-triggered gold highlight */
 .lilas-quote { transition: background .9s ease, border-color .9s ease, box-shadow .9s ease; }
@@ -1115,15 +1120,40 @@ export default function Landing() {
               {/* Phone frame with video crossfade */}
               <div className="vid-phone-wrap">
                 <div className="dash-btn-r"/><div className="dash-btn-l1"/><div className="dash-btn-l2"/>
-                <div className="vid-screen">
-                  <div className="dash-island"/>
-                  <div style={{flex:1,position:'relative'}}>
-                    {['booking','shop','learn'].map(tab=>(
-                      <video key={tab} src={VIDEOS[tab]} autoPlay muted loop playsInline
-                        style={{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'cover',
-                                opacity:activeVideo===tab?1:0,transition:'opacity 0.5s ease'}}/>
-                    ))}
+                <div className="vid-phone-inner">
+                  {/* Dynamic Island pill */}
+                  <div className="vid-dynamic-island"/>
+                  {/* Status bar */}
+                  <div className="vid-status-bar">
+                    <span className="vid-status-time">9:41</span>
+                    <div className="vid-status-icons">
+                      {/* Signal bars */}
+                      <svg width="17" height="12" viewBox="0 0 17 12" fill="none">
+                        <rect x="0"  y="8"  width="3" height="4"  rx="1" fill="white" fillOpacity="0.4"/>
+                        <rect x="4.5" y="5.5" width="3" height="6.5" rx="1" fill="white" fillOpacity="0.6"/>
+                        <rect x="9"  y="3"  width="3" height="9"  rx="1" fill="white" fillOpacity="0.8"/>
+                        <rect x="13.5" y="0" width="3" height="12" rx="1" fill="white"/>
+                      </svg>
+                      {/* WiFi */}
+                      <svg width="16" height="12" viewBox="0 0 16 12" fill="none">
+                        <path d="M8 9.5 A0.75 0.75 0 0 1 8 11 A0.75 0.75 0 0 1 8 9.5Z" fill="white"/>
+                        <path d="M5.2 7.2 Q8 4.8 10.8 7.2" stroke="white" strokeWidth="1.4" strokeLinecap="round" fill="none"/>
+                        <path d="M2.5 4.8 Q8 0.5 13.5 4.8" stroke="white" strokeWidth="1.4" strokeLinecap="round" fill="none" strokeOpacity="0.6"/>
+                      </svg>
+                      {/* Battery */}
+                      <svg width="25" height="12" viewBox="0 0 25 12" fill="none">
+                        <rect x="0.5" y="0.5" width="21" height="11" rx="3.5" stroke="white" strokeOpacity="0.5"/>
+                        <rect x="2" y="2" width="16" height="8" rx="2" fill="white"/>
+                        <path d="M22.5 4v4a2 2 0 0 0 0-4Z" fill="white" fillOpacity="0.5"/>
+                      </svg>
+                    </div>
                   </div>
+                  {/* Video crossfade */}
+                  {['booking','shop','learn'].map(tab=>(
+                    <video key={tab} src={VIDEOS[tab]} autoPlay muted loop playsInline
+                      className="vid-screen"
+                      style={{opacity:activeVideo===tab?1:0,transition:'opacity 0.5s ease'}}/>
+                  ))}
                 </div>
               </div>
 
