@@ -416,7 +416,7 @@ footer { background:#090907; padding:2.5rem 3rem; border-top:1px solid rgba(255,
 .vid-status-bar { position:absolute; top:14px; left:0; right:0; padding:0 20px; display:flex; justify-content:space-between; align-items:center; z-index:9; pointer-events:none; }
 .vid-status-time { font-size:11px; font-weight:600; color:#fff; margin-left:4px; }
 .vid-status-icons { display:flex; align-items:center; gap:4px; }
-.vid-screen { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:center center; border-radius:44px; }
+.vid-screen { position:absolute; top:0; left:50%; transform:translateX(-50%); height:100%; width:auto; min-width:100%; object-fit:cover; border-radius:44px; }
 
 /* LILAS QUOTE — scroll-triggered gold highlight */
 .lilas-quote { transition: background .9s ease, border-color .9s ease, box-shadow .9s ease; }
