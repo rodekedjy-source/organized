@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import OverviewSection  from './OverviewSection'
 import OfferingsSection from './OfferingsSection'
 import ReviewsSection   from './ReviewsSection'
 import PolicySection    from './PolicySection'
@@ -18,5 +19,21 @@ export default function LearnTab(props) {
     </>
   )
 
-  return <OfferingsSection {...props} />
+  const navCard = (label, page) => (
+    <div key={page} className="card" style={{marginBottom:'1.25rem',cursor:'pointer'}} onClick={()=>setSubPage(page)}>
+      <div className="card-head">
+        <div style={{fontSize:'.65rem',fontWeight:700,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'.08em'}}>{label}</div>
+        <div className="stat-arrow">&#8594;</div>
+      </div>
+    </div>
+  )
+
+  return (
+    <>
+      <OverviewSection {...props} activeTab="learn" onNavigate={(page) => setSubPage(page)} />
+      {navCard('FORMATIONS & WORKSHOPS', 'offerings')}
+      {navCard('REVIEWS',                'reviews')}
+      {navCard('POLICY',                 'policy')}
+    </>
+  )
 }

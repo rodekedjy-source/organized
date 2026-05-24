@@ -27,5 +27,5 @@ export default function BookingTab(props) {
     </>
   )
 
-  return <OverviewSection {...props} onNavigate={(page) => setSubPage(page)} />
+  return <OverviewSection {...props} activeTab="booking" onNavigate={(page) => setSubPage(page)} />
 }

@@ -559,7 +559,7 @@ function RevenuePanel({ appts, onClose }) {
 }
 
 // ── COACH SLIDER ──────────────────────────────────────────────────────────────
-function CoachSlider({ appts, stats, workspace, session, lang='en' }) {
+function CoachSlider({ appts, stats, workspace, session, lang='en', activeTab='booking' }) {
   const now=new Date()
   const mn=now.toLocaleDateString(lang==='fr'?'fr-FR':lang==='es'?'es-ES':'en-US',{month:'long'})
   const uid=session?.user?.id||'guest'
@@ -579,6 +579,7 @@ function CoachSlider({ appts, stats, workspace, session, lang='en' }) {
     const d=new Date(a.scheduled_at)
     return a.status==='confirmed'&&d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth()
   }).map(a=>new Date(a.scheduled_at).toISOString().split('T')[0])).size
+  if(activeTab==='booking'){
   if(activeDays===0) tips.push({icon:'📅',text:lang==='fr'?`Aucun jour actif ce mois-ci. Partage ton lien de réservation pour remplir ton agenda.`:lang==='es'?`Sin días activos este mes. Comparte tu enlace para llenar tu agenda.`:`No active days this month. Share your booking link to fill your calendar.`})
   else if(activeDays<8) tips.push({icon:'📅',text:lang==='fr'?`${activeDays} jour${activeDays>1?'s':''} actif${activeDays>1?'s':''} ce mois. Continue à partager ton lien — chaque slot vide est du revenu qui attend.`:lang==='es'?`${activeDays} día${activeDays>1?'s':''} activo${activeDays>1?'s':''} este mes. Sigue compartiendo tu enlace.`:`${activeDays} active day${activeDays>1?'s':''} this month. Keep sharing your link — every empty slot is revenue waiting.`})
   else if(activeDays<15) tips.push({icon:'📅',text:lang==='fr'?`${activeDays} jours actifs ce mois. Ton agenda se remplit bien — maintiens cette dynamique.`:lang==='es'?`${activeDays} días activos este mes. Tu agenda se está llenando bien.`:`${activeDays} active days this month. Your schedule is filling up — keep the momentum.`})
@@ -604,6 +605,15 @@ function CoachSlider({ appts, stats, workspace, session, lang='en' }) {
   const in3=new Date(now.getTime()+3*24*60*60*1000)
   const upcoming=appts.filter(a=>{const d=new Date(a.scheduled_at);return d>now&&d<=in3&&a.status!=='cancelled'})
   if(upcoming.length===0) tips.push({icon:'🔗',text:lang==='fr'?`Tes 3 prochains jours sont libres. Partager ton lien aujourd'hui pourrait remplir ces créneaux avant la fin de la semaine.`:lang==='es'?`Tus próximos 3 días están libres. Compartir tu enlace hoy podría llenar esos espacios.`:`Your next 3 days are open. Sharing your booking link today could fill those slots before the week ends.`})
+  }else if(activeTab==='shop'){
+    tips.push({icon:'💡',text:'Feature your best product to drive more sales.'})
+    tips.push({icon:'📦',text:'Consistent packaging builds brand trust.'})
+    tips.push({icon:'🎯',text:'A discount this week could clear old stock.'})
+  }else if(activeTab==='learn'){
+    tips.push({icon:'💡',text:'Short workshops convert better than long courses.'})
+    tips.push({icon:'🎓',text:'Your knowledge is worth charging for.'})
+    tips.push({icon:'✨',text:'One satisfied student brings three more.'})
+  }
   const INTERVAL=5000
   const [idx,setIdx]=useState(0)
   const [visible,setVisible]=useState(true)
@@ -927,7 +937,7 @@ function InteractiveCal({ allAppts, blockedDates, onDayClick }) {
 }
 
 // ── OVERVIEW ──────────────────────────────────────────────────────────────────
-export default function OverviewSection({ workspace, session, ownerData, toast, setPage, refetchWorkspace, lang='en', onNavigate }) {
+export default function OverviewSection({ workspace, session, ownerData, toast, setPage, refetchWorkspace, lang='en', onNavigate, activeTab='booking' }) {
   const [appts,setAppts]=useState([])
   const [allAppts,setAllAppts]=useState([])
   const [blockedDates,setBlockedDates]=useState([])
@@ -936,6 +946,9 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
   const [showRevenue,setShowRevenue]=useState(false)
   const [reminderBannerDismissed, setReminderBannerDismissed] = useState(false)
   const [remindersSent,setRemindersSent]=useState([])
+  const [shopOrders,setShopOrders]=useState([])
+  const [allProducts,setAllProducts]=useState([])
+  const [offerings,setOfferings]=useState([])
   useEffect(()=>{
     if(!workspace) return
     const cacheKey=`org_cache_${workspace.id}`
@@ -956,17 +969,20 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
   },[workspace])
   async function fetchData(){
     const today=new Date().toISOString().split('T')[0],now=new Date()
-    const[a,p,e,b]=await Promise.all([
+    const[a,p,e,b,ord,off]=await Promise.all([
       supabase.from('appointments').select('*, services(name)').eq('workspace_id',workspace.id),
-      supabase.from('products').select('id').eq('workspace_id',workspace.id),
+      supabase.from('products').select('id,name,stock_quantity').eq('workspace_id',workspace.id),
       supabase.from('enrollments').select('id').eq('workspace_id',workspace.id),
       supabase.from('blocked_dates').select('*').eq('workspace_id',workspace.id),
+      supabase.from('orders').select('id,status').eq('workspace_id',workspace.id),
+      supabase.from('offerings').select('id,title,start_date,spots_left,is_active').eq('workspace_id',workspace.id),
     ])
     const ad=a.data||[]
     const bd=b.data||[]
     const pd=p.data||[]
     const ed=e.data||[]
     setAllAppts(ad);setBlockedDates(bd)
+    setShopOrders(ord.data||[]);setAllProducts(pd);setOfferings(off.data||[])
     const monthNow=now.getMonth(),yearNow=now.getFullYear()
     const monthApptsCount=ad.filter(x=>{const d=new Date(x.scheduled_at);return d.getFullYear()===yearNow&&d.getMonth()===monthNow}).length
     const newStats={
@@ -1037,7 +1053,40 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
           )}
         </div>
       </div>
-      <NextUpBanner appts={allAppts} workspace={workspace} onReloaded={fetchData} toast={toast} lang={lang}/>
+      {activeTab==='booking'&&<NextUpBanner appts={allAppts} workspace={workspace} onReloaded={fetchData} toast={toast} lang={lang}/>}
+      {activeTab==='shop'&&(()=>{
+        const pendingOrders=shopOrders.filter(o=>o.status==='pending')
+        const lowStock=allProducts.filter(p=>p.stock_quantity!=null&&Number(p.stock_quantity)<3)
+        return(
+          <div className="next-up-banner" style={{marginBottom:'1rem'}}>
+            <div style={{fontSize:'.65rem',fontWeight:700,color:'rgba(255,255,255,.45)',textTransform:'uppercase',letterSpacing:'.1em',marginBottom:'.5rem'}}>SHOP OVERVIEW</div>
+            <div style={{fontSize:'1.25rem',fontWeight:700,color:'#fff',marginBottom:'.35rem'}}>{pendingOrders.length} order{pendingOrders.length!==1?'s':''} pending</div>
+            {lowStock.length>0&&<div style={{fontSize:'.8rem',color:'#F59E0B',fontWeight:600,marginBottom:'.75rem'}}>⚠ Low stock alert — {lowStock.length} product{lowStock.length!==1?'s':''}</div>}
+            <div style={{display:'flex',justifyContent:'flex-end',marginTop:'.75rem'}}>
+              <button onClick={()=>onNavigate?.('orders')} style={{background:'var(--gold)',border:'none',color:'#1a1814',borderRadius:8,padding:'.5rem 1.1rem',fontSize:'.78rem',fontWeight:700,cursor:'pointer',fontFamily:'inherit'}}>View orders →</button>
+            </div>
+          </div>
+        )
+      })()}
+      {activeTab==='learn'&&(()=>{
+        const nextOffering=offerings.filter(o=>o.is_active&&o.start_date&&new Date(o.start_date)>=new Date()).sort((a,b)=>new Date(a.start_date)-new Date(b.start_date))[0]
+        return(
+          <div className="next-up-banner" style={{marginBottom:'1rem',background:'#2C1810'}}>
+            <div style={{fontSize:'.65rem',fontWeight:700,color:'rgba(255,255,255,.45)',textTransform:'uppercase',letterSpacing:'.1em',marginBottom:'.5rem'}}>UPCOMING</div>
+            {nextOffering?(
+              <>
+                <div style={{fontSize:'1.1rem',fontWeight:700,color:'#fff',marginBottom:'.2rem'}}>{nextOffering.title}</div>
+                <div style={{fontSize:'.8rem',color:'rgba(255,255,255,.6)',marginBottom:'.35rem'}}>{new Date(nextOffering.start_date).toLocaleDateString('en-US',{month:'long',day:'numeric'})} · {nextOffering.spots_left!=null?`${nextOffering.spots_left} spots left`:'Open enrollment'}</div>
+              </>
+            ):(
+              <div style={{fontSize:'.88rem',color:'rgba(255,255,255,.6)',marginBottom:'.35rem'}}>No upcoming offerings</div>
+            )}
+            <div style={{display:'flex',justifyContent:'flex-end',marginTop:'.75rem'}}>
+              <button onClick={()=>onNavigate?.('offerings')} style={{background:'var(--gold)',border:'none',color:'#1a1814',borderRadius:8,padding:'.5rem 1.1rem',fontSize:'.78rem',fontWeight:700,cursor:'pointer',fontFamily:'inherit'}}>View details →</button>
+            </div>
+          </div>
+        )
+      })()}
       {remindersSent.length>0&&!reminderBannerDismissed&&(
         <div style={{background:'var(--ink)',borderRadius:10,padding:'.65rem 1.1rem',marginBottom:'1rem',display:'flex',alignItems:'center',gap:'.75rem',animation:'milestoneIn .35s ease'}}>
           <span style={{fontSize:'.9rem'}}>💬</span>
@@ -1050,7 +1099,7 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
           <button onClick={()=>setReminderBannerDismissed(true)} style={{flexShrink:0,padding:'4px 14px',borderRadius:20,background:'rgba(255,255,255,.1)',border:'1px solid rgba(255,255,255,.15)',color:'rgba(255,255,255,.7)',fontSize:'.72rem',fontWeight:600,cursor:'pointer'}}>OK</button>
         </div>
       )}
-      <CoachSlider appts={allAppts} stats={stats} workspace={workspace} session={session} lang={lang}/>
+      <CoachSlider appts={allAppts} stats={stats} workspace={workspace} session={session} lang={lang} activeTab={activeTab}/>
       <div className="stats-scroll">
         {cards.map((s,i)=>(
           <button key={i} className="stat-card stat-card-btn" onClick={()=>onNavigate?.(s.page)}>
