@@ -38,10 +38,10 @@ export default function FloatingTabBar({ activeTab, onTabChange }) {
       transform: 'translateX(-50%)',
       width: 'calc(100% - 32px)',
       maxWidth: 480,
-      background: '#FAF7F2',
+      background: 'var(--tab-bar-bg)',
       borderRadius: 24,
       boxShadow: '0 4px 32px rgba(0,0,0,.13), 0 1px 4px rgba(0,0,0,.07)',
-      border: '1px solid rgba(0,0,0,.06)',
+      border: '1px solid var(--tab-bar-border)',
       display: 'flex',
       alignItems: 'center',
       padding: '6px 4px',
@@ -53,7 +53,7 @@ export default function FloatingTabBar({ activeTab, onTabChange }) {
           <button key={tab.key} onClick={() => onTabChange(tab.key)} style={{
             flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
             padding: '7px 4px', background: 'none', border: 'none', cursor: 'pointer',
-            color: active ? '#C9A84C' : '#9E9894', borderRadius: 16, transition: 'color .15s',
+            color: active ? 'var(--accent-gold)' : 'var(--text-secondary)', borderRadius: 16, transition: 'color .15s',
             fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
           }}>
             {tab.icon(active)}

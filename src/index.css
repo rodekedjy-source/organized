@@ -20,6 +20,30 @@
   --sidebar-w: 230px;
   --topbar-h:  56px;
   --shadow:   0 2px 12px rgba(0,0,0,.04);
+  /* theme system */
+  --bg-base:        #F2EDE4;
+  --bg-card:        #FDFAF6;
+  --bg-card-dark:   #1A1A1A;
+  --bg-card-border: #E8E0D4;
+  --text-primary:   #1A1A1A;
+  --text-secondary: #8B7355;
+  --text-on-dark:   #FFFFFF;
+  --accent-gold:    #C9A84C;
+  --tab-bar-bg:     #FDFAF6;
+  --tab-bar-border: #E8E0D4;
+}
+
+[data-theme="dark"] {
+  --bg-base:        #0D0D0D;
+  --bg-card:        #1A1A1A;
+  --bg-card-dark:   #252525;
+  --bg-card-border: #2A2A2A;
+  --text-primary:   #FFFFFF;
+  --text-secondary: #888888;
+  --text-on-dark:   #FFFFFF;
+  --accent-gold:    #C9A84C;
+  --tab-bar-bg:     #1A1A1A;
+  --tab-bar-border: #2A2A2A;
 }
 
 html { scroll-behavior: smooth; }

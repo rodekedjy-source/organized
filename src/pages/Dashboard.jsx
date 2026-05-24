@@ -971,9 +971,19 @@ export default function Dashboard() {
             Organized<span className="brand-dot">.</span>
           </div>
         </div>
-        <button onClick={()=>navigateTo('settings')} style={{background:'none',border:'none',cursor:'pointer',width:34,height:34,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',color:'var(--ink-3)',flexShrink:0}} aria-label="Settings">
-          <span style={{width:18,height:18,display:'flex'}}>{I.gear}</span>
-        </button>
+        <div style={{display:'flex',alignItems:'center',gap:2}}>
+          <button onClick={()=>setTheme(theme==='dark'?'light':'dark')} style={{background:'none',border:'none',cursor:'pointer',width:34,height:34,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',color:'var(--ink-3)',flexShrink:0}} aria-label="Toggle theme">
+            <span style={{width:18,height:18,display:'flex'}}>
+              {theme==='dark'
+                ? <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="18" height="18"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+                : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="18" height="18"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+              }
+            </span>
+          </button>
+          <button onClick={()=>navigateTo('settings')} style={{background:'none',border:'none',cursor:'pointer',width:34,height:34,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',color:'var(--ink-3)',flexShrink:0}} aria-label="Settings">
+            <span style={{width:18,height:18,display:'flex'}}>{I.gear}</span>
+          </button>
+        </div>
       </div>
 
       {/* SIDEBAR */}
@@ -1157,15 +1167,21 @@ const css = `
   --ink:#1a1814; --ink-2:#3d3a35; --ink-3:#7a7774;
   --bg:#f5f3ef; --surface:#ffffff; --border:rgba(0,0,0,.07); --border-2:rgba(0,0,0,.12);
   --green:#2e7d52; --red:#c0392b; --orange:#c07d2b;
+  --bg-base:#f5f3ef; --bg-card:#ffffff; --bg-card-dark:#1a1814; --bg-card-border:rgba(0,0,0,.07);
+  --text-primary:#1a1814; --text-secondary:#7a7774; --text-on-dark:#ffffff;
+  --accent-gold:#c5a96a; --tab-bar-bg:#ffffff; --tab-bar-border:rgba(0,0,0,.07);
 }
 [data-theme="dark"]{
   --ink:#f0ece4; --ink-2:#c8c2b8; --ink-3:#7a7774;
   --bg:#141210; --surface:#1e1b17; --border:rgba(255,255,255,.07); --border-2:rgba(255,255,255,.12);
   --gold:#d4a952;
+  --bg-base:#141210; --bg-card:#1e1b17; --bg-card-dark:#252525; --bg-card-border:rgba(255,255,255,.07);
+  --text-primary:#f0ece4; --text-secondary:#7a7774; --text-on-dark:#ffffff;
+  --accent-gold:#d4a952; --tab-bar-bg:#1e1b17; --tab-bar-border:rgba(255,255,255,.07);
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{font-size:16px;-webkit-text-size-adjust:100%}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;-webkit-font-smoothing:antialiased}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg-base);color:var(--text-primary);min-height:100vh;-webkit-font-smoothing:antialiased}
 
 .app-wrap{min-height:100vh;display:flex;flex-direction:column}
 
@@ -1210,14 +1226,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .head-actions{display:flex;gap:.5rem;align-items:center;flex-shrink:0}
 
 /* CARDS */
-.card{background:var(--surface);border-radius:14px;border:1px solid var(--border);margin-bottom:1.25rem;overflow:hidden}
-.card-head{display:flex;align-items:center;justify-content:space-between;padding:1rem 1.4rem;border-bottom:1px solid var(--border)}
+.card{background:var(--bg-card);border-radius:14px;border:1px solid var(--bg-card-border);margin-bottom:1.25rem;overflow:hidden}
+.card-head{display:flex;align-items:center;justify-content:space-between;padding:1rem 1.4rem;border-bottom:1px solid var(--bg-card-border)}
 .card-title{font-weight:600;font-size:.9rem;color:var(--ink)}
 .card-sub{font-size:.75rem;color:var(--ink-3);margin-top:2px}
 .card-body{padding:1.25rem 1.4rem}
 
 /* NEXT UP BANNER */
-.next-up-banner{background:#1a1814;border-radius:16px;padding:1.1rem 1.25rem;display:flex;flex-direction:column;margin-bottom:1.25rem;box-shadow:0 4px 24px rgba(0,0,0,.28)}
+.next-up-banner{background:var(--bg-card-dark);border-radius:16px;padding:1.1rem 1.25rem;display:flex;flex-direction:column;margin-bottom:1.25rem;box-shadow:0 4px 24px rgba(0,0,0,.28)}
 .next-up-left{display:flex;align-items:center;gap:.85rem;flex:1;min-width:0}
 .next-up-icon{width:38px;height:38px;border-radius:50%;background:rgba(197,169,106,.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--gold)}
 .next-up-icon svg{width:17px;height:17px}
@@ -1228,7 +1244,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .next-up-amount{font-size:.75rem;color:var(--gold);font-weight:500;margin-top:1px}
 
 /* COACH SLIDER */
-.coach-slider{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1rem 1.25rem 1.1rem;margin-bottom:1.25rem}
+.coach-slider{background:var(--bg-card);border:1px solid var(--bg-card-border);border-radius:14px;padding:1rem 1.25rem 1.1rem;margin-bottom:1.25rem}
 .coach-slider-label{font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--gold);margin-bottom:.6rem}
 .coach-slider-body{display:flex;align-items:flex-start;gap:.75rem;min-height:44px;transition:opacity .25s}
 .coach-fade-out{opacity:0}
@@ -1244,7 +1260,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 /* STAT CARDS */
 .stats-scroll{display:flex;gap:.75rem;overflow-x:auto;margin-bottom:1.25rem;padding-bottom:.25rem;scrollbar-width:none}
 .stats-scroll::-webkit-scrollbar{display:none}
-.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1rem 1.2rem;min-width:160px;flex-shrink:0;text-align:left}
+.stat-card{background:var(--bg-card);border:1px solid var(--bg-card-border);border-radius:12px;padding:1rem 1.2rem;min-width:160px;flex-shrink:0;text-align:left}
 .stat-card-btn{cursor:pointer;transition:box-shadow .15s}
 .stat-card-btn:hover{box-shadow:0 4px 16px rgba(0,0,0,.08)}
 .stat-label{font-size:.65rem;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-3);margin-bottom:.5rem}
