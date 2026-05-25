@@ -967,7 +967,8 @@ export default function Dashboard() {
       </div>
 
       {/* SIDEBAR */}
-      {menuOpen&&<div className="sidebar">
+      {menuOpen&&<div className="sidebar-overlay" onClick={()=>setMenuOpen(false)}/>}
+      <div className={`sidebar${menuOpen?' sidebar-open':''}`}>
         <div className="sidebar-head">
           <div className="sb-brand">Organized<span style={{color:'var(--gold)'}}>.</span></div>
           <button className="sb-close" onClick={()=>setMenuOpen(false)}>✕</button>
@@ -1111,7 +1112,7 @@ export default function Dashboard() {
           )}
           <button className="sb-signout" onClick={handleSignOut}>{t(lang,'nav_signout')}</button>
         </div>
-      </div>}
+      </div>
 
       {/* MAIN */}
       <main className="main-content" style={{paddingBottom:'96px'}}>
@@ -1175,7 +1176,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .av-btn{width:34px;height:34px;border-radius:50%;background:var(--gold);color:var(--ink);font-weight:700;font-size:.82rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-family:'Playfair Display',serif}
 
 /* SIDEBAR */
-.sidebar{position:fixed;top:0;left:0;width:100vw;height:100vh;background:var(--bg-card);z-index:300;display:flex;flex-direction:column;overflow-y:auto}
+.sidebar-overlay{position:fixed;inset:0;z-index:299;background:rgba(0,0,0,0.4)}
+.sidebar{position:fixed;top:0;left:0;width:78%;max-width:320px;height:100vh;z-index:300;background:var(--bg-card);display:flex;flex-direction:column;overflow-y:auto;box-shadow:4px 0 24px rgba(0,0,0,0.12);transform:translateX(-100%);transition:transform 0.3s ease}
+.sidebar-open{transform:translateX(0)}
 .sidebar-head{display:flex;align-items:center;justify-content:space-between;padding:1.1rem 1.25rem;border-bottom:1px solid var(--border)}
 .sb-brand{font-family:'Playfair Display',serif;font-size:1.2rem;font-weight:500;color:var(--ink)}
 .sb-close{background:none;border:none;cursor:pointer;color:var(--ink-3);font-size:1.1rem;padding:4px}
