@@ -975,7 +975,7 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
       supabase.from('products').select('id,name,stock_quantity').eq('workspace_id',workspace.id),
       supabase.from('enrollments').select('id').eq('workspace_id',workspace.id),
       supabase.from('blocked_dates').select('*').eq('workspace_id',workspace.id),
-      supabase.from('orders').select('id,status').eq('workspace_id',workspace.id),
+      supabase.from('orders').select('id,status,total_amount,product_name,created_at,tracking_number,delivered_at').eq('workspace_id',workspace.id),
       supabase.from('offerings').select('id,title,start_date,spots_left,is_active').eq('workspace_id',workspace.id),
       supabase.from('services').select('id,name,price,duration_min').eq('workspace_id',workspace.id).eq('is_active',true),
     ])
@@ -1031,6 +1031,26 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
             stats.confirmed>0?`${stats.confirmed} ${lang==='fr'?'confirmé(s)':lang==='es'?'confirmados':'confirmed'}`:'—',
       up:stats.pending===0,isCancelled:stats.pending===0&&stats.cancelled>0,page:'appointments'},
   ]
+  // ── Shop-specific data ────────────────────────────────────────────────────────
+  const shopNow=new Date(),shopMonthStart=new Date(shopNow.getFullYear(),shopNow.getMonth(),1)
+  const shopLastMonthStart=new Date(shopNow.getFullYear(),shopNow.getMonth()-1,1)
+  const shopPaid=shopOrders.filter(o=>['confirmed','shipped','delivered'].includes(o.status))
+  const shopRevMonth=shopPaid.filter(o=>new Date(o.created_at)>=shopMonthStart).reduce((s,o)=>s+Number(o.total_amount||0),0)
+  const shopRevLast=shopPaid.filter(o=>{const d=new Date(o.created_at);return d>=shopLastMonthStart&&d<shopMonthStart}).reduce((s,o)=>s+Number(o.total_amount||0),0)
+  const shopRevDelta=pct(shopRevMonth,shopRevLast)
+  const shopPending=shopOrders.filter(o=>o.status==='pending').length
+  const shopNeedTracking=shopOrders.filter(o=>o.status==='shipped'&&!o.tracking_number).length
+  const shopProcessing=shopOrders.filter(o=>o.status==='confirmed').length
+  const shopLowStock=allProducts.filter(p=>p.stock_quantity!=null&&Number(p.stock_quantity)<=2)
+  const weekStartShop=new Date(shopNow);weekStartShop.setDate(shopNow.getDate()-shopNow.getDay());weekStartShop.setHours(0,0,0,0)
+  const shopDeliveredWeek=shopOrders.filter(o=>o.status==='delivered'&&o.delivered_at&&new Date(o.delivered_at)>=weekStartShop).length
+  const shopProdMap={}
+  shopPaid.filter(o=>new Date(o.created_at)>=shopMonthStart).forEach(o=>{const k=o.product_name||'?';if(!shopProdMap[k])shopProdMap[k]={rev:0,count:0};shopProdMap[k].rev+=Number(o.total_amount||0);shopProdMap[k].count++})
+  const shopTopProd=Object.entries(shopProdMap).sort((a,b)=>b[1].rev-a[1].rev)[0]
+  const shopCards=[
+    {label:'Revenue — '+curMonthName,value:fmtRev(shopRevMonth),delta:shopRevDelta!==null?`${shopRevDelta>=0?'↑':'↓'} ${Math.abs(shopRevDelta)}% vs last month`:'—',up:shopRevDelta===null||shopRevDelta>=0,page:'revenue'},
+    {label:'Orders',value:shopOrders.length,delta:shopPending>0?`${shopPending} pending`:'All up to date',up:shopPending===0,page:'orders'},
+  ]
   return (
     <div style={{background:'var(--bg-base)',minHeight:'100%'}}>
       <div className="page-head">
@@ -1058,13 +1078,15 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
       </div>
       {activeTab==='booking'&&<NextUpBanner appts={allAppts} workspace={workspace} onReloaded={fetchData} toast={toast} lang={lang}/>}
       {activeTab==='shop'&&(()=>{
-        const pendingOrders=shopOrders.filter(o=>o.status==='pending')
-        const lowStock=allProducts.filter(p=>p.stock_quantity!=null&&Number(p.stock_quantity)<3)
+        let msg,color
+        if(shopNeedTracking>0){msg=`${shopNeedTracking} order${shopNeedTracking>1?'s':''} need a tracking number`;color='#ef4444'}
+        else if(shopProcessing>0){msg=`${shopProcessing} order${shopProcessing>1?'s':''} ready to ship`;color='#F59E0B'}
+        else if(shopLowStock.length>0){msg=`Low stock: ${shopLowStock[0].name}`;color='#F59E0B'}
+        else{msg=shopDeliveredWeek>0?`${shopDeliveredWeek} delivered this week`:'All caught up!';color='#22c55e'}
         return(
           <div className="next-up-banner" style={{marginBottom:'1rem'}}>
-            <div style={{fontSize:'.65rem',fontWeight:700,color:'rgba(255,255,255,.45)',textTransform:'uppercase',letterSpacing:'.1em',marginBottom:'.5rem'}}>SHOP OVERVIEW</div>
-            <div style={{fontSize:'1.25rem',fontWeight:700,color:'#fff',marginBottom:'.35rem'}}>{pendingOrders.length} order{pendingOrders.length!==1?'s':''} pending</div>
-            {lowStock.length>0&&<div style={{fontSize:'.8rem',color:'#F59E0B',fontWeight:600,marginBottom:'.75rem'}}>⚠ Low stock alert — {lowStock.length} product{lowStock.length!==1?'s':''}</div>}
+            <div style={{fontSize:'.65rem',fontWeight:700,color:'rgba(255,255,255,.45)',textTransform:'uppercase',letterSpacing:'.1em',marginBottom:'.5rem'}}>SHOP STATUS</div>
+            <div style={{fontSize:'1.1rem',fontWeight:700,color,marginBottom:'.35rem'}}>{msg}</div>
             <div style={{display:'flex',justifyContent:'flex-end',marginTop:'.75rem'}}>
               <button onClick={()=>onNavigate?.('orders')} style={{background:'var(--gold)',border:'none',color:'#1a1814',borderRadius:8,padding:'.5rem 1.1rem',fontSize:'.78rem',fontWeight:700,cursor:'pointer',fontFamily:'inherit'}}>View orders →</button>
             </div>
@@ -1104,7 +1126,7 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
       )}
       <CoachSlider appts={allAppts} stats={stats} workspace={workspace} session={session} lang={lang} activeTab={activeTab}/>
       <div className="stats-scroll">
-        {cards.map((s,i)=>(
+        {(activeTab==='shop'?shopCards:cards).map((s,i)=>(
           <button key={i} className="stat-card stat-card-btn" onClick={()=>onNavigate?.(s.page)}>
             <div className="stat-label">{s.label}</div>
             <div className="stat-value">{s.value}</div>
@@ -1113,95 +1135,166 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
           </button>
         ))}
       </div>
-      <MonthlyGoal appts={allAppts} workspace={workspace} refetchWorkspace={refetchWorkspace} lang={lang}/>
-      <div className="grid-2" style={{marginBottom:'1.25rem',marginTop:12}}>
-        <div className="card" style={{marginBottom:0,cursor:'pointer'}} onClick={()=>onNavigate?.('services')}>
-          <div className="card-head">
-            <div>
-              <div style={{fontSize:'.65rem',fontWeight:700,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'.25rem'}}>SERVICES</div>
-              <div className="card-title">Your services</div>
+      {activeTab==='shop'?(
+        <>
+          {/* Orders card */}
+          <div className="card" style={{marginBottom:'1.25rem',cursor:'pointer',marginTop:12}} onClick={()=>onNavigate?.('orders')}>
+            <div className="card-head">
+              <div>
+                <div style={{fontSize:'.65rem',fontWeight:700,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'.25rem'}}>ORDERS</div>
+                <div className="card-title">{shopOrders.length} total</div>
+                {shopPending>0&&<div style={{fontSize:'.78rem',color:'#b45309',fontWeight:600,marginTop:2}}>{shopPending} need attention</div>}
+              </div>
+              <div className="stat-arrow">&#8594;</div>
             </div>
-            <div className="stat-arrow">&#8594;</div>
+            <div style={{padding:'.4rem 1.25rem',fontSize:'.78rem',fontWeight:500,color:'var(--accent-gold)'}}>View details →</div>
           </div>
-          {allServices.slice(0,2).map(s=>(
-            <div key={s.id} style={{padding:'.45rem 1.25rem',borderBottom:'1px solid var(--border)'}}>
-              <div style={{fontSize:'.84rem',fontWeight:500,color:'var(--text-primary)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{s.name}</div>
-              <div style={{fontSize:'.7rem',color:'var(--text-secondary)'}}>${s.price} · {s.duration_min}min</div>
+          {/* Products card */}
+          <div className="card" style={{marginBottom:'1.25rem',cursor:'pointer'}} onClick={()=>onNavigate?.('products')}>
+            <div className="card-head">
+              <div>
+                <div style={{fontSize:'.65rem',fontWeight:700,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'.25rem'}}>PRODUCTS</div>
+                <div className="card-title">Your products</div>
+              </div>
+              <div className="stat-arrow">&#8594;</div>
             </div>
-          ))}
-          {allServices.length===0&&<div style={{padding:'.6rem 1.25rem',fontSize:'.78rem',color:'var(--text-secondary)',fontStyle:'italic'}}>No services yet</div>}
-          <div style={{padding:'.5rem 1.25rem',fontSize:'.78rem',fontWeight:600,color:'var(--accent-gold)'}}>+ Add service</div>
-        </div>
-        <div className="card" style={{marginBottom:0,cursor:'pointer'}} onClick={()=>onNavigate?.('availability')}>
-          <div className="card-head">
-            <div>
-              <div className="card-title">{t(lang,'calendar')}</div>
-              <div style={{fontSize:'.72rem',color:'var(--text-secondary)'}}>{t(lang,'tap_date')}</div>
-              <div style={{fontSize:12,color:'#C9A84C',marginTop:2}}>Set up your availability →</div>
-            </div>
-          </div>
-          <div className="card-body" onClick={e=>e.stopPropagation()}><InteractiveCal allAppts={allAppts} blockedDates={blockedDates} onDayClick={setSelectedDay}/></div>
-        </div>
-      </div>
-      <div className="card" style={{marginBottom:'1.25rem',cursor:'pointer'}} onClick={()=>onNavigate?.('portfolio')}>
-        <div className="card-head">
-          <div>
-            <div style={{fontSize:'.65rem',fontWeight:700,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'.25rem'}}>PORTFOLIO</div>
-            <div className="card-title">Your work</div>
-            <div className="card-sub">Showcase your best photos</div>
-          </div>
-          <div className="stat-arrow">&#8594;</div>
-        </div>
-      </div>
-      <div className="card" style={{marginBottom:'1.25rem',cursor:'pointer'}} onClick={()=>onNavigate?.('reviews')}>
-        <div className="card-head">
-          <div>
-            <div style={{fontSize:'.65rem',fontWeight:700,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'.25rem'}}>REVIEWS</div>
-            <div className="card-title">Client reviews</div>
-            <div className="card-sub">See what clients are saying</div>
-          </div>
-          <div className="stat-arrow">&#8594;</div>
-        </div>
-      </div>
-      <div className="card" style={{marginBottom:'1.25rem',cursor:'pointer'}} onClick={()=>onNavigate?.('policy')}>
-        <div className="card-head">
-          <div>
-            <div style={{fontSize:'.65rem',fontWeight:700,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'.25rem'}}>POLICY</div>
-            <div className="card-title">Booking policy</div>
-            <div className="card-sub">Set your terms and fees</div>
-          </div>
-          <div className="stat-arrow">&#8594;</div>
-        </div>
-      </div>
-      <div className="card">
-        <div className="card-head">
-          <div className="card-title">{t(lang,'today_schedule')}</div>
-          <span className="badge badge-confirmed">{todayCount} {t(lang,'confirmed')}</span>
-        </div>
-        {todayCount===0?(
-          <div className="empty-state">
-            <div className="empty-icon">{I.cal}</div>
-            <div className="empty-title">{t(lang,'day_open')}</div>
-            <div className="empty-sub">{t(lang,'share_link')}</div>
-            <button className="btn btn-primary btn-sm" style={{marginTop:'.75rem'}} onClick={()=>{navigator.clipboard?.writeText(`${window.location.origin}/book/${workspace?.slug||''}`);toast(t(lang,'link_copied'))}}>{t(lang,'copy_booking_link')}</button>
-          </div>
-        ):(
-          <div>
-            {appts.map(a=>(
-              <div key={a.id} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'.85rem 1.25rem',borderBottom:'1px solid var(--border)',gap:'.75rem',cursor:'pointer'}} onClick={()=>onNavigate?.('appointments')}>
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontWeight:600,fontSize:'.88rem',color:'var(--text-primary)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{a.client_name}</div>
-                  <div style={{fontSize:'.72rem',color:'var(--text-secondary)',marginTop:2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{svcName(a)}</div>
-                </div>
-                <div style={{textAlign:'right',flexShrink:0}}>
-                  <div style={{fontSize:'.85rem',fontWeight:600,color:'var(--text-primary)'}}>{new Date(a.scheduled_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</div>
-                  <div style={{marginTop:3}}><span className={`badge badge-${a.status}`} style={{fontSize:'.65rem'}}>{a.status}</span></div>
-                </div>
+            {allProducts.slice(0,2).map(p=>(
+              <div key={p.id} style={{padding:'.45rem 1.25rem',borderBottom:'1px solid var(--border)'}}>
+                <div style={{fontSize:'.84rem',fontWeight:500,color:'var(--text-primary)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.name}</div>
+                {p.stock_quantity!=null&&<div style={{fontSize:'.7rem',color:Number(p.stock_quantity)<=2?'#b45309':'var(--text-secondary)'}}>Stock: {p.stock_quantity}</div>}
               </div>
             ))}
+            {allProducts.length===0&&<div style={{padding:'.6rem 1.25rem',fontSize:'.78rem',color:'var(--text-secondary)',fontStyle:'italic'}}>No products yet</div>}
+            <div style={{padding:'.5rem 1.25rem',fontSize:'.78rem',fontWeight:600,color:'var(--accent-gold)'}}>+ Add product</div>
           </div>
-        )}
-      </div>
+          {/* Top product */}
+          {shopTopProd&&(
+            <div className="card" style={{marginBottom:'1.25rem'}}>
+              <div className="card-head">
+                <div>
+                  <div style={{fontSize:'.65rem',fontWeight:700,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'.25rem'}}>TOP PRODUCT</div>
+                  <div className="card-title">{shopTopProd[0]}</div>
+                  <div style={{fontSize:'.78rem',color:'var(--text-secondary)',marginTop:2}}>{shopTopProd[1].count} sold · {fmtRev(shopTopProd[1].rev)}</div>
+                </div>
+              </div>
+            </div>
+          )}
+          {/* Reviews */}
+          <div className="card" style={{marginBottom:'1.25rem',cursor:'pointer'}} onClick={()=>onNavigate?.('reviews')}>
+            <div className="card-head">
+              <div>
+                <div style={{fontSize:'.65rem',fontWeight:700,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'.25rem'}}>REVIEWS</div>
+                <div className="card-title">Product reviews</div>
+                <div className="card-sub">See what customers are saying</div>
+              </div>
+              <div className="stat-arrow">&#8594;</div>
+            </div>
+          </div>
+          {/* Policy */}
+          <div className="card" style={{marginBottom:'1.25rem',cursor:'pointer'}} onClick={()=>onNavigate?.('policy')}>
+            <div className="card-head">
+              <div>
+                <div style={{fontSize:'.65rem',fontWeight:700,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'.25rem'}}>SHOP POLICY</div>
+                <div className="card-title">Refunds & shipping terms</div>
+                <div className="card-sub">Define your shop terms</div>
+              </div>
+              <div className="stat-arrow">&#8594;</div>
+            </div>
+          </div>
+        </>
+      ):(
+        <>
+          <MonthlyGoal appts={allAppts} workspace={workspace} refetchWorkspace={refetchWorkspace} lang={lang}/>
+          <div className="grid-2" style={{marginBottom:'1.25rem',marginTop:12}}>
+            <div className="card" style={{marginBottom:0,cursor:'pointer'}} onClick={()=>onNavigate?.('services')}>
+              <div className="card-head">
+                <div>
+                  <div style={{fontSize:'.65rem',fontWeight:700,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'.25rem'}}>SERVICES</div>
+                  <div className="card-title">Your services</div>
+                </div>
+                <div className="stat-arrow">&#8594;</div>
+              </div>
+              {allServices.slice(0,2).map(s=>(
+                <div key={s.id} style={{padding:'.45rem 1.25rem',borderBottom:'1px solid var(--border)'}}>
+                  <div style={{fontSize:'.84rem',fontWeight:500,color:'var(--text-primary)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{s.name}</div>
+                  <div style={{fontSize:'.7rem',color:'var(--text-secondary)'}}>${s.price} · {s.duration_min}min</div>
+                </div>
+              ))}
+              {allServices.length===0&&<div style={{padding:'.6rem 1.25rem',fontSize:'.78rem',color:'var(--text-secondary)',fontStyle:'italic'}}>No services yet</div>}
+              <div style={{padding:'.5rem 1.25rem',fontSize:'.78rem',fontWeight:600,color:'var(--accent-gold)'}}>+ Add service</div>
+            </div>
+            <div className="card" style={{marginBottom:0,cursor:'pointer'}} onClick={()=>onNavigate?.('availability')}>
+              <div className="card-head">
+                <div>
+                  <div className="card-title">{t(lang,'calendar')}</div>
+                  <div style={{fontSize:'.72rem',color:'var(--text-secondary)'}}>{t(lang,'tap_date')}</div>
+                  <div style={{fontSize:12,color:'#C9A84C',marginTop:2}}>Set up your availability →</div>
+                </div>
+              </div>
+              <div className="card-body" onClick={e=>e.stopPropagation()}><InteractiveCal allAppts={allAppts} blockedDates={blockedDates} onDayClick={setSelectedDay}/></div>
+            </div>
+          </div>
+          <div className="card" style={{marginBottom:'1.25rem',cursor:'pointer'}} onClick={()=>onNavigate?.('portfolio')}>
+            <div className="card-head">
+              <div>
+                <div style={{fontSize:'.65rem',fontWeight:700,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'.25rem'}}>PORTFOLIO</div>
+                <div className="card-title">Your work</div>
+                <div className="card-sub">Showcase your best photos</div>
+              </div>
+              <div className="stat-arrow">&#8594;</div>
+            </div>
+          </div>
+          <div className="card" style={{marginBottom:'1.25rem',cursor:'pointer'}} onClick={()=>onNavigate?.('reviews')}>
+            <div className="card-head">
+              <div>
+                <div style={{fontSize:'.65rem',fontWeight:700,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'.25rem'}}>REVIEWS</div>
+                <div className="card-title">Client reviews</div>
+                <div className="card-sub">See what clients are saying</div>
+              </div>
+              <div className="stat-arrow">&#8594;</div>
+            </div>
+          </div>
+          <div className="card" style={{marginBottom:'1.25rem',cursor:'pointer'}} onClick={()=>onNavigate?.('policy')}>
+            <div className="card-head">
+              <div>
+                <div style={{fontSize:'.65rem',fontWeight:700,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'.25rem'}}>POLICY</div>
+                <div className="card-title">Booking policy</div>
+                <div className="card-sub">Set your terms and fees</div>
+              </div>
+              <div className="stat-arrow">&#8594;</div>
+            </div>
+          </div>
+          <div className="card">
+            <div className="card-head">
+              <div className="card-title">{t(lang,'today_schedule')}</div>
+              <span className="badge badge-confirmed">{todayCount} {t(lang,'confirmed')}</span>
+            </div>
+            {todayCount===0?(
+              <div className="empty-state">
+                <div className="empty-icon">{I.cal}</div>
+                <div className="empty-title">{t(lang,'day_open')}</div>
+                <div className="empty-sub">{t(lang,'share_link')}</div>
+                <button className="btn btn-primary btn-sm" style={{marginTop:'.75rem'}} onClick={()=>{navigator.clipboard?.writeText(`${window.location.origin}/book/${workspace?.slug||''}`);toast(t(lang,'link_copied'))}}>{t(lang,'copy_booking_link')}</button>
+              </div>
+            ):(
+              <div>
+                {appts.map(a=>(
+                  <div key={a.id} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'.85rem 1.25rem',borderBottom:'1px solid var(--border)',gap:'.75rem',cursor:'pointer'}} onClick={()=>onNavigate?.('appointments')}>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontWeight:600,fontSize:'.88rem',color:'var(--text-primary)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{a.client_name}</div>
+                      <div style={{fontSize:'.72rem',color:'var(--text-secondary)',marginTop:2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{svcName(a)}</div>
+                    </div>
+                    <div style={{textAlign:'right',flexShrink:0}}>
+                      <div style={{fontSize:'.85rem',fontWeight:600,color:'var(--text-primary)'}}>{new Date(a.scheduled_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</div>
+                      <div style={{marginTop:3}}><span className={`badge badge-${a.status}`} style={{fontSize:'.65rem'}}>{a.status}</span></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+      )}
       {showRevenue&&<RevenuePanel appts={allAppts} onClose={()=>setShowRevenue(false)}/>}
       {selectedDay&&(<DayPanel dayStr={selectedDay} allAppts={allAppts} blockedDates={blockedDates} onClose={()=>setSelectedDay(null)} onBlock={handleBlock} onUnblock={handleUnblock} onBooked={fetchData} workspace={workspace} lang={lang} toast={toast}/>)}
     </div>

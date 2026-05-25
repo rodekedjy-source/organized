@@ -1,5 +1,14 @@
 import { supabase } from '../lib/supabase'
 
+export async function getOrders(workspaceId) {
+  const { data } = await supabase
+    .from('orders')
+    .select('id,status,total_amount,product_name,customer_name,created_at,tracking_number,delivered_at,client_name,client_email,carrier,shipped_at')
+    .eq('workspace_id', workspaceId)
+    .order('created_at', { ascending: false })
+  return data || []
+}
+
 export async function fetchOrders(workspaceId) {
   const { data, error } = await supabase
     .from('orders')

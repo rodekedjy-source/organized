@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { getWorkspaceSettings, upsertWorkspaceSettings } from '../api/workspaceSettings'
 
 // ── I18N ──────────────────────────────────────────────────────────────────────
 const LANG = {
@@ -557,6 +558,65 @@ function SettingsPhoneNotifForm({ workspace, toast, refetch, lang='en' }) {
   )
 }
 
+// ── SHIPPING SECTION ──────────────────────────────────────────────────────────
+const ALL_CARRIERS = ['Canada Post', 'Purolator', 'UPS', 'FedEx']
+
+function ShippingSection({ workspace, toast, BackBtn }) {
+  const [carriers, setCarriers] = useState([])
+  const [saving, setSaving]     = useState(false)
+  const [saved, setSaved]       = useState(false)
+
+  useEffect(() => {
+    if (!workspace?.id) return
+    getWorkspaceSettings(workspace.id).then(({ data }) => {
+      if (data?.preferred_carriers) {
+        try { setCarriers(JSON.parse(data.preferred_carriers)) } catch { setCarriers([]) }
+      }
+    })
+  }, [workspace?.id])
+
+  function toggle(c) {
+    setCarriers(cs => cs.includes(c) ? cs.filter(x=>x!==c) : [...cs, c])
+    setSaved(false)
+  }
+
+  async function save() {
+    if (!workspace?.id) return
+    setSaving(true); setSaved(false)
+    await upsertWorkspaceSettings(workspace.id, { preferred_carriers: JSON.stringify(carriers) })
+    setSaving(false); setSaved(true)
+    toast('Shipping preferences saved.')
+  }
+
+  return (
+    <div>
+      <div className="page-head"><div><BackBtn/><div className="page-title" style={{marginTop:'.4rem'}}>Shipping</div></div></div>
+      <div className="card" style={{marginBottom:'1.25rem'}}>
+        <div className="card-head">
+          <div>
+            <div style={{fontSize:'.65rem',fontWeight:700,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'.08em'}}>SHIPPING CARRIERS</div>
+            <div style={{fontSize:'.78rem',color:'var(--ink-3)',marginTop:4}}>Your default carriers for order tracking</div>
+          </div>
+        </div>
+        <div className="card-body" style={{display:'flex',flexDirection:'column',gap:0}}>
+          {ALL_CARRIERS.map((c,i) => (
+            <div key={c} className="settings-row" style={{borderBottom:i<ALL_CARRIERS.length-1?'1px solid var(--border)':'none'}}>
+              <div className="settings-row-label">{c}</div>
+              <label className="toggle-wrap">
+                <input type="checkbox" checked={carriers.includes(c)} onChange={()=>toggle(c)}/>
+                <div className="toggle-track"/><div className="toggle-thumb"/>
+              </label>
+            </div>
+          ))}
+        </div>
+      </div>
+      <button className="btn btn-primary" style={{justifyContent:'center',padding:'.75rem',width:'100%'}} onClick={save} disabled={saving}>
+        {saving ? 'Saving…' : saved ? 'Saved ✓' : 'Save carriers'}
+      </button>
+    </div>
+  )
+}
+
 // ── SETTINGS ──────────────────────────────────────────────────────────────────
 export default function SettingsSection({ workspace, toast, refetch, theme, setTheme, session, ownerData, lang='en' }) {
   const [section,setSection]=useState(null)
@@ -575,6 +635,7 @@ export default function SettingsSection({ workspace, toast, refetch, theme, setT
     {key:'coach',label:'Coach',sub:'Daily inspiration and faith preferences'},
     {key:'automations',label:'Automations',sub:'Review requests and smart follow-ups'},
     {key:'language',label:t(lang,'language'),sub:t(lang,'language_sub')},
+    {key:'shipping',label:'Shipping',sub:'Default carriers for order tracking'},
   ]
   if(section==='profile') return (
     <div>
@@ -733,6 +794,7 @@ export default function SettingsSection({ workspace, toast, refetch, theme, setT
       <SettingsLanguageForm ownerData={ownerData} toast={toast} refetch={refetch} lang={lang}/>
     </div>
   )
+  if(section==='shipping') return <ShippingSection workspace={workspace} toast={toast} BackBtn={BackBtn}/>
   return (
     <div>
       <div className="page-head"><div><div className="page-title">{t(lang,'settings_title')}</div><div className="page-sub">{t(lang,'settings_sub')}</div></div></div>
