@@ -1114,7 +1114,7 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
         ))}
       </div>
       <MonthlyGoal appts={allAppts} workspace={workspace} refetchWorkspace={refetchWorkspace} lang={lang}/>
-      <div className="grid-2" style={{marginBottom:'1.25rem'}}>
+      <div className="grid-2" style={{marginBottom:'1.25rem',marginTop:12}}>
         <div className="card" style={{marginBottom:0,cursor:'pointer'}} onClick={()=>onNavigate?.('services')}>
           <div className="card-head">
             <div>

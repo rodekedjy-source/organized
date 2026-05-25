@@ -31,21 +31,5 @@ export default function BookingTab(props) {
     </>
   )
 
-  return (
-    <>
-      <OverviewSection {...props} activeTab="booking" onNavigate={(page) => setSubPage(page)} />
-      {/* Floating + button */}
-      <button
-        onClick={() => setSubPage('appointments')}
-        style={{
-          position: 'fixed', bottom: 90, right: 20, width: 48, height: 48,
-          borderRadius: '50%', background: 'var(--accent-gold)', border: 'none',
-          color: '#fff', fontSize: '1.5rem', lineHeight: 1, cursor: 'pointer',
-          boxShadow: '0 4px 16px rgba(201,168,76,.45)', zIndex: 50,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontWeight: 300,
-        }}
-      >+</button>
-    </>
-  )
+  return <OverviewSection {...props} activeTab="booking" onNavigate={(page) => setSubPage(page)} />
 }
