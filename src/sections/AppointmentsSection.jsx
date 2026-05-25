@@ -238,6 +238,7 @@ export default function AppointmentsSection({ lang = 'en' }) {
   const toast = useToast()
   const { data, loading, refresh } = useAppointments(workspace?.id)
   const [period, setPeriod]       = useState('month')
+  const [viewTab, setViewTab]     = useState('upcoming')
   const [detailAppt, setDetailAppt] = useState(null)
 
   // Realtime subscription + polling — calls hook's refresh instead of direct fetch
@@ -290,6 +291,22 @@ export default function AppointmentsSection({ lang = 'en' }) {
   const cancelled = periodData.filter(a => a.status === 'cancelled')
   const revenue = confirmed.reduce((s, a) => s + Number(a.amount || 0), 0)
 
+  // Internal tab data (all-time, not period-filtered)
+  const nowTs = new Date()
+  const upcomingList   = sorted.filter(a => a.status !== 'cancelled' && new Date(a.scheduled_at) >= nowTs)
+  const pastList       = sorted.filter(a => a.status === 'confirmed' && new Date(a.scheduled_at) < nowTs)
+  const cancelledList  = sorted.filter(a => a.status === 'cancelled')
+  const clientMap = {}
+  sorted.forEach(a => {
+    const k = a.client_name || '—'
+    if (!clientMap[k]) clientMap[k] = { name: k, count: 0, rev: 0, last: null }
+    clientMap[k].count++
+    clientMap[k].rev += Number(a.amount || 0)
+    if (!clientMap[k].last || new Date(a.scheduled_at) > new Date(clientMap[k].last)) clientMap[k].last = a.scheduled_at
+  })
+  const clientList = Object.values(clientMap).sort((a,b) => b.count - a.count)
+  const viewList = viewTab === 'upcoming' ? upcomingList : viewTab === 'past' ? pastList : viewTab === 'cancelled' ? cancelledList : clientList
+
   return (
     <div>
       <div className="page-head">
@@ -297,6 +314,13 @@ export default function AppointmentsSection({ lang = 'en' }) {
           <div className="page-title">{t(lang, 'appts_title')}</div>
           <div className="page-sub">{t(lang, 'appts_sub')}</div>
         </div>
+      </div>
+
+      {/* Stats bar */}
+      <div style={{ fontSize:'.78rem', color:'var(--ink-3)', marginBottom:'.85rem', fontWeight:500 }}>
+        This month: <strong style={{color:'var(--ink)'}}>{confirmed.length + cancelled.length}</strong> bookings
+        &nbsp;·&nbsp;<strong style={{color:'var(--gold)'}}>{formatCurrency(revenue)}</strong>
+        &nbsp;·&nbsp;<strong style={{color:'var(--ink-3)'}}>{cancelled.length} cancelled</strong>
       </div>
 
       <PeriodTabs period={period} setPeriod={setPeriod} lang={lang} />
@@ -344,36 +368,64 @@ export default function AppointmentsSection({ lang = 'en' }) {
         </div>
       )}
 
-      {/* All appointments */}
+      {/* Tabbed appointment view */}
       <div className="card">
-        <div className="card-head">
-          <div className="card-title">{t(lang, 'all_appts')}</div>
+        {/* Internal tabs */}
+        <div style={{ display:'flex', gap:'.3rem', padding:'.75rem 1rem .5rem', borderBottom:'1px solid var(--border)' }}>
+          {[
+            { key:'upcoming',  label:`Upcoming (${upcomingList.length})` },
+            { key:'past',      label:`Past (${pastList.length})` },
+            { key:'cancelled', label:`Cancelled (${cancelledList.length})` },
+            { key:'clients',   label:`Clients (${clientList.length})` },
+          ].map(tab => (
+            <button key={tab.key} onClick={()=>setViewTab(tab.key)} style={{
+              padding:'.3rem .65rem', borderRadius:99, border:'1px solid',
+              borderColor: viewTab===tab.key ? 'var(--gold)' : 'var(--border)',
+              background: viewTab===tab.key ? 'rgba(var(--gold-rgb),.1)' : 'transparent',
+              color: viewTab===tab.key ? 'var(--gold)' : 'var(--ink-3)',
+              fontSize:'.7rem', fontWeight:700, cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap',
+            }}>{tab.label}</button>
+          ))}
         </div>
-        {loading
-          ? <div style={{ padding: '2rem', color: 'var(--ink-3)' }}>Loading...</div>
-          : periodData.length === 0 && pending.length === 0
-            ? (
-              <div className="empty-state">
-                <div className="empty-icon">{calIcon}</div>
-                <div className="empty-title">{t(lang, 'no_appts')}</div>
-                <div className="empty-sub">{t(lang, 'when_book')}</div>
-              </div>
-            )
-            : periodData.map(a => (
-              <div key={a.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.25rem', borderBottom: '1px solid var(--border)', cursor: 'pointer' }} onClick={() => setDetailAppt(a)}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 600, fontSize: '.88rem', color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.client_name}</div>
-                  <div style={{ fontSize: '.72rem', color: 'var(--ink-3)', marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {svcName(a)} · {new Date(a.scheduled_at).toLocaleDateString('en-CA', { month: 'short', day: 'numeric' })} · {new Date(a.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem', flexShrink: 0, marginLeft: '.75rem' }}>
-                  <span style={{ fontFamily: "'Playfair Display',serif", fontSize: '.9rem', color: 'var(--ink)' }}>{formatCurrency(a.amount)}</span>
-                  <span className={`badge badge-${a.status}`}>{a.status}</span>
+
+        {loading ? (
+          <div style={{ padding: '2rem', color: 'var(--ink-3)' }}>Loading...</div>
+        ) : viewList.length === 0 ? (
+          <div className="empty-state">
+            <div className="empty-icon">{calIcon}</div>
+            <div className="empty-title">{t(lang, 'no_appts')}</div>
+            <div className="empty-sub">{t(lang, 'when_book')}</div>
+          </div>
+        ) : viewTab === 'clients' ? (
+          clientList.map((c,i) => (
+            <div key={i} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'.9rem 1.25rem', borderBottom:'1px solid var(--border)' }}>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontWeight:600, fontSize:'.88rem', color:'var(--ink)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{c.name}</div>
+                <div style={{ fontSize:'.72rem', color:'var(--ink-3)', marginTop:3 }}>
+                  {c.count} booking{c.count!==1?'s':''} · last {new Date(c.last).toLocaleDateString('en-CA',{month:'short',day:'numeric'})}
                 </div>
               </div>
-            ))
-        }
+              <span style={{ fontFamily:"'Playfair Display',serif", fontSize:'.9rem', color:'var(--gold)', flexShrink:0, marginLeft:'.75rem' }}>
+                {formatCurrency(c.rev)}
+              </span>
+            </div>
+          ))
+        ) : (
+          viewList.map(a => (
+            <div key={a.id} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'1rem 1.25rem', borderBottom:'1px solid var(--border)', cursor:'pointer' }} onClick={()=>setDetailAppt(a)}>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontWeight:600, fontSize:'.88rem', color:'var(--ink)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{a.client_name}</div>
+                <div style={{ fontSize:'.72rem', color:'var(--ink-3)', marginTop:3, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                  {svcName(a)} · {new Date(a.scheduled_at).toLocaleDateString('en-CA',{month:'short',day:'numeric'})} · {new Date(a.scheduled_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}
+                </div>
+              </div>
+              <div style={{ display:'flex', alignItems:'center', gap:'.5rem', flexShrink:0, marginLeft:'.75rem' }}>
+                <span style={{ fontFamily:"'Playfair Display',serif", fontSize:'.9rem', color:'var(--ink)' }}>{formatCurrency(a.amount)}</span>
+                <span className={`badge badge-${a.status}`}>{a.status}</span>
+              </div>
+            </div>
+          ))
+        )}
       </div>
 
       {detailAppt && (

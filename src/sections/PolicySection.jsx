@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { updatePolicy } from '../api/policy'
+import { getWorkspaceSettings, upsertWorkspaceSettings } from '../api/workspaceSettings'
 
 // ── Toggle ────────────────────────────────────────────────────────────────────
 function Toggle({ checked, onChange, label }) {
@@ -42,6 +43,26 @@ export default function PolicySection({ workspace, toast, refetch }) {
     policy_custom:       workspace?.policy_custom       || '',
   })
   const [saving, setSaving] = useState(false)
+  const [reminders, setReminders] = useState({ remind_7d: false, remind_3d: false, remind_24h: true })
+  const [reminderSaving, setReminderSaving] = useState(false)
+
+  useEffect(() => {
+    if (!workspace?.id) return
+    getWorkspaceSettings(workspace.id).then(({ data }) => {
+      if (data) setReminders({
+        remind_7d:  !!data.remind_7d,
+        remind_3d:  !!data.remind_3d,
+        remind_24h: data.remind_24h !== false,
+      })
+    })
+  }, [workspace?.id])
+
+  async function saveReminder(next) {
+    setReminderSaving(true)
+    await upsertWorkspaceSettings(workspace.id, next)
+    setReminderSaving(false)
+    toast('Reminders saved.')
+  }
 
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }))
 
@@ -193,6 +214,35 @@ export default function PolicySection({ workspace, toast, refetch }) {
           </div>
         </>
       )}
+
+      {/* Reminder Settings */}
+      <div className="card" style={{ marginBottom: '1rem' }}>
+        <div className="card-head">
+          <div>
+            <div className="card-title">Reminder Settings</div>
+            <div style={{ fontSize: '.72rem', color: 'var(--ink-3)', marginTop: 2 }}>Auto-reminders sent to clients before their appointment</div>
+          </div>
+          {reminderSaving && <span style={{ fontSize: '.72rem', color: 'var(--ink-3)' }}>Saving…</span>}
+        </div>
+        <div className="card-body" style={{ display: 'flex', flexDirection: 'column', gap: '.1rem' }}>
+          {[
+            { key: 'remind_7d',  label: '7 days before' },
+            { key: 'remind_3d',  label: '3 days before' },
+            { key: 'remind_24h', label: '24 hours before' },
+          ].map(({ key, label }) => (
+            <Toggle
+              key={key}
+              checked={reminders[key]}
+              label={label}
+              onChange={v => {
+                const next = { ...reminders, [key]: v }
+                setReminders(next)
+                saveReminder(next)
+              }}
+            />
+          ))}
+        </div>
+      </div>
 
       {/* Save — always visible */}
       <button className="btn btn-primary" style={{ justifyContent: 'center', padding: '.75rem 2rem' }} onClick={save} disabled={saving}>

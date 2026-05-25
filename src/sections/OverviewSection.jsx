@@ -949,6 +949,7 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
   const [shopOrders,setShopOrders]=useState([])
   const [allProducts,setAllProducts]=useState([])
   const [offerings,setOfferings]=useState([])
+  const [allServices,setAllServices]=useState([])
   useEffect(()=>{
     if(!workspace) return
     const cacheKey=`org_cache_${workspace.id}`
@@ -969,13 +970,14 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
   },[workspace])
   async function fetchData(){
     const today=new Date().toISOString().split('T')[0],now=new Date()
-    const[a,p,e,b,ord,off]=await Promise.all([
+    const[a,p,e,b,ord,off,svc]=await Promise.all([
       supabase.from('appointments').select('*, services(name)').eq('workspace_id',workspace.id),
       supabase.from('products').select('id,name,stock_quantity').eq('workspace_id',workspace.id),
       supabase.from('enrollments').select('id').eq('workspace_id',workspace.id),
       supabase.from('blocked_dates').select('*').eq('workspace_id',workspace.id),
       supabase.from('orders').select('id,status').eq('workspace_id',workspace.id),
       supabase.from('offerings').select('id,title,start_date,spots_left,is_active').eq('workspace_id',workspace.id),
+      supabase.from('services').select('id,name,price,duration_min').eq('workspace_id',workspace.id).eq('is_active',true),
     ])
     const ad=a.data||[]
     const bd=b.data||[]
@@ -983,6 +985,7 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
     const ed=e.data||[]
     setAllAppts(ad);setBlockedDates(bd)
     setShopOrders(ord.data||[]);setAllProducts(pd);setOfferings(off.data||[])
+    setAllServices(svc.data||[])
     const monthNow=now.getMonth(),yearNow=now.getFullYear()
     const monthApptsCount=ad.filter(x=>{const d=new Date(x.scheduled_at);return d.getFullYear()===yearNow&&d.getMonth()===monthNow}).length
     const newStats={
@@ -1112,7 +1115,23 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
       </div>
       <MonthlyGoal appts={allAppts} workspace={workspace} refetchWorkspace={refetchWorkspace} lang={lang}/>
       <div className="grid-2" style={{marginBottom:'1.25rem'}}>
-        <TopServiceInsight appts={allAppts} onClick={()=>onNavigate?.('services')}/>
+        <div className="card" style={{marginBottom:0,cursor:'pointer'}} onClick={()=>onNavigate?.('services')}>
+          <div className="card-head">
+            <div>
+              <div style={{fontSize:'.65rem',fontWeight:700,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'.25rem'}}>SERVICES</div>
+              <div className="card-title">Your services</div>
+            </div>
+            <div className="stat-arrow">&#8594;</div>
+          </div>
+          {allServices.slice(0,2).map(s=>(
+            <div key={s.id} style={{padding:'.45rem 1.25rem',borderBottom:'1px solid var(--border)'}}>
+              <div style={{fontSize:'.84rem',fontWeight:500,color:'var(--text-primary)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{s.name}</div>
+              <div style={{fontSize:'.7rem',color:'var(--text-secondary)'}}>${s.price} · {s.duration_min}min</div>
+            </div>
+          ))}
+          {allServices.length===0&&<div style={{padding:'.6rem 1.25rem',fontSize:'.78rem',color:'var(--text-secondary)',fontStyle:'italic'}}>No services yet</div>}
+          <div style={{padding:'.5rem 1.25rem',fontSize:'.78rem',fontWeight:600,color:'var(--accent-gold)'}}>+ Add service</div>
+        </div>
         <div className="card" style={{marginBottom:0,cursor:'pointer'}} onClick={()=>onNavigate?.('availability')}>
           <div className="card-head">
             <div>
@@ -1140,6 +1159,16 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
             <div style={{fontSize:'.65rem',fontWeight:700,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'.25rem'}}>REVIEWS</div>
             <div className="card-title">Client reviews</div>
             <div className="card-sub">See what clients are saying</div>
+          </div>
+          <div className="stat-arrow">&#8594;</div>
+        </div>
+      </div>
+      <div className="card" style={{marginBottom:'1.25rem',cursor:'pointer'}} onClick={()=>onNavigate?.('policy')}>
+        <div className="card-head">
+          <div>
+            <div style={{fontSize:'.65rem',fontWeight:700,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'.25rem'}}>POLICY</div>
+            <div className="card-title">Booking policy</div>
+            <div className="card-sub">Set your terms and fees</div>
           </div>
           <div className="stat-arrow">&#8594;</div>
         </div>
