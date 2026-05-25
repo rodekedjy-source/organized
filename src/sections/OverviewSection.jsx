@@ -247,19 +247,19 @@ function RescheduleModal({ appt, onClose, onSaved, toast }) {
       <div style={{background:'var(--bg-card)',borderRadius:16,padding:'1.75rem',width:'100%',maxWidth:360,boxShadow:'0 24px 64px rgba(0,0,0,.2)'}} onClick={e=>e.stopPropagation()}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'1.25rem'}}>
           <div>
-            <div style={{fontFamily:"'Playfair Display',serif",fontSize:'1.2rem',color:'var(--ink)'}}>Reschedule</div>
-            <div style={{fontSize:'.78rem',color:'var(--ink-3)',marginTop:2}}>{appt.client_name} · {svcName(appt)}</div>
+            <div style={{fontFamily:"'Playfair Display',serif",fontSize:'1.2rem',color:'var(--text-primary)'}}>Reschedule</div>
+            <div style={{fontSize:'.78rem',color:'var(--text-secondary)',marginTop:2}}>{appt.client_name} · {svcName(appt)}</div>
           </div>
-          <button style={{background:'var(--bg-base)',border:'none',width:30,height:30,borderRadius:'50%',cursor:'pointer',color:'var(--ink-3)',fontSize:'1rem',display:'flex',alignItems:'center',justifyContent:'center'}} onClick={onClose}>×</button>
+          <button style={{background:'var(--bg-base)',border:'none',width:30,height:30,borderRadius:'50%',cursor:'pointer',color:'var(--text-secondary)',fontSize:'1rem',display:'flex',alignItems:'center',justifyContent:'center'}} onClick={onClose}>×</button>
         </div>
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'.75rem'}}>
           <button className="cal-nav-btn" onClick={prevMonth}>&#8249;</button>
-          <span style={{fontSize:'.84rem',fontWeight:600,color:'var(--ink)'}}>{monthLabel}</span>
+          <span style={{fontSize:'.84rem',fontWeight:600,color:'var(--text-primary)'}}>{monthLabel}</span>
           <button className="cal-nav-btn" onClick={nextMonth}>&#8250;</button>
         </div>
         <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:2,marginBottom:'1rem'}}>
           {['S','M','T','W','T','F','S'].map((d,i)=>(
-            <div key={i} style={{textAlign:'center',fontSize:'.62rem',fontWeight:600,color:'var(--ink-3)',padding:'3px 0'}}>{d}</div>
+            <div key={i} style={{textAlign:'center',fontSize:'.62rem',fontWeight:600,color:'var(--text-secondary)',padding:'3px 0'}}>{d}</div>
           ))}
           {cells.map((d,i)=>{
             const isPast=d&&new Date(year,month,d)<new Date(new Date().setHours(0,0,0,0))
@@ -269,15 +269,15 @@ function RescheduleModal({ appt, onClose, onSaved, toast }) {
                 style={{textAlign:'center',fontSize:'.78rem',padding:'6px 2px',borderRadius:6,
                   cursor:d&&!isPast?'pointer':'default',
                   background:isSelected?'var(--ink)':'transparent',
-                  color:isSelected?'#fff':isPast?'var(--border-2)':d?'var(--ink)':'transparent',
+                  color:isSelected?'#fff':isPast?'var(--border-2)':d?'var(--text-primary)':'transparent',
                   fontWeight:isSelected?600:400,transition:'background .12s'}}>{d||''}</div>
             )
           })}
         </div>
         <div style={{marginBottom:'1.25rem'}}>
-          <label style={{display:'block',fontSize:'.76rem',fontWeight:500,color:'var(--ink-3)',marginBottom:'.4rem'}}>TIME</label>
+          <label style={{display:'block',fontSize:'.76rem',fontWeight:500,color:'var(--text-secondary)',marginBottom:'.4rem'}}>TIME</label>
           <input type="time" value={time} onChange={e=>setTime(e.target.value)}
-            style={{width:'100%',padding:'.6rem .9rem',border:'1px solid var(--border-2)',borderRadius:8,fontSize:'.88rem',fontFamily:'inherit',color:'var(--ink)',background:'var(--bg-card)',outline:'none'}}/>
+            style={{width:'100%',padding:'.6rem .9rem',border:'1px solid var(--border-2)',borderRadius:8,fontSize:'.88rem',fontFamily:'inherit',color:'var(--text-primary)',background:'var(--bg-card)',outline:'none'}}/>
         </div>
         <div style={{display:'flex',gap:'.6rem'}}>
           <button className="btn btn-secondary" style={{flex:1,justifyContent:'center'}} onClick={onClose}>Cancel</button>
@@ -308,40 +308,40 @@ function MessageModal({ appt, onClose, workspace }) {
       <div style={{background:'var(--bg-card)',borderRadius:16,padding:'1.75rem',width:'100%',maxWidth:400,boxShadow:'0 24px 64px rgba(0,0,0,.2)'}} onClick={e=>e.stopPropagation()}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'1.25rem'}}>
           <div>
-            <div style={{fontFamily:"'Playfair Display',serif",fontSize:'1.2rem',color:'var(--ink)'}}>Message client</div>
-            <div style={{fontSize:'.78rem',color:'var(--ink-3)',marginTop:2}}>{name}</div>
+            <div style={{fontFamily:"'Playfair Display',serif",fontSize:'1.2rem',color:'var(--text-primary)'}}>Message client</div>
+            <div style={{fontSize:'.78rem',color:'var(--text-secondary)',marginTop:2}}>{name}</div>
           </div>
-          <button style={{background:'var(--bg-base)',border:'none',width:30,height:30,borderRadius:'50%',cursor:'pointer',color:'var(--ink-3)',fontSize:'1rem',display:'flex',alignItems:'center',justifyContent:'center'}} onClick={onClose}>×</button>
+          <button style={{background:'var(--bg-base)',border:'none',width:30,height:30,borderRadius:'50%',cursor:'pointer',color:'var(--text-secondary)',fontSize:'1rem',display:'flex',alignItems:'center',justifyContent:'center'}} onClick={onClose}>×</button>
         </div>
         {phone?(
           <div style={{marginBottom:'1.25rem',padding:'1rem',background:'var(--bg-base)',borderRadius:10,border:'1px solid var(--border)'}}>
             <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'.65rem'}}>
               <div>
-                <div style={{fontSize:'.72rem',fontWeight:600,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'.05em'}}>SMS</div>
-                <div style={{fontSize:'.85rem',fontWeight:500,color:'var(--ink)',marginTop:2}}>{phone}</div>
+                <div style={{fontSize:'.72rem',fontWeight:600,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'.05em'}}>SMS</div>
+                <div style={{fontSize:'.85rem',fontWeight:500,color:'var(--text-primary)',marginTop:2}}>{phone}</div>
               </div>
               <button className="btn btn-primary btn-sm" onClick={openSMS}>Open SMS →</button>
             </div>
             <textarea value={smsBody} onChange={e=>setSmsBody(e.target.value)} rows={3}
-              style={{width:'100%',padding:'.55rem .75rem',border:'1px solid var(--border-2)',borderRadius:7,fontSize:'.78rem',fontFamily:'inherit',color:'var(--ink)',background:'var(--bg-card)',resize:'vertical',outline:'none',lineHeight:1.5}}/>
+              style={{width:'100%',padding:'.55rem .75rem',border:'1px solid var(--border-2)',borderRadius:7,fontSize:'.78rem',fontFamily:'inherit',color:'var(--text-primary)',background:'var(--bg-card)',resize:'vertical',outline:'none',lineHeight:1.5}}/>
           </div>
         ):(
-          <div style={{marginBottom:'1.25rem',padding:'1rem',background:'var(--bg-base)',borderRadius:10,border:'1px solid var(--border)',fontSize:'.82rem',color:'var(--ink-3)'}}>No phone number on file.</div>
+          <div style={{marginBottom:'1.25rem',padding:'1rem',background:'var(--bg-base)',borderRadius:10,border:'1px solid var(--border)',fontSize:'.82rem',color:'var(--text-secondary)'}}>No phone number on file.</div>
         )}
         {email?(
           <div style={{padding:'1rem',background:'var(--bg-base)',borderRadius:10,border:'1px solid var(--border)'}}>
             <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'.65rem'}}>
               <div>
-                <div style={{fontSize:'.72rem',fontWeight:600,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'.05em'}}>Email</div>
-                <div style={{fontSize:'.85rem',fontWeight:500,color:'var(--ink)',marginTop:2}}>{email}</div>
+                <div style={{fontSize:'.72rem',fontWeight:600,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'.05em'}}>Email</div>
+                <div style={{fontSize:'.85rem',fontWeight:500,color:'var(--text-primary)',marginTop:2}}>{email}</div>
               </div>
               <button className="btn btn-primary btn-sm" onClick={openEmail}>Open Mail →</button>
             </div>
             <textarea value={emailBody} onChange={e=>setEmailBody(e.target.value)} rows={4}
-              style={{width:'100%',padding:'.55rem .75rem',border:'1px solid var(--border-2)',borderRadius:7,fontSize:'.78rem',fontFamily:'inherit',color:'var(--ink)',background:'var(--bg-card)',resize:'vertical',outline:'none',lineHeight:1.5}}/>
+              style={{width:'100%',padding:'.55rem .75rem',border:'1px solid var(--border-2)',borderRadius:7,fontSize:'.78rem',fontFamily:'inherit',color:'var(--text-primary)',background:'var(--bg-card)',resize:'vertical',outline:'none',lineHeight:1.5}}/>
           </div>
         ):(
-          <div style={{padding:'1rem',background:'var(--bg-base)',borderRadius:10,border:'1px solid var(--border)',fontSize:'.82rem',color:'var(--ink-3)'}}>No email address on file.</div>
+          <div style={{padding:'1rem',background:'var(--bg-base)',borderRadius:10,border:'1px solid var(--border)',fontSize:'.82rem',color:'var(--text-secondary)'}}>No email address on file.</div>
         )}
         <button className="btn btn-secondary" style={{width:'100%',justifyContent:'center',marginTop:'1rem'}} onClick={onClose}>Close</button>
       </div>
@@ -417,7 +417,7 @@ function MonthlyGoal({ appts, workspace, refetchWorkspace, lang='en' }) {
         {editing?(
           <div style={{display:'flex',gap:'.4rem',alignItems:'center'}}>
             <input type="number" value={draft} onChange={e=>setDraft(parseInt(e.target.value)||0)}
-              style={{width:'90px',padding:'.3rem .6rem',border:'1px solid var(--gold)',borderRadius:'6px',fontSize:'.82rem',fontFamily:'inherit',color:'var(--ink)',background:'var(--bg-card)'}}/>
+              style={{width:'90px',padding:'.3rem .6rem',border:'1px solid var(--gold)',borderRadius:'6px',fontSize:'.82rem',fontFamily:'inherit',color:'var(--text-primary)',background:'var(--bg-card)'}}/>
             <button className="btn btn-primary btn-xs" onClick={saveGoal} disabled={saving}>{saving?'…':'Save'}</button>
             <button className="btn btn-secondary btn-xs" onClick={()=>setEditing(false)}>✕</button>
           </div>
@@ -427,7 +427,7 @@ function MonthlyGoal({ appts, workspace, refetchWorkspace, lang='en' }) {
       </div>
       <div style={{padding:'1.25rem 1.4rem'}}>
         <div className="goal-track"><div className="goal-fill" style={{width:`${displayPct}%`}}/></div>
-        <div style={{display:'flex',justifyContent:'space-between',marginTop:'.5rem',fontSize:'.72rem',color:'var(--ink-3)'}}>
+        <div style={{display:'flex',justifyContent:'space-between',marginTop:'.5rem',fontSize:'.72rem',color:'var(--text-secondary)'}}>
           <span style={{color:pctVal>=100?'var(--green)':'var(--ink-3)',fontWeight:pctVal>=100?600:400}}>
             {pctVal>=100?'🎉 Goal reached!':`${pctVal}% reached`}
           </span>
@@ -453,7 +453,7 @@ function TopServiceInsight({ appts, onClick }) {
   if(!entries.length) return (
     <div className="card" style={{marginBottom:0,cursor:onClick?'pointer':undefined}} onClick={onClick}>
       <div className="card-head"><div className="card-title">Your top service</div></div>
-      <div style={{padding:'1.4rem',fontSize:'.82rem',color:'var(--ink-3)'}}>Confirm your first appointment to see which service drives your business.</div>
+      <div style={{padding:'1.4rem',fontSize:'.82rem',color:'var(--text-secondary)'}}>Confirm your first appointment to see which service drives your business.</div>
     </div>
   )
   const [name,{count,rev}]=entries[0]
@@ -466,10 +466,10 @@ function TopServiceInsight({ appts, onClick }) {
         <span className="top-badge">{I.star} #1</span>
       </div>
       <div style={{padding:'1.25rem 1.4rem'}}>
-        <div style={{fontFamily:"'Playfair Display',serif",fontSize:'1.35rem',color:'var(--ink)',marginBottom:'.35rem'}}>{name}</div>
-        <div style={{fontSize:'.8rem',color:'var(--ink-3)',marginBottom:'1rem'}}>{count} booking{count>1?'s':''} &middot; {fmtRev(rev)} earned</div>
+        <div style={{fontFamily:"'Playfair Display',serif",fontSize:'1.35rem',color:'var(--text-primary)',marginBottom:'.35rem'}}>{name}</div>
+        <div style={{fontSize:'.8rem',color:'var(--text-secondary)',marginBottom:'1rem'}}>{count} booking{count>1?'s':''} &middot; {fmtRev(rev)} earned</div>
         <div className="top-track"><div className="top-fill" style={{width:`${share}%`}}/></div>
-        <div style={{fontSize:'.72rem',color:'var(--ink-3)',marginTop:'.4rem'}}><strong style={{color:'var(--gold)'}}>{share}%</strong> of your total revenue</div>
+        <div style={{fontSize:'.72rem',color:'var(--text-secondary)',marginTop:'.4rem'}}><strong style={{color:'var(--gold)'}}>{share}%</strong> of your total revenue</div>
       </div>
     </div>
   )
@@ -491,7 +491,7 @@ function WeekChart({ appts }) {
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1rem'}}>
         <div className="card-sub">Total: {fmtRev(total)}</div>
         {delta!==null&&(
-          <span style={{fontSize:'.72rem',fontWeight:600,color:delta>=0?'var(--green)':'var(--red)',background:delta>=0?'rgba(46,125,82,.08)':'rgba(192,57,43,.08)',padding:'2px 8px',borderRadius:'20px'}}>
+          <span style={{fontSize:'.72rem',fontWeight:600,color:delta>=0?'var(--green)':'var(--red)',background:delta>=0?'rgba(46,125,82,.08)':'rgba(192,57,43,.08)',padding:'2px 8px',borderRadius:'var(--border-radius-pill)'}}>
             {delta>=0?'↑':'↓'} {Math.abs(delta)}% vs last week
           </span>
         )}
@@ -732,15 +732,15 @@ function DayPanel({ dayStr, allAppts, blockedDates, onClose, onBlock, onUnblock,
       setBookingSaving(false)
     }
   }
-  const iS={width:'100%',padding:'.55rem .75rem',border:'1px solid var(--border-2)',borderRadius:8,fontSize:'.82rem',fontFamily:'inherit',color:'var(--ink)',background:'var(--bg-card)',outline:'none',transition:'border .15s'}
-  const lS={display:'block',fontSize:'.72rem',fontWeight:600,color:'var(--ink-3)',marginBottom:'.3rem',textTransform:'uppercase',letterSpacing:'.05em'}
+  const iS={width:'100%',padding:'.55rem .75rem',border:'1px solid var(--border-2)',borderRadius:8,fontSize:'.82rem',fontFamily:'inherit',color:'var(--text-primary)',background:'var(--bg-card)',outline:'none',transition:'border .15s'}
+  const lS={display:'block',fontSize:'.72rem',fontWeight:600,color:'var(--text-secondary)',marginBottom:'.3rem',textTransform:'uppercase',letterSpacing:'.05em'}
   return (
     <div className="rev-overlay" onClick={onClose}>
-      <div className="rev-panel" style={{maxHeight:'92vh',overflowY:'auto'}} onClick={e=>e.stopPropagation()}>
+      <div className="rev-panel" style={{maxHeight:'92vh',overflowY:'auto',paddingBottom:100}} onClick={e=>e.stopPropagation()}>
         <div className="rev-panel-head">
           <div style={{display:'flex',alignItems:'center',gap:'.65rem'}}>
             {mode==='booking'&&(
-              <button onClick={()=>setMode('main')} style={{background:'var(--bg-base)',border:'1px solid var(--border)',borderRadius:8,width:30,height:30,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',color:'var(--ink-3)'}}>
+              <button onClick={()=>setMode('main')} style={{background:'var(--bg-base)',border:'1px solid var(--border)',borderRadius:8,width:30,height:30,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',color:'var(--text-secondary)'}}>
                 <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" width="12" height="12"><path d="M10 3L5 8l5 5"/></svg>
               </button>
             )}
@@ -749,7 +749,7 @@ function DayPanel({ dayStr, allAppts, blockedDates, onClose, onBlock, onUnblock,
                 {mode==='booking'?t(lang,'new_booking'):label}
               </div>
               {mode==='main'&&isPast&&(
-                <div style={{fontSize:'.72rem',color:'var(--ink-3)',marginTop:3,display:'flex',alignItems:'center',gap:'.3rem'}}>
+                <div style={{fontSize:'.72rem',color:'var(--text-secondary)',marginTop:3,display:'flex',alignItems:'center',gap:'.3rem'}}>
                   <span>📅</span>{t(lang,'past_day')}{dayRevenue>0&&<span style={{color:'var(--green)',fontWeight:600,marginLeft:4}}>· {fmtRev(dayRevenue)} earned</span>}
                 </div>
               )}
@@ -815,12 +815,12 @@ function DayPanel({ dayStr, allAppts, blockedDates, onClose, onBlock, onUnblock,
           <>
             {dayAppts.length>0?(
               <div style={{marginBottom:'1.25rem'}}>
-                <div style={{fontSize:'.7rem',fontWeight:600,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'.6rem'}}>{isPast?'What happened that day':'Appointments this day'}</div>
+                <div style={{fontSize:'.7rem',fontWeight:600,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'.6rem'}}>{isPast?'What happened that day':'Appointments this day'}</div>
                 {dayAppts.map(a=>(
                   <div key={a.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'.75rem 1rem',background:'var(--bg-base)',borderRadius:10,marginBottom:'.5rem'}}>
                     <div>
-                      <div style={{fontWeight:600,fontSize:'.88rem',color:'var(--ink)'}}>{a.client_name}</div>
-                      <div style={{fontSize:'.75rem',color:'var(--ink-3)',marginTop:2}}>{new Date(a.scheduled_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})} · {svcName(a)}</div>
+                      <div style={{fontWeight:600,fontSize:'.88rem',color:'var(--text-primary)'}}>{a.client_name}</div>
+                      <div style={{fontSize:'.75rem',color:'var(--text-secondary)',marginTop:2}}>{new Date(a.scheduled_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})} · {svcName(a)}</div>
                     </div>
                     <div style={{display:'flex',gap:'.4rem',alignItems:'center'}}>
                       <span className={`badge badge-${a.status}`}>{a.status}</span>
@@ -829,13 +829,13 @@ function DayPanel({ dayStr, allAppts, blockedDates, onClose, onBlock, onUnblock,
                   </div>
                 ))}
                 {!isPast&&dayAppts.filter(a=>a.status!=='cancelled').length>0&&!blocked&&(
-                  <div style={{fontSize:'.76rem',color:'var(--ink-3)',padding:'.6rem .8rem',background:'var(--bg-base)',borderRadius:8,marginTop:'.4rem'}}>
+                  <div style={{fontSize:'.76rem',color:'var(--text-secondary)',padding:'.6rem .8rem',background:'var(--bg-base)',borderRadius:8,marginTop:'.4rem'}}>
                     This day has bookings. Blocking it will not cancel them — message each client first.
                   </div>
                 )}
               </div>
             ):(
-              <div style={{textAlign:'center',padding:'1rem 0',color:'var(--ink-3)',fontSize:'.85rem',marginBottom:'1rem'}}>
+              <div style={{textAlign:'center',padding:'1rem 0',color:'var(--text-secondary)',fontSize:'.85rem',marginBottom:'1rem'}}>
                 {isPast?'No appointments were recorded for this day.':'No appointments on this day.'}
               </div>
             )}
@@ -844,13 +844,13 @@ function DayPanel({ dayStr, allAppts, blockedDates, onClose, onBlock, onUnblock,
                 <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',background:'rgba(192,57,43,.06)',border:'1px solid rgba(192,57,43,.15)',borderRadius:10,padding:'1rem 1.1rem',marginBottom:'1rem'}}>
                   <div>
                     <div style={{fontWeight:600,fontSize:'.85rem',color:'var(--red)'}}>Blocked</div>
-                    {blocked.reason&&<div style={{fontSize:'.75rem',color:'var(--ink-3)',marginTop:2}}>{blocked.reason}</div>}
+                    {blocked.reason&&<div style={{fontSize:'.75rem',color:'var(--text-secondary)',marginTop:2}}>{blocked.reason}</div>}
                   </div>
                   <button className="btn btn-secondary btn-xs" onClick={()=>onUnblock(blocked.id)}>Unblock</button>
                 </div>
               ):(
                 <div style={{borderTop:'1px solid var(--border)',paddingTop:'1rem',marginBottom:'1rem'}}>
-                  <div style={{fontSize:'.7rem',fontWeight:600,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'.75rem'}}>{t(lang,'block_date')}</div>
+                  <div style={{fontSize:'.7rem',fontWeight:600,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'.75rem'}}>{t(lang,'block_date')}</div>
                   <div className="field" style={{marginBottom:'.75rem'}}>
                     <label>{t(lang,'reason')}</label>
                     <input value={reason} onChange={e=>setReason(e.target.value)} placeholder="Vacation, personal, training..."/>
@@ -861,13 +861,13 @@ function DayPanel({ dayStr, allAppts, blockedDates, onClose, onBlock, onUnblock,
             )}
             <div style={{borderTop:'1px solid var(--border)',paddingTop:'1rem'}}>
               <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'.5rem'}}>
-                <div style={{fontSize:'.7rem',fontWeight:600,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'.08em'}}>📝 {t(lang,'note_title')}</div>
+                <div style={{fontSize:'.7rem',fontWeight:600,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'.08em'}}>📝 {t(lang,'note_title')}</div>
                 {noteSaved&&<span style={{fontSize:'.72rem',color:'var(--green)',fontWeight:600}}>{t(lang,'note_saved')}</span>}
               </div>
-              {noteLoading?<div style={{fontSize:'.78rem',color:'var(--ink-3)',padding:'.4rem 0'}}>Loading...</div>:(
+              {noteLoading?<div style={{fontSize:'.78rem',color:'var(--text-secondary)',padding:'.4rem 0'}}>Loading...</div>:(
                 <>
                   <textarea value={note} onChange={e=>{setNote(e.target.value);setNoteSaved(false)}} placeholder={t(lang,'note_placeholder')} rows={2}
-                    style={{width:'100%',padding:'.55rem .75rem',border:'1px solid var(--border-2)',borderRadius:8,fontSize:'.82rem',fontFamily:'inherit',color:'var(--ink)',background:'var(--bg-base)',resize:'vertical',outline:'none',lineHeight:1.5,transition:'border .15s'}}
+                    style={{width:'100%',padding:'.55rem .75rem',border:'1px solid var(--border-2)',borderRadius:8,fontSize:'.82rem',fontFamily:'inherit',color:'var(--text-primary)',background:'var(--bg-base)',resize:'vertical',outline:'none',lineHeight:1.5,transition:'border .15s'}}
                     onFocus={e=>e.target.style.borderColor='var(--gold)'} onBlur={e=>e.target.style.borderColor='var(--border-2)'}/>
                   <button className="btn btn-secondary btn-sm" style={{marginTop:'.5rem',width:'100%',justifyContent:'center'}} onClick={saveNote} disabled={noteSaving}>{noteSaving?'Saving…':t(lang,'save_note')}</button>
                 </>
@@ -909,7 +909,7 @@ function InteractiveCal({ allAppts, blockedDates, onDayClick }) {
     <div>
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'.65rem'}}>
         <button className="cal-nav-btn" onClick={prevM}>&#8249;</button>
-        <span style={{fontSize:'.84rem',fontWeight:600,color:'var(--ink)'}}>{monthLabel}</span>
+        <span style={{fontSize:'.84rem',fontWeight:600,color:'var(--text-primary)'}}>{monthLabel}</span>
         <button className="cal-nav-btn" onClick={nextM}>&#8250;</button>
       </div>
       <div className="cal-grid">
@@ -928,7 +928,7 @@ function InteractiveCal({ allAppts, blockedDates, onDayClick }) {
           )
         })}
       </div>
-      <div style={{display:'flex',gap:'1rem',marginTop:'.75rem',fontSize:'.7rem',color:'var(--ink-3)'}}>
+      <div style={{display:'flex',gap:'1rem',marginTop:'.75rem',fontSize:'.7rem',color:'var(--text-secondary)'}}>
         <span style={{display:'flex',alignItems:'center',gap:'.3rem'}}><span style={{width:6,height:6,borderRadius:'50%',background:'var(--gold)',display:'inline-block'}}/> Appointment</span>
         <span style={{display:'flex',alignItems:'center',gap:'.3rem'}}><span style={{width:6,height:6,borderRadius:'50%',background:'var(--red)',display:'inline-block'}}/> Blocked</span>
       </div>
@@ -1088,7 +1088,7 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
         )
       })()}
       {remindersSent.length>0&&!reminderBannerDismissed&&(
-        <div style={{background:'var(--ink)',borderRadius:10,padding:'.65rem 1.1rem',marginBottom:'1rem',display:'flex',alignItems:'center',gap:'.75rem',animation:'milestoneIn .35s ease'}}>
+        <div style={{background:'var(--bg-card-dark)',borderRadius:10,padding:'.65rem 1.1rem',marginBottom:'1rem',display:'flex',alignItems:'center',gap:'.75rem',animation:'milestoneIn .35s ease'}}>
           <span style={{fontSize:'.9rem'}}>💬</span>
           <div style={{flex:1}}>
             <span style={{fontSize:'.75rem',color:'rgba(255,255,255,.5)',fontWeight:600,textTransform:'uppercase',letterSpacing:'.06em'}}>{lang==='fr'?'Rappels envoyés aujourd’hui':lang==='es'?'Recordatorios enviados hoy':'Reminders sent today'}</span>
@@ -1123,7 +1123,7 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
           <div className="card-head">
             <div>
               <div className="card-title">{t(lang,'calendar')}</div>
-              <div style={{fontSize:'.72rem',color:'var(--ink-3)'}}>{t(lang,'tap_date')}</div>
+              <div style={{fontSize:'.72rem',color:'var(--text-secondary)'}}>{t(lang,'tap_date')}</div>
               <div style={{fontSize:12,color:'#C9A84C',marginTop:2}}>Set up your availability →</div>
             </div>
           </div>
@@ -1133,7 +1133,7 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
       <div className="card" style={{marginBottom:'1.25rem',cursor:'pointer'}} onClick={()=>onNavigate?.('portfolio')}>
         <div className="card-head">
           <div>
-            <div style={{fontSize:'.65rem',fontWeight:700,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'.25rem'}}>PORTFOLIO</div>
+            <div style={{fontSize:'.65rem',fontWeight:700,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'.25rem'}}>PORTFOLIO</div>
             <div className="card-title">Your work</div>
             <div className="card-sub">Showcase your best photos</div>
           </div>
@@ -1143,7 +1143,7 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
       <div className="card" style={{marginBottom:'1.25rem',cursor:'pointer'}} onClick={()=>onNavigate?.('reviews')}>
         <div className="card-head">
           <div>
-            <div style={{fontSize:'.65rem',fontWeight:700,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'.25rem'}}>REVIEWS</div>
+            <div style={{fontSize:'.65rem',fontWeight:700,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'.25rem'}}>REVIEWS</div>
             <div className="card-title">Client reviews</div>
             <div className="card-sub">See what clients are saying</div>
           </div>
@@ -1167,11 +1167,11 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
             {appts.map(a=>(
               <div key={a.id} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'.85rem 1.25rem',borderBottom:'1px solid var(--border)',gap:'.75rem',cursor:'pointer'}} onClick={()=>onNavigate?.('appointments')}>
                 <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontWeight:600,fontSize:'.88rem',color:'var(--ink)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{a.client_name}</div>
-                  <div style={{fontSize:'.72rem',color:'var(--ink-3)',marginTop:2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{svcName(a)}</div>
+                  <div style={{fontWeight:600,fontSize:'.88rem',color:'var(--text-primary)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{a.client_name}</div>
+                  <div style={{fontSize:'.72rem',color:'var(--text-secondary)',marginTop:2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{svcName(a)}</div>
                 </div>
                 <div style={{textAlign:'right',flexShrink:0}}>
-                  <div style={{fontSize:'.85rem',fontWeight:600,color:'var(--ink)'}}>{new Date(a.scheduled_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</div>
+                  <div style={{fontSize:'.85rem',fontWeight:600,color:'var(--text-primary)'}}>{new Date(a.scheduled_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</div>
                   <div style={{marginTop:3}}><span className={`badge badge-${a.status}`} style={{fontSize:'.65rem'}}>{a.status}</span></div>
                 </div>
               </div>
