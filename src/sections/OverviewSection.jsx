@@ -1110,13 +1110,7 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
           </button>
         ))}
       </div>
-      <div className="grid-2" style={{marginBottom:'1.25rem'}}>
-        <div className="card" style={{marginBottom:0}}>
-          <div className="card-head"><div className="card-title">{t(lang,'revenue_week')}</div></div>
-          <div className="card-body"><WeekChart appts={allAppts}/></div>
-        </div>
-        <MonthlyGoal appts={allAppts} workspace={workspace} refetchWorkspace={refetchWorkspace} lang={lang}/>
-      </div>
+      <MonthlyGoal appts={allAppts} workspace={workspace} refetchWorkspace={refetchWorkspace} lang={lang}/>
       <div className="grid-2" style={{marginBottom:'1.25rem'}}>
         <TopServiceInsight appts={allAppts} onClick={()=>onNavigate?.('services')}/>
         <div className="card" style={{marginBottom:0,cursor:'pointer'}} onClick={()=>onNavigate?.('availability')}>
