@@ -967,8 +967,7 @@ export default function Dashboard() {
       </div>
 
       {/* SIDEBAR */}
-      {menuOpen&&<div className="overlay-bg" onClick={()=>setMenuOpen(false)}/>}
-      <div className={`sidebar${menuOpen?' open':''}`}>
+      {menuOpen&&<div className="sidebar">
         <div className="sidebar-head">
           <div className="sb-brand">Organized<span style={{color:'var(--gold)'}}>.</span></div>
           <button className="sb-close" onClick={()=>setMenuOpen(false)}>✕</button>
@@ -1112,7 +1111,7 @@ export default function Dashboard() {
           )}
           <button className="sb-signout" onClick={handleSignOut}>{t(lang,'nav_signout')}</button>
         </div>
-      </div>
+      </div>}
 
       {/* MAIN */}
       <main className="main-content" style={{paddingBottom:'96px'}}>
@@ -1176,9 +1175,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .av-btn{width:34px;height:34px;border-radius:50%;background:var(--gold);color:var(--ink);font-weight:700;font-size:.82rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-family:'Playfair Display',serif}
 
 /* SIDEBAR */
-.overlay-bg{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:200;backdrop-filter:blur(2px)}
-.sidebar{position:fixed;left:0;top:0;bottom:0;width:280px;background:var(--surface);z-index:70;display:flex;flex-direction:column;transform:translateX(-100%);transition:transform .28s cubic-bezier(.4,0,.2,1);box-shadow:8px 0 32px rgba(0,0,0,.12)}
-.sidebar.open{transform:translateX(0)}
+.sidebar{position:fixed;top:0;left:0;width:100vw;height:100vh;background:var(--bg-card);z-index:300;display:flex;flex-direction:column;overflow-y:auto}
 .sidebar-head{display:flex;align-items:center;justify-content:space-between;padding:1.1rem 1.25rem;border-bottom:1px solid var(--border)}
 .sb-brand{font-family:'Playfair Display',serif;font-size:1.2rem;font-weight:500;color:var(--ink)}
 .sb-close{background:none;border:none;cursor:pointer;color:var(--ink-3);font-size:1.1rem;padding:4px}
