@@ -1105,8 +1105,8 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
           <button key={i} className="stat-card stat-card-btn" onClick={()=>onNavigate?.(s.page)}>
             <div className="stat-label">{s.label}</div>
             <div className="stat-value">{s.value}</div>
-            <div className={`stat-delta ${s.isCancelled?'delta-down':s.up?'delta-up':'delta-down'}`}>{s.delta}</div>
-            <div className="stat-arrow">&#8594;</div>
+            <div className={`stat-delta ${s.up?'delta-up':s.isCancelled?'delta-down':''}`} style={!s.up&&!s.isCancelled?{color:'var(--text-secondary)'}:{}}>{s.delta}</div>
+            <div style={{fontSize:13,fontWeight:500,color:'var(--accent-gold)',marginTop:'.25rem'}}>View details →</div>
           </button>
         ))}
       </div>

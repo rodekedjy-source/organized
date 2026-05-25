@@ -1127,7 +1127,7 @@ export default function Dashboard() {
         })()}
       </main>
 
-      <FloatingTabBar activeTab={activeTab} onTabChange={(tab)=>{setActiveTab(tab);setPage('overview');setPageStack([])}} />
+      {!menuOpen&&<FloatingTabBar activeTab={activeTab} onTabChange={(tab)=>{setActiveTab(tab);setPage('overview');setPageStack([])}} />}
 
       {/* TOAST */}
       {toastMsg&&(
@@ -1176,7 +1176,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .av-btn{width:34px;height:34px;border-radius:50%;background:var(--gold);color:var(--ink);font-weight:700;font-size:.82rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-family:'Playfair Display',serif}
 
 /* SIDEBAR */
-.overlay-bg{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:60;backdrop-filter:blur(2px)}
+.overlay-bg{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:200;backdrop-filter:blur(2px)}
 .sidebar{position:fixed;left:0;top:0;bottom:0;width:280px;background:var(--surface);z-index:70;display:flex;flex-direction:column;transform:translateX(-100%);transition:transform .28s cubic-bezier(.4,0,.2,1);box-shadow:8px 0 32px rgba(0,0,0,.12)}
 .sidebar.open{transform:translateX(0)}
 .sidebar-head{display:flex;align-items:center;justify-content:space-between;padding:1.1rem 1.25rem;border-bottom:1px solid var(--border)}
