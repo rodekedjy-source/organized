@@ -972,7 +972,7 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
     const today=new Date().toISOString().split('T')[0],now=new Date()
     const[a,p,e,b,ord,off,svc]=await Promise.all([
       supabase.from('appointments').select('*, services(name)').eq('workspace_id',workspace.id),
-      supabase.from('products').select('id,name,stock_quantity').eq('workspace_id',workspace.id),
+      supabase.from('products').select('id,name,price,stock_quantity,is_active').eq('workspace_id',workspace.id).order('created_at',{ascending:false}),
       supabase.from('enrollments').select('id').eq('workspace_id',workspace.id),
       supabase.from('blocked_dates').select('*').eq('workspace_id',workspace.id),
       supabase.from('orders').select('id,status,total_amount,product_name,created_at,tracking_number,delivered_at').eq('workspace_id',workspace.id),
@@ -1158,13 +1158,13 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
               </div>
               <div className="stat-arrow">&#8594;</div>
             </div>
-            {allProducts.slice(0,2).map(p=>(
+            {allProducts.filter(p=>p.is_active).slice(0,2).map(p=>(
               <div key={p.id} style={{padding:'.45rem 1.25rem',borderBottom:'1px solid var(--border)'}}>
                 <div style={{fontSize:'.84rem',fontWeight:500,color:'var(--text-primary)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.name}</div>
                 {p.stock_quantity!=null&&<div style={{fontSize:'.7rem',color:Number(p.stock_quantity)<=2?'#b45309':'var(--text-secondary)'}}>Stock: {p.stock_quantity}</div>}
               </div>
             ))}
-            {allProducts.length===0&&<div style={{padding:'.6rem 1.25rem',fontSize:'.78rem',color:'var(--text-secondary)',fontStyle:'italic'}}>No products yet</div>}
+            {allProducts.filter(p=>p.is_active).length===0&&<div style={{padding:'.6rem 1.25rem',fontSize:'.78rem',color:'var(--text-secondary)',fontStyle:'italic'}}>No products yet</div>}
             <div style={{padding:'.5rem 1.25rem',fontSize:'.78rem',fontWeight:600,color:'var(--accent-gold)'}}>+ Add product</div>
           </div>
           {/* Top product */}

@@ -32,8 +32,171 @@ function SHead({ title }) {
   )
 }
 
+// ── ShopPolicySection ─────────────────────────────────────────────────────────
+function ShopPolicySection({ workspace, toast }) {
+  const DEF = { returns: true, return_days: 14, return_condition: 'unused_only', refund_type: 'full', refund_days: 5, processing_days: 2, shipping_fee: 'free', flat_rate: 0, custom: '' }
+  const [form, setForm] = useState(DEF)
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    if (!workspace?.id) return
+    getWorkspaceSettings(workspace.id).then(({ data }) => {
+      if (data?.shop_policy) {
+        try { setForm({ ...DEF, ...JSON.parse(data.shop_policy) }) } catch {}
+      }
+    })
+  }, [workspace?.id])
+
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  async function save() {
+    setSaving(true)
+    await upsertWorkspaceSettings(workspace.id, { shop_policy: JSON.stringify(form) })
+    setSaving(false)
+    toast('Policy saved.')
+  }
+
+  const iS = { width: '100%', padding: '.6rem .85rem', border: '1px solid var(--border-2)', borderRadius: 9, fontSize: '.85rem', fontFamily: 'inherit', color: 'var(--ink)', background: 'var(--surface)', outline: 'none', transition: 'border .15s' }
+  const focus = e => (e.target.style.borderColor = 'var(--gold)')
+  const blur  = e => (e.target.style.borderColor = 'var(--border-2)')
+  const hint  = { fontSize: '.71rem', color: 'var(--ink-3)', marginTop: '.25rem' }
+
+  // Preview lines
+  const lines = []
+  if (form.returns) {
+    lines.push(`Returns accepted within ${form.return_days} days of delivery${form.return_condition === 'unused_only' ? ' (unused/unopened items only)' : ''}.`)
+    if (form.refund_type === 'full') lines.push(`Full refund issued within ${form.refund_days} business days of receiving the return.`)
+    else if (form.refund_type === 'store_credit') lines.push(`Store credit issued within ${form.refund_days} business days of receiving the return.`)
+    else lines.push('No cash refunds — exchanges or store credit only.')
+  } else {
+    lines.push('All sales are final. No returns or refunds accepted.')
+  }
+  if (form.shipping_fee === 'free') lines.push('Free shipping on all orders.')
+  else if (form.shipping_fee === 'flat') lines.push(`Flat shipping rate of $${form.flat_rate}.`)
+  else lines.push('Shipping calculated at checkout based on location and weight.')
+  lines.push(`Orders are processed within ${form.processing_days} business day${form.processing_days !== 1 ? 's' : ''}.`)
+  if (form.custom?.trim()) form.custom.trim().split('\n').filter(l => l.trim()).forEach(l => lines.push(l.trim()))
+
+  return (
+    <div>
+      <div className="page-head">
+        <div>
+          <div className="page-title">Shop Policy</div>
+          <div className="page-sub">Define your return, refund and shipping terms.</div>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: '1rem' }}>
+        <div className="card-body" style={{ display: 'flex', flexDirection: 'column', gap: '1.4rem' }}>
+
+          {/* Return Policy */}
+          <div>
+            <SHead title="Return Policy" />
+            <Toggle checked={form.returns} onChange={v => set('returns', v)} label="Accept returns" />
+            {form.returns && (
+              <>
+                <div className="field" style={{ marginTop: '.75rem' }}>
+                  <label>Return window</label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '.6rem' }}>
+                    <input style={{ ...iS, maxWidth: 80 }} type="number" min="1" value={form.return_days} onChange={e => set('return_days', Number(e.target.value))} onFocus={focus} onBlur={blur} />
+                    <span style={{ fontSize: '.88rem', color: 'var(--ink-2)', flexShrink: 0 }}>days</span>
+                  </div>
+                </div>
+                <div className="field" style={{ marginTop: '.75rem' }}>
+                  <label>Condition</label>
+                  <select style={{ ...iS, cursor: 'pointer' }} value={form.return_condition} onChange={e => set('return_condition', e.target.value)} onFocus={focus} onBlur={blur}>
+                    <option value="unused_only">Unused / unopened only</option>
+                    <option value="any">Any condition accepted</option>
+                  </select>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Refund Policy */}
+          <div>
+            <SHead title="Refund Policy" />
+            <div className="field">
+              <label>Refund type</label>
+              <select style={{ ...iS, cursor: 'pointer' }} value={form.refund_type} onChange={e => set('refund_type', e.target.value)} onFocus={focus} onBlur={blur}>
+                <option value="full">Full refund</option>
+                <option value="store_credit">Store credit only</option>
+                <option value="none">No refunds</option>
+              </select>
+            </div>
+            {form.refund_type !== 'none' && (
+              <div className="field" style={{ marginTop: '.75rem' }}>
+                <label>Processing time</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '.6rem' }}>
+                  <input style={{ ...iS, maxWidth: 80 }} type="number" min="1" value={form.refund_days} onChange={e => set('refund_days', Number(e.target.value))} onFocus={focus} onBlur={blur} />
+                  <span style={{ fontSize: '.88rem', color: 'var(--ink-2)', flexShrink: 0 }}>business days</span>
+                </div>
+                <div style={hint}>After receiving the returned item</div>
+              </div>
+            )}
+          </div>
+
+          {/* Shipping Policy */}
+          <div>
+            <SHead title="Shipping Policy" />
+            <div className="field">
+              <label>Shipping fee</label>
+              <select style={{ ...iS, cursor: 'pointer' }} value={form.shipping_fee} onChange={e => set('shipping_fee', e.target.value)} onFocus={focus} onBlur={blur}>
+                <option value="free">Free shipping</option>
+                <option value="flat">Flat rate</option>
+                <option value="calculated">Calculated at checkout</option>
+              </select>
+            </div>
+            {form.shipping_fee === 'flat' && (
+              <div className="field" style={{ marginTop: '.75rem' }}>
+                <label>Flat rate amount</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '.6rem' }}>
+                  <span style={{ fontSize: '.88rem', color: 'var(--ink-2)', flexShrink: 0 }}>$</span>
+                  <input style={{ ...iS, maxWidth: 100 }} type="number" min="0" step="0.01" value={form.flat_rate} onChange={e => set('flat_rate', Number(e.target.value))} onFocus={focus} onBlur={blur} />
+                </div>
+              </div>
+            )}
+            <div className="field" style={{ marginTop: '.75rem' }}>
+              <label>Processing time</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '.6rem' }}>
+                <input style={{ ...iS, maxWidth: 80 }} type="number" min="1" value={form.processing_days} onChange={e => set('processing_days', Number(e.target.value))} onFocus={focus} onBlur={blur} />
+                <span style={{ fontSize: '.88rem', color: 'var(--ink-2)', flexShrink: 0 }}>business days</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Additional Terms */}
+          <div>
+            <SHead title="Additional Terms" />
+            <div className="field">
+              <label>Custom terms <span style={{ fontWeight: 400, color: 'var(--ink-3)' }}>(optional)</span></label>
+              <textarea style={{ ...iS, minHeight: 80, resize: 'vertical' }} rows={3} value={form.custom} onChange={e => set('custom', e.target.value)} placeholder="Any additional terms shown to customers..." onFocus={focus} onBlur={blur} />
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      {/* Preview */}
+      <div className="card" style={{ marginBottom: '1rem' }}>
+        <div className="card-body">
+          <div style={{ fontSize: '.67rem', fontWeight: 700, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: '.85rem' }}>Preview</div>
+          {lines.map((line, i) => (
+            <div key={i} style={{ borderLeft: '2px solid var(--gold)', paddingLeft: 12, paddingTop: 6, paddingBottom: 6, margin: '8px 0', fontSize: '.85rem', color: 'var(--ink-2)', lineHeight: 1.65 }}>{line}</div>
+          ))}
+        </div>
+      </div>
+
+      <button className="btn btn-primary" style={{ justifyContent: 'center', padding: '.75rem 2rem' }} onClick={save} disabled={saving}>
+        {saving ? 'Saving…' : 'Save Policy'}
+      </button>
+    </div>
+  )
+}
+
 // ── PolicySection ─────────────────────────────────────────────────────────────
-export default function PolicySection({ workspace, toast, refetch }) {
+export default function PolicySection({ workspace, toast, refetch, type = 'booking' }) {
+  if (type === 'shop') return <ShopPolicySection workspace={workspace} toast={toast} />
   const [form, setForm] = useState({
     policy_enabled:      workspace?.policy_enabled      || false,
     policy_deposit_pct:  workspace?.policy_deposit_pct  ?? 0,
