@@ -905,18 +905,6 @@ export default function Dashboard() {
   async function handleSignOut(){ await supabase.auth.signOut(); navigate('/') }
 
   const NAV=[
-    {key:'overview',label:'nav_overview',icon:I.home},
-    {key:'appointments',label:'nav_appointments',icon:I.cal},
-    {key:'services',label:'nav_services',icon:I.box},
-    {key:'products',label:'nav_products',icon:I.box},
-    {key:'orders',label:'nav_orders',icon:I.orders},
-    {key:'formations',label:'nav_formations',icon:I.grad},
-    {key:'clients',label:'nav_clients',icon:I.users},
-    {key:'payments',label:'nav_payments',icon:I.card},
-    {key:'portfolio',label:'nav_portfolio',icon:I.box},
-    {key:'reviews',label:'nav_reviews',icon:I.home},
-    {key:'availability',label:'nav_availability',icon:I.avail},
-    {key:'policy',label:'nav_policy',icon:I.shield},
     {key:'settings',label:'nav_settings',icon:I.gear},
   ]
 
@@ -972,14 +960,6 @@ export default function Dashboard() {
           </div>
         </div>
         <div style={{display:'flex',alignItems:'center',gap:2}}>
-          <button onClick={()=>setTheme(theme==='dark'?'light':'dark')} style={{background:'none',border:'none',cursor:'pointer',width:34,height:34,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',color:'var(--ink-3)',flexShrink:0}} aria-label="Toggle theme">
-            <span style={{width:18,height:18,display:'flex'}}>
-              {theme==='dark'
-                ? <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="18" height="18"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
-                : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="18" height="18"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
-              }
-            </span>
-          </button>
           <button onClick={()=>navigateTo('settings')} style={{background:'none',border:'none',cursor:'pointer',width:34,height:34,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',color:'var(--ink-3)',flexShrink:0}} aria-label="Settings">
             <span style={{width:18,height:18,display:'flex'}}>{I.gear}</span>
           </button>
