@@ -948,6 +948,7 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
   const [remindersSent,setRemindersSent]=useState([])
   const [shopOrders,setShopOrders]=useState([])
   const [allProducts,setAllProducts]=useState([])
+  const [shopProducts,setShopProducts]=useState([])
   const [offerings,setOfferings]=useState([])
   const [allServices,setAllServices]=useState([])
   useEffect(()=>{
@@ -1019,6 +1020,10 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
     setSelectedDay(null);fetchData()
   }
   async function handleUnblock(id){await supabase.from('blocked_dates').delete().eq('id',id);toast('Date unblocked.');setSelectedDay(null);fetchData()}
+  useEffect(()=>{
+    if(activeTab!=='shop'||!workspace?.id) return
+    supabase.from('products').select('id,name,price,stock_quantity,is_active').eq('workspace_id',workspace.id).eq('is_active',true).order('created_at',{ascending:false}).limit(2).then(({data})=>setShopProducts(data||[]))
+  },[activeTab,workspace?.id])
   const todayCount=appts.length
   const mRev=monthRevenue(allAppts,0),lastMRev=monthRevenue(allAppts,-1),mDelta=pct(mRev,lastMRev)
   const curMonthName = new Date().toLocaleDateString(lang==='fr'?'fr-FR':lang==='es'?'es-ES':'en-US',{month:'long'})
@@ -1049,7 +1054,6 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
   const shopTopProd=Object.entries(shopProdMap).sort((a,b)=>b[1].rev-a[1].rev)[0]
   const shopCards=[
     {label:'Revenue — '+curMonthName,value:fmtRev(shopRevMonth),delta:shopRevDelta!==null?`${shopRevDelta>=0?'↑':'↓'} ${Math.abs(shopRevDelta)}% vs last month`:'—',up:shopRevDelta===null||shopRevDelta>=0,page:'revenue'},
-    {label:'Orders',value:shopOrders.length,delta:shopPending>0?`${shopPending} pending`:'All up to date',up:shopPending===0,page:'orders'},
   ]
   return (
     <div style={{background:'var(--bg-base)',minHeight:'100%'}}>
@@ -1137,19 +1141,22 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
       </div>
       {activeTab==='shop'?(
         <>
-          {/* Orders card */}
+          {/* Orders — single card (FIX 7) */}
           <div className="card" style={{marginBottom:'1.25rem',cursor:'pointer',marginTop:12}} onClick={()=>onNavigate?.('orders')}>
             <div className="card-head">
               <div>
                 <div style={{fontSize:'.65rem',fontWeight:700,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'.25rem'}}>ORDERS</div>
                 <div className="card-title">{shopOrders.length} total</div>
-                {shopPending>0&&<div style={{fontSize:'.78rem',color:'#b45309',fontWeight:600,marginTop:2}}>{shopPending} need attention</div>}
+                {(shopPending+shopProcessing)>0
+                  ?<div style={{fontSize:'.78rem',color:'#b45309',fontWeight:600,marginTop:2}}>{shopPending+shopProcessing} need attention</div>
+                  :<div style={{fontSize:'.78rem',color:'#16a34a',fontWeight:600,marginTop:2}}>All up to date</div>
+                }
               </div>
               <div className="stat-arrow">&#8594;</div>
             </div>
             <div style={{padding:'.4rem 1.25rem',fontSize:'.78rem',fontWeight:500,color:'var(--accent-gold)'}}>View details →</div>
           </div>
-          {/* Products card */}
+          {/* Products — dedicated shopProducts fetch (FIX 1) */}
           <div className="card" style={{marginBottom:'1.25rem',cursor:'pointer'}} onClick={()=>onNavigate?.('products')}>
             <div className="card-head">
               <div>
@@ -1158,27 +1165,34 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
               </div>
               <div className="stat-arrow">&#8594;</div>
             </div>
-            {allProducts.filter(p=>p.is_active).slice(0,2).map(p=>(
-              <div key={p.id} style={{padding:'.45rem 1.25rem',borderBottom:'1px solid var(--border)'}}>
-                <div style={{fontSize:'.84rem',fontWeight:500,color:'var(--text-primary)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.name}</div>
-                {p.stock_quantity!=null&&<div style={{fontSize:'.7rem',color:Number(p.stock_quantity)<=2?'#b45309':'var(--text-secondary)'}}>Stock: {p.stock_quantity}</div>}
-              </div>
-            ))}
-            {allProducts.filter(p=>p.is_active).length===0&&<div style={{padding:'.6rem 1.25rem',fontSize:'.78rem',color:'var(--text-secondary)',fontStyle:'italic'}}>No products yet</div>}
+            {shopProducts.length>0
+              ?shopProducts.map(p=>(
+                <div key={p.id} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'.45rem 1.25rem',borderBottom:'1px solid var(--border)'}}>
+                  <div style={{fontWeight:600,fontSize:'.84rem',color:'var(--text-primary)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flex:1}}>{p.name}</div>
+                  <div style={{display:'flex',alignItems:'center',gap:'.5rem',flexShrink:0,marginLeft:'.5rem'}}>
+                    {p.stock_quantity!=null&&Number(p.stock_quantity)<=2&&<span style={{fontSize:'.65rem',fontWeight:700,background:'rgba(245,158,11,.15)',color:'#b45309',border:'1px solid rgba(245,158,11,.3)',borderRadius:4,padding:'1px 6px'}}>Low stock</span>}
+                    <div style={{fontSize:'.82rem',color:'var(--text-secondary)'}}>${Number(p.price||0).toFixed(2)}</div>
+                  </div>
+                </div>
+              ))
+              :<div style={{padding:'.6rem 1.25rem',fontSize:'.78rem',color:'var(--text-secondary)',fontStyle:'italic'}}>No active products yet</div>
+            }
             <div style={{padding:'.5rem 1.25rem',fontSize:'.78rem',fontWeight:600,color:'var(--accent-gold)'}}>+ Add product</div>
           </div>
-          {/* Top product */}
-          {shopTopProd&&(
-            <div className="card" style={{marginBottom:'1.25rem'}}>
-              <div className="card-head">
-                <div>
-                  <div style={{fontSize:'.65rem',fontWeight:700,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'.25rem'}}>TOP PRODUCT</div>
-                  <div className="card-title">{shopTopProd[0]}</div>
-                  <div style={{fontSize:'.78rem',color:'var(--text-secondary)',marginTop:2}}>{shopTopProd[1].count} sold · {fmtRev(shopTopProd[1].rev)}</div>
-                </div>
+          {/* Top Product — always shown, clickable (FIX 2) */}
+          <div className="card" style={{marginBottom:'1.25rem',cursor:'pointer'}} onClick={()=>onNavigate?.('products')}>
+            <div className="card-head">
+              <div>
+                <div style={{fontSize:'.65rem',fontWeight:700,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'.25rem'}}>TOP PRODUCT</div>
+                {shopTopProd
+                  ?<><div className="card-title">{shopTopProd[0]}</div><div style={{fontSize:'.78rem',color:'var(--text-secondary)',marginTop:2}}>{shopTopProd[1].count} sold · {fmtRev(shopTopProd[1].rev)}</div></>
+                  :<div style={{fontSize:'.84rem',color:'var(--text-secondary)',fontStyle:'italic',marginTop:2}}>No sales yet this month</div>
+                }
               </div>
+              <div className="stat-arrow">&#8594;</div>
             </div>
-          )}
+            <div style={{padding:'.4rem 1.25rem',fontSize:'.78rem',fontWeight:500,color:'var(--accent-gold)'}}>View all products →</div>
+          </div>
           {/* Reviews */}
           <div className="card" style={{marginBottom:'1.25rem',cursor:'pointer'}} onClick={()=>onNavigate?.('reviews')}>
             <div className="card-head">
@@ -1197,6 +1211,17 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
                 <div style={{fontSize:'.65rem',fontWeight:700,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'.25rem'}}>SHOP POLICY</div>
                 <div className="card-title">Refunds & shipping terms</div>
                 <div className="card-sub">Define your shop terms</div>
+              </div>
+              <div className="stat-arrow">&#8594;</div>
+            </div>
+          </div>
+          {/* Shipping (FIX 6) */}
+          <div className="card" style={{marginBottom:'1.25rem',cursor:'pointer'}} onClick={()=>onNavigate?.('shipping')}>
+            <div className="card-head">
+              <div>
+                <div style={{fontSize:'.65rem',fontWeight:700,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'.25rem'}}>SHIPPING</div>
+                <div className="card-title">Shipping setup</div>
+                <div className="card-sub">Carriers, processing time &amp; free shipping rules</div>
               </div>
               <div className="stat-arrow">&#8594;</div>
             </div>
