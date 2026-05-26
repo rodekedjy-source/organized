@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /x
+Disallow: /suspended
+Disallow: /auth
+Sitemap: https://beorganized.io/sitemap.xml
