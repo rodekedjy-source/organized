@@ -195,6 +195,7 @@ Deno.serve(async (req: Request) => {
                   owner_email: wsOwner?.email || null,
                   workspace_name: wsWithUser?.name || '',
                   booking_link: `https://beorganized.io/${wsWithUser?.slug || ''}`,
+                  cart_items: cartItemsParsed,
                 }),
               });
             } catch (emailErr) {

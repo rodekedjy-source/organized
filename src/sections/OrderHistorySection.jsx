@@ -178,6 +178,13 @@ export default function OrderHistorySection({ workspace, toast }) {
                   </div>
                 )}
 
+                {/* Shipping address */}
+                {order.shipping_address && (
+                  <div style={{ fontSize:12, color:'var(--text-secondary)', marginBottom:'.5rem' }}>
+                    📍 {order.shipping_address}
+                  </div>
+                )}
+
                 {/* Actions */}
                 {isNew && (
                   <button onClick={() => markProcessing(order)} disabled={acting} style={{
