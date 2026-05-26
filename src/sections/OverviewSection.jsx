@@ -969,7 +969,7 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
     const ch=supabase.channel('ov-rt').on('postgres_changes',{event:'*',schema:'public',table:'appointments',filter:`workspace_id=eq.${workspace.id}`},fetchData).subscribe()
     const poll=setInterval(fetchData, 8000)
     return()=>{ supabase.removeChannel(ch); clearInterval(poll) }
-  },[workspace])
+  },[workspace?.id])
   async function fetchData(){
     const today=new Date().toISOString().split('T')[0],now=new Date()
     const[a,p,e,b,ord,off,svc]=await Promise.all([
