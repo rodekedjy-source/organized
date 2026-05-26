@@ -217,9 +217,11 @@ export default function ClientPage() {
   const [addressSuggestions, setAddressSuggestions] = useState([])
   const [addressLoading,     setAddressLoading]     = useState(false)
   const [cardholderName,     setCardholderName]     = useState('')
-  const checkoutStripeRef  = useRef(null)
+  const checkoutStripeRef   = useRef(null)
   const checkoutElementsRef = useRef(null)
-  const checkoutCardRef    = useRef(null)
+  const checkoutCardRef     = useRef(null)
+  const addressAbortRef     = useRef(null)
+  const addressDebounceRef  = useRef(null)
 
   // ── Booking state ─────────────────────────────────────────────────────────
   const [bkOpen,         setBkOpen]         = useState(false)
@@ -471,16 +473,24 @@ export default function ClientPage() {
 
   async function fetchAddressSuggestions(query) {
     if (query.length < 3) { setAddressSuggestions([]); return }
+
+    // Cancel previous request
+    if (addressAbortRef.current) addressAbortRef.current.abort()
+    addressAbortRef.current = new AbortController()
+
     setAddressLoading(true)
     try {
       const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5&addressdetails=1`,
-        { headers: { 'Accept-Language': 'en' } }
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=6&addressdetails=1&countrycodes=ca,us&accept-language=en`,
+        {
+          headers: { 'Accept-Language': 'en' },
+          signal: addressAbortRef.current.signal
+        }
       )
       const data = await res.json()
       setAddressSuggestions(data)
     } catch(e) {
-      setAddressSuggestions([])
+      if (e.name !== 'AbortError') setAddressSuggestions([])
     } finally {
       setAddressLoading(false)
     }
@@ -494,10 +504,20 @@ export default function ClientPage() {
       city: a.city || a.town || a.village || '',
       province: a.state || a.province || '',
       postal: a.postcode || '',
-      country: a.country || 'Canada',
+      country: a.country_code === 'us' ? 'United States' : 'Canada',
     })
     setAddressSuggestions([])
   }
+
+  useEffect(() => {
+    function handleClick(e) {
+      if (!e.target.closest('.co-suggestions') && !e.target.closest('.co-field')) {
+        setAddressSuggestions([])
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
 
   async function initCheckoutStripe() {
     setCheckoutSubmitting(true)
@@ -1447,16 +1467,25 @@ export default function ClientPage() {
                       value={checkoutAddress.street}
                       onChange={e=>{
                         setCheckoutAddress(a=>({...a,street:e.target.value}))
-                        fetchAddressSuggestions(e.target.value)
+                        clearTimeout(addressDebounceRef.current)
+                        addressDebounceRef.current = setTimeout(()=>{
+                          fetchAddressSuggestions(e.target.value)
+                        }, 350)
                       }}
                     />
                     {addressSuggestions.length>0&&(
                       <div className="co-suggestions">
-                        {addressSuggestions.map((s,i)=>(
-                          <div key={i} className="co-suggestion" onClick={()=>selectAddress(s)}>
-                            {s.display_name}
-                          </div>
-                        ))}
+                        {addressSuggestions.map((s,i)=>{
+                          const a = s.address
+                          const line1 = [a.house_number, a.road].filter(Boolean).join(' ')
+                          const line2 = [a.city||a.town||a.village, a.state, a.country].filter(Boolean).join(', ')
+                          return (
+                            <div key={i} className="co-suggestion" onClick={()=>selectAddress(s)}>
+                              <div style={{fontWeight:500,fontSize:'0.85rem'}}>{line1||s.display_name}</div>
+                              <div style={{fontSize:'0.75rem',color:'var(--text-secondary)'}}>{line2}</div>
+                            </div>
+                          )
+                        })}
                       </div>
                     )}
                     {addressLoading&&<div style={{fontSize:'0.7rem',color:'var(--text-muted)',marginTop:-6,marginBottom:8,paddingLeft:2}}>Searching…</div>}
