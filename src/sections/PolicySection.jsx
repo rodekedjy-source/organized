@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { supabase } from '../lib/supabase'
 import { updatePolicy } from '../api/policy'
 import { getWorkspaceSettings, upsertWorkspaceSettings } from '../api/workspaceSettings'
 
@@ -33,27 +34,26 @@ function SHead({ title }) {
 }
 
 // ── ShopPolicySection ─────────────────────────────────────────────────────────
-function ShopPolicySection({ workspace, toast }) {
+function ShopPolicySection({ workspace, toast, refetch }) {
   const DEF = { returns: true, return_days: 14, return_condition: 'unused_only', refund_type: 'full', refund_days: 5, processing_days: 2, shipping_fee: 'free', flat_rate: 0, custom: '' }
-  const [form, setForm] = useState(DEF)
+  const [form, setForm] = useState(() => {
+    const saved = workspace?.policy_shop
+    return saved ? { ...DEF, ...saved } : DEF
+  })
   const [saving, setSaving] = useState(false)
-
-  useEffect(() => {
-    if (!workspace?.id) return
-    getWorkspaceSettings(workspace.id).then(({ data }) => {
-      if (data?.shop_policy) {
-        try { setForm({ ...DEF, ...JSON.parse(data.shop_policy) }) } catch {}
-      }
-    })
-  }, [workspace?.id])
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
   async function save() {
     setSaving(true)
-    await upsertWorkspaceSettings(workspace.id, { shop_policy: JSON.stringify(form) })
+    const { error } = await supabase
+      .from('workspaces')
+      .update({ policy_shop: form })
+      .eq('id', workspace.id)
     setSaving(false)
+    if (error) { toast('Could not save policy.'); return }
     toast('Policy saved.')
+    if (refetch) await refetch()
   }
 
   const iS = { width: '100%', padding: '.6rem .85rem', border: '1px solid var(--border-2)', borderRadius: 9, fontSize: '.85rem', fontFamily: 'inherit', color: 'var(--ink)', background: 'var(--surface)', outline: 'none', transition: 'border .15s' }
@@ -71,10 +71,10 @@ function ShopPolicySection({ workspace, toast }) {
   } else {
     lines.push('All sales are final. No returns or refunds accepted.')
   }
+  lines.push(`Orders are processed within ${form.processing_days} business day${form.processing_days !== 1 ? 's' : ''} before shipping.`)
   if (form.shipping_fee === 'free') lines.push('Free shipping on all orders.')
-  else if (form.shipping_fee === 'flat') lines.push(`Flat shipping rate of $${form.flat_rate}.`)
+  else if (form.shipping_fee === 'flat') lines.push(`Flat shipping rate of $${Number(form.flat_rate).toFixed(2)}.`)
   else lines.push('Shipping calculated at checkout based on location and weight.')
-  lines.push(`Orders are processed within ${form.processing_days} business day${form.processing_days !== 1 ? 's' : ''}.`)
   if (form.custom?.trim()) form.custom.trim().split('\n').filter(l => l.trim()).forEach(l => lines.push(l.trim()))
 
   return (
@@ -89,38 +89,38 @@ function ShopPolicySection({ workspace, toast }) {
       <div className="card" style={{ marginBottom: '1rem' }}>
         <div className="card-body" style={{ display: 'flex', flexDirection: 'column', gap: '1.4rem' }}>
 
-          {/* Return Policy */}
+          {/* Section 1 — Return Policy */}
           <div>
             <SHead title="Return Policy" />
             <Toggle checked={form.returns} onChange={v => set('returns', v)} label="Accept returns" />
             {form.returns && (
               <>
                 <div className="field" style={{ marginTop: '.75rem' }}>
-                  <label>Return window</label>
+                  <label>Return window after delivery</label>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '.6rem' }}>
                     <input style={{ ...iS, maxWidth: 80 }} type="number" min="1" value={form.return_days} onChange={e => set('return_days', Number(e.target.value))} onFocus={focus} onBlur={blur} />
                     <span style={{ fontSize: '.88rem', color: 'var(--ink-2)', flexShrink: 0 }}>days</span>
                   </div>
                 </div>
                 <div className="field" style={{ marginTop: '.75rem' }}>
-                  <label>Condition</label>
+                  <label>Item condition</label>
                   <select style={{ ...iS, cursor: 'pointer' }} value={form.return_condition} onChange={e => set('return_condition', e.target.value)} onFocus={focus} onBlur={blur}>
-                    <option value="unused_only">Unused / unopened only</option>
-                    <option value="any">Any condition accepted</option>
+                    <option value="unused_only">Unused only</option>
+                    <option value="any">Any condition</option>
                   </select>
                 </div>
               </>
             )}
           </div>
 
-          {/* Refund Policy */}
+          {/* Section 2 — Refund Policy */}
           <div>
             <SHead title="Refund Policy" />
             <div className="field">
               <label>Refund type</label>
               <select style={{ ...iS, cursor: 'pointer' }} value={form.refund_type} onChange={e => set('refund_type', e.target.value)} onFocus={focus} onBlur={blur}>
                 <option value="full">Full refund</option>
-                <option value="store_credit">Store credit only</option>
+                <option value="store_credit">Store credit</option>
                 <option value="none">No refunds</option>
               </select>
             </div>
@@ -136,11 +136,18 @@ function ShopPolicySection({ workspace, toast }) {
             )}
           </div>
 
-          {/* Shipping Policy */}
+          {/* Section 3 — Shipping Policy */}
           <div>
             <SHead title="Shipping Policy" />
             <div className="field">
-              <label>Shipping fee</label>
+              <label>Processing time before shipping</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '.6rem' }}>
+                <input style={{ ...iS, maxWidth: 80 }} type="number" min="1" value={form.processing_days} onChange={e => set('processing_days', Number(e.target.value))} onFocus={focus} onBlur={blur} />
+                <span style={{ fontSize: '.88rem', color: 'var(--ink-2)', flexShrink: 0 }}>business days</span>
+              </div>
+            </div>
+            <div className="field" style={{ marginTop: '.75rem' }}>
+              <label>Shipping fees</label>
               <select style={{ ...iS, cursor: 'pointer' }} value={form.shipping_fee} onChange={e => set('shipping_fee', e.target.value)} onFocus={focus} onBlur={blur}>
                 <option value="free">Free shipping</option>
                 <option value="flat">Flat rate</option>
@@ -156,20 +163,13 @@ function ShopPolicySection({ workspace, toast }) {
                 </div>
               </div>
             )}
-            <div className="field" style={{ marginTop: '.75rem' }}>
-              <label>Processing time</label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '.6rem' }}>
-                <input style={{ ...iS, maxWidth: 80 }} type="number" min="1" value={form.processing_days} onChange={e => set('processing_days', Number(e.target.value))} onFocus={focus} onBlur={blur} />
-                <span style={{ fontSize: '.88rem', color: 'var(--ink-2)', flexShrink: 0 }}>business days</span>
-              </div>
-            </div>
           </div>
 
-          {/* Additional Terms */}
+          {/* Section 4 — Additional Terms */}
           <div>
             <SHead title="Additional Terms" />
             <div className="field">
-              <label>Custom terms <span style={{ fontWeight: 400, color: 'var(--ink-3)' }}>(optional)</span></label>
+              <label>Custom notes <span style={{ fontWeight: 400, color: 'var(--ink-3)' }}>(optional)</span></label>
               <textarea style={{ ...iS, minHeight: 80, resize: 'vertical' }} rows={3} value={form.custom} onChange={e => set('custom', e.target.value)} placeholder="Any additional terms shown to customers..." onFocus={focus} onBlur={blur} />
             </div>
           </div>
@@ -177,7 +177,7 @@ function ShopPolicySection({ workspace, toast }) {
         </div>
       </div>
 
-      {/* Preview */}
+      {/* Section 5 — Preview */}
       <div className="card" style={{ marginBottom: '1rem' }}>
         <div className="card-body">
           <div style={{ fontSize: '.67rem', fontWeight: 700, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: '.85rem' }}>Preview</div>
@@ -196,7 +196,7 @@ function ShopPolicySection({ workspace, toast }) {
 
 // ── PolicySection ─────────────────────────────────────────────────────────────
 export default function PolicySection({ workspace, toast, refetch, type = 'booking' }) {
-  if (type === 'shop') return <ShopPolicySection workspace={workspace} toast={toast} />
+  if (type === 'shop') return <ShopPolicySection workspace={workspace} toast={toast} refetch={refetch} />
   const [form, setForm] = useState({
     policy_enabled:      workspace?.policy_enabled      || false,
     policy_deposit_pct:  workspace?.policy_deposit_pct  ?? 0,
