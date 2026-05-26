@@ -158,10 +158,20 @@ export default function OrderHistorySection({ workspace, toast }) {
                     {badgeLabel}
                   </span>
                 </div>
-                {/* Row 3: qty + unit price */}
-                <div style={{ fontSize:12, color:'var(--text-secondary)', marginBottom:'.5rem' }}>
-                  Qty: {qty} · ${Number(order.unit_price || 0).toFixed(2)} each
-                </div>
+                {/* Row 3: cart item breakdown or qty + unit price */}
+                {order.cart_items?.length > 0 ? (
+                  <div style={{ marginBottom:'.5rem' }}>
+                    {order.cart_items.map((item, idx) => (
+                      <div key={idx} style={{ fontSize:12, color:'var(--text-secondary)' }}>
+                        {item.name} × {item.quantity} — ${Number(item.unit_price).toFixed(2)}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ fontSize:12, color:'var(--text-secondary)', marginBottom:'.5rem' }}>
+                    Qty: {qty} · ${Number(order.unit_price || 0).toFixed(2)} each
+                  </div>
+                )}
 
                 {/* Actions */}
                 {isNew && (

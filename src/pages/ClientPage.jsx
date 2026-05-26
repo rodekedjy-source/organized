@@ -534,6 +534,14 @@ export default function ClientPage() {
           item_name: (checkoutItem.type === 'product' || checkoutItem.type === 'cart') ? checkoutItem.item.name : checkoutItem.item.title,
           quantity: checkoutItem.quantity || 1,
           shipping_address: shippingAddress,
+          cart_items: checkoutItem.type === 'cart' && checkoutItem.items?.length
+            ? JSON.stringify(checkoutItem.items.map(i => ({
+                name: i.name,
+                quantity: i.qty,
+                unit_price: isDiscountActive(i) ? Number(i.discount_price) : Number(i.price),
+                product_id: i.id,
+              })))
+            : undefined,
         }
       })
       if (error || !data?.client_secret) { setCheckoutError('Could not initialize payment: ' + (data?.error || error?.message || JSON.stringify(error))); return }

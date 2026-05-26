@@ -137,6 +137,10 @@ Deno.serve(async (req: Request) => {
         if (order_type === 'cart') {
           const { workspace_id, client_name, client_email, item_name, quantity, shipping_address } = pi.metadata;
 
+          const cartItemsParsed = pi.metadata.cart_items
+            ? JSON.parse(pi.metadata.cart_items)
+            : null;
+
           const { error: orderError } = await supabase
             .from('orders')
             .insert({
@@ -150,7 +154,10 @@ Deno.serve(async (req: Request) => {
               status: 'pending',
               payment_status: 'paid',
               stripe_payment_intent_id: pi.id,
-              product_name: 'Cart order',
+              product_name: cartItemsParsed
+                ? cartItemsParsed.map((i: { name: string }) => i.name).join(', ')
+                : 'Cart order',
+              cart_items: cartItemsParsed,
               tracking_token: crypto.randomUUID(),
               receipt_url: null,
             });
