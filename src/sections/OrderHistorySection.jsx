@@ -53,7 +53,12 @@ export default function OrderHistorySection({ workspace, toast }) {
   async function markProcessing(order) {
     setActing(true)
     const { error } = await updateOrderStatus(order.id, 'processing')
-    if (error) { toast('Could not update order.'); setActing(false); return }
+    if (error) {
+      console.error('UPDATE ERROR:', JSON.stringify(error))
+      toast('Could not update order.')
+      setActing(false)
+      return
+    }
     toast('Marked as processing ✓')
     setActing(false); load()
   }
