@@ -129,6 +129,25 @@ function Stars({rating}) {
 }
 function formatDateLabel(y,m,d) { return `${MONTHS[m]} ${d}, ${y}` }
 
+const CA_PROVINCES = [
+  ['AB','Alberta'],['BC','British Columbia'],['MB','Manitoba'],['NB','New Brunswick'],
+  ['NL','Newfoundland and Labrador'],['NS','Nova Scotia'],['NT','Northwest Territories'],
+  ['NU','Nunavut'],['ON','Ontario'],['PE','Prince Edward Island'],['QC','Quebec'],
+  ['SK','Saskatchewan'],['YT','Yukon'],
+]
+const US_STATES = [
+  ['AL','Alabama'],['AK','Alaska'],['AZ','Arizona'],['AR','Arkansas'],['CA','California'],
+  ['CO','Colorado'],['CT','Connecticut'],['DE','Delaware'],['FL','Florida'],['GA','Georgia'],
+  ['HI','Hawaii'],['ID','Idaho'],['IL','Illinois'],['IN','Indiana'],['IA','Iowa'],
+  ['KS','Kansas'],['KY','Kentucky'],['LA','Louisiana'],['ME','Maine'],['MD','Maryland'],
+  ['MA','Massachusetts'],['MI','Michigan'],['MN','Minnesota'],['MS','Mississippi'],['MO','Missouri'],
+  ['MT','Montana'],['NE','Nebraska'],['NV','Nevada'],['NH','New Hampshire'],['NJ','New Jersey'],
+  ['NM','New Mexico'],['NY','New York'],['NC','North Carolina'],['ND','North Dakota'],['OH','Ohio'],
+  ['OK','Oklahoma'],['OR','Oregon'],['PA','Pennsylvania'],['RI','Rhode Island'],['SC','South Carolina'],
+  ['SD','South Dakota'],['TN','Tennessee'],['TX','Texas'],['UT','Utah'],['VT','Vermont'],
+  ['VA','Virginia'],['WA','Washington'],['WV','West Virginia'],['WI','Wisconsin'],['WY','Wyoming'],
+]
+
 // ─────────────────────────────────────────────────────────────────────────────
 // MAIN COMPONENT
 // ─────────────────────────────────────────────────────────────────────────────
@@ -214,14 +233,11 @@ export default function ClientPage() {
   const [checkoutAddress,    setCheckoutAddress]    = useState({ street:'', apt:'', city:'', province:'', postal:'', country:'Canada' })
   const [checkoutPhone,      setCheckoutPhone]      = useState('')
   const [checkoutAgreed,     setCheckoutAgreed]     = useState(false)
-  const [addressSuggestions, setAddressSuggestions] = useState([])
-  const [addressLoading,     setAddressLoading]     = useState(false)
+  const [postalError,        setPostalError]        = useState('')
   const [cardholderName,     setCardholderName]     = useState('')
   const checkoutStripeRef   = useRef(null)
   const checkoutElementsRef = useRef(null)
   const checkoutCardRef     = useRef(null)
-  const addressAbortRef     = useRef(null)
-  const addressDebounceRef  = useRef(null)
 
   // ── Booking state ─────────────────────────────────────────────────────────
   const [bkOpen,         setBkOpen]         = useState(false)
@@ -466,58 +482,10 @@ export default function ClientPage() {
     setCheckoutAddress({ street:'', apt:'', city:'', province:'', postal:'', country:'Canada' })
     setCheckoutPhone('')
     setCheckoutAgreed(false)
-    setAddressSuggestions([])
+    setPostalError('')
     setCardholderName('')
     setCheckoutOpen(true)
   }
-
-  async function fetchAddressSuggestions(query) {
-    if (query.length < 3) { setAddressSuggestions([]); return }
-
-    // Cancel previous request
-    if (addressAbortRef.current) addressAbortRef.current.abort()
-    addressAbortRef.current = new AbortController()
-
-    setAddressLoading(true)
-    try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=6&addressdetails=1&countrycodes=ca,us&accept-language=en`,
-        {
-          headers: { 'Accept-Language': 'en' },
-          signal: addressAbortRef.current.signal
-        }
-      )
-      const data = await res.json()
-      setAddressSuggestions(data)
-    } catch(e) {
-      if (e.name !== 'AbortError') setAddressSuggestions([])
-    } finally {
-      setAddressLoading(false)
-    }
-  }
-
-  function selectAddress(suggestion) {
-    const a = suggestion.address
-    setCheckoutAddress({
-      street: [a.house_number, a.road].filter(Boolean).join(' '),
-      apt: '',
-      city: a.city || a.town || a.village || '',
-      province: a.state || a.province || '',
-      postal: a.postcode || '',
-      country: a.country_code === 'us' ? 'United States' : 'Canada',
-    })
-    setAddressSuggestions([])
-  }
-
-  useEffect(() => {
-    function handleClick(e) {
-      if (!e.target.closest('.co-suggestions') && !e.target.closest('.co-field')) {
-        setAddressSuggestions([])
-      }
-    }
-    document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
-  }, [])
 
   async function initCheckoutStripe() {
     setCheckoutSubmitting(true)
@@ -813,7 +781,7 @@ export default function ClientPage() {
     setCheckoutAddress({ street:'', apt:'', city:'', province:'', postal:'', country:'Canada' })
     setCheckoutPhone('')
     setCheckoutAgreed(false)
-    setAddressSuggestions([])
+    setPostalError('')
     setCardholderName('')
     setCheckoutOpen(true)
     setCartOpen(false)
@@ -1436,7 +1404,7 @@ export default function ClientPage() {
         const coPrice = checkoutItem.type==='product'&&isDiscountActive(checkoutItem.item)
           ? Number(checkoutItem.item.discount_price) : Number(checkoutItem.item.price)
         const coName  = (checkoutItem.type==='product'||checkoutItem.type==='cart') ? checkoutItem.item.name : checkoutItem.item.title
-        const step1Valid = checkoutForm.name.trim()&&checkoutForm.email.trim()&&checkoutAddress.street.trim()&&checkoutAddress.city.trim()&&checkoutAddress.province.trim()&&checkoutAddress.postal.trim()&&checkoutAddress.country.trim()
+        const step1Valid = checkoutForm.name.trim()&&checkoutForm.email.trim()&&checkoutAddress.street.trim()&&checkoutAddress.city.trim()&&checkoutAddress.province.trim()&&checkoutAddress.postal.trim()&&checkoutAddress.country.trim()&&!postalError
         return(
           <div className="cb-overlay open" style={{zIndex:950,background:'var(--body-bg,#FAF5EE)',overflowY:'auto',overflowX:'hidden'}}>
             {/* Header */}
@@ -1459,48 +1427,61 @@ export default function ClientPage() {
                   <input type="tel" className="co-field" placeholder="Phone (optional)" autoComplete="tel" value={checkoutPhone} onChange={e=>setCheckoutPhone(e.target.value)}/>
 
                   <div className="co-section-label">Shipping Address</div>
-                  <div style={{position:'relative'}}>
-                    <input
-                      type="text" className="co-field"
-                      placeholder="Street address" required
-                      autoComplete="street-address"
-                      value={checkoutAddress.street}
-                      onChange={e=>{
-                        setCheckoutAddress(a=>({...a,street:e.target.value}))
-                        clearTimeout(addressDebounceRef.current)
-                        addressDebounceRef.current = setTimeout(()=>{
-                          fetchAddressSuggestions(e.target.value)
-                        }, 350)
-                      }}
-                    />
-                    {addressSuggestions.length>0&&(
-                      <div className="co-suggestions">
-                        {addressSuggestions.map((s,i)=>{
-                          const a = s.address
-                          const line1 = [a.house_number, a.road].filter(Boolean).join(' ')
-                          const line2 = [a.city||a.town||a.village, a.state, a.country].filter(Boolean).join(', ')
-                          return (
-                            <div key={i} className="co-suggestion" onClick={()=>selectAddress(s)}>
-                              <div style={{fontWeight:500,fontSize:'0.85rem'}}>{line1||s.display_name}</div>
-                              <div style={{fontSize:'0.75rem',color:'var(--text-secondary)'}}>{line2}</div>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    )}
-                    {addressLoading&&<div style={{fontSize:'0.7rem',color:'var(--text-muted)',marginTop:-6,marginBottom:8,paddingLeft:2}}>Searching…</div>}
+                  {/* Country selector */}
+                  <div style={{display:'flex',gap:'.5rem',marginBottom:'.75rem'}}>
+                    {[['Canada','🇨🇦'],['United States','🇺🇸']].map(([c,flag])=>(
+                      <button key={c} type="button"
+                        onClick={()=>setCheckoutAddress(a=>({...a,country:c,province:'',postal:''}))||setPostalError('')}
+                        style={{
+                          flex:1,padding:'.6rem',borderRadius:99,border:'1.5px solid',
+                          borderColor:checkoutAddress.country===c?'var(--gold)':'var(--border)',
+                          background:checkoutAddress.country===c?'var(--gold)':'transparent',
+                          color:checkoutAddress.country===c?'#fff':'var(--ink)',
+                          fontWeight:700,fontSize:'.82rem',cursor:'pointer',fontFamily:'inherit',
+                          display:'flex',alignItems:'center',justifyContent:'center',gap:'.4rem',
+                        }}
+                      >{flag} {c}</button>
+                    ))}
                   </div>
-                  <input type="text" className="co-field" placeholder="Apt / Suite (optional)" autoComplete="address-line2" value={checkoutAddress.apt} onChange={e=>setCheckoutAddress(a=>({...a,apt:e.target.value}))}/>
-                  <div className="co-field-row">
-                    <input type="text" className="co-field" placeholder="City" required autoComplete="address-level2" value={checkoutAddress.city} onChange={e=>setCheckoutAddress(a=>({...a,city:e.target.value}))}/>
-                    <input type="text" className="co-field" placeholder="Province / State" required autoComplete="address-level1" value={checkoutAddress.province} onChange={e=>setCheckoutAddress(a=>({...a,province:e.target.value}))}/>
-                  </div>
-                  <div className="co-field-row">
-                    <input type="text" className="co-field" placeholder="Postal code" required autoComplete="postal-code" value={checkoutAddress.postal} onChange={e=>setCheckoutAddress(a=>({...a,postal:e.target.value}))}/>
-                    <select className="co-field" autoComplete="country-name" value={checkoutAddress.country} onChange={e=>setCheckoutAddress(a=>({...a,country:e.target.value}))}>
-                      {['Canada','United States','France','Haiti','Other'].map(c=><option key={c} value={c}>{c}</option>)}
-                    </select>
-                  </div>
+                  <input type="text" className="co-field" placeholder="Street address" required autoComplete="street-address"
+                    value={checkoutAddress.street} onChange={e=>setCheckoutAddress(a=>({...a,street:e.target.value}))}/>
+                  <input type="text" className="co-field" placeholder="Apt / Suite (optional)" autoComplete="address-line2"
+                    value={checkoutAddress.apt} onChange={e=>setCheckoutAddress(a=>({...a,apt:e.target.value}))}/>
+                  <input type="text" className="co-field" placeholder="City" required autoComplete="address-level2"
+                    value={checkoutAddress.city} onChange={e=>setCheckoutAddress(a=>({...a,city:e.target.value}))}/>
+                  <select className="co-field" required autoComplete="address-level1"
+                    value={checkoutAddress.province} onChange={e=>setCheckoutAddress(a=>({...a,province:e.target.value}))}>
+                    <option value="">{checkoutAddress.country==='United States'?'State':'Province'}</option>
+                    {(checkoutAddress.country==='United States'?US_STATES:CA_PROVINCES).map(([abbr,name])=>(
+                      <option key={abbr} value={abbr}>{name}</option>
+                    ))}
+                  </select>
+                  <input type="text" className="co-field"
+                    placeholder={checkoutAddress.country==='United States'?'12345':'A1A 1A1'}
+                    maxLength={checkoutAddress.country==='United States'?10:7}
+                    required autoComplete="postal-code"
+                    value={checkoutAddress.postal}
+                    style={postalError?{borderColor:'#e05c5c'}:{}}
+                    onChange={e=>{
+                      let v = e.target.value
+                      if (checkoutAddress.country==='Canada') {
+                        v = v.toUpperCase().replace(/[^A-Z0-9]/g,'')
+                        if (v.length>3) v = v.slice(0,3)+' '+v.slice(3,6)
+                      }
+                      setCheckoutAddress(a=>({...a,postal:v}))
+                      setPostalError('')
+                    }}
+                    onBlur={e=>{
+                      const v = e.target.value.trim()
+                      if (!v) return
+                      if (checkoutAddress.country==='Canada') {
+                        if (!/^[A-Za-z]\d[A-Za-z][ -]?\d[A-Za-z]\d$/.test(v)) setPostalError('Invalid postal code')
+                      } else {
+                        if (!/^\d{5}(-\d{4})?$/.test(v)) setPostalError('Invalid ZIP code')
+                      }
+                    }}
+                  />
+                  {postalError&&<div style={{fontSize:'0.72rem',color:'#e05c5c',marginTop:-8,marginBottom:6,paddingLeft:2}}>{postalError}</div>}
 
                   {checkoutError&&<p style={{fontSize:12,color:'#e05c5c',margin:'4px 0 12px',lineHeight:1.5}}>{checkoutError}</p>}
                   <button className="co-pay-btn" style={{marginTop:8,opacity:(!step1Valid||checkoutSubmitting)?0.4:1}} disabled={!step1Valid||checkoutSubmitting} onClick={initCheckoutStripe}>
