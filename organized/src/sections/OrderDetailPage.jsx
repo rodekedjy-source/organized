@@ -41,9 +41,8 @@ export default function OrderDetailPage({ order: init, onBack, workspace, toast 
     setActing(true)
     const { error } = await updateOrderStatus(order.id, 'processing')
     if (error) { toast('Could not update order.'); setActing(false); return }
-    const updated = {...order, status: 'processing'}
-    setOrder(updated)
-    await notifyOrderProcessing(updated, workspace?.name || '', workspace?.owner_email || '')
+    setOrder(o => ({...o, status: 'processing'}))
+    await notifyOrderProcessing(order.id, workspace)
     toast('Processing · client notified ✓')
     setActing(false)
   }

@@ -63,23 +63,16 @@ export async function markOrderDelivered(orderId) {
   return { error }
 }
 
-export async function notifyOrderProcessing(order, workspaceName, ownerEmail) {
-  const { data, error } = await supabase.functions.invoke('send-order-email', {
-    body: {
-      type: 'processing',
-      client_name: order.client_name,
-      client_email: order.client_email,
-      owner_email: ownerEmail || '',
-      product_name: order.product_name,
-      quantity: order.quantity,
-      unit_price: order.unit_price,
-      total_amount: String(order.total_amount || '0.00'),
-      currency: order.currency || 'CAD',
-      workspace_name: workspaceName,
-      cart_items: order.cart_items || null,
+export async function notifyOrderProcessing(orderId, workspace) {
+  const { data: session } = await supabase.auth.getSession()
+  await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-order-email`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session?.session?.access_token}`,
     },
+    body: JSON.stringify({ order_id: orderId, type: 'processing' }),
   })
-  return { data, error }
 }
 
 export async function notifyOrderShipped(order, workspaceName, bookingLink) {

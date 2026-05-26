@@ -1,4 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts"
+import { createClient } from 'jsr:@supabase/supabase-js@2'
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') || ''
 const FROM = 'Organized. <noreply@beorganized.io>'
@@ -154,25 +155,42 @@ Deno.serve(async (req: Request) => {
 
   try {
     const body = await req.json()
-    const {
-      type,
-      client_name,
-      client_email,
-      owner_email,
-      product_name,
-      quantity,
-      total_amount,
-      currency,
-      shipping_address,
-      carrier,
-      tracking_number,
-      tracking_url,
-      receipt_url,
-      workspace_name,
-      booking_link,
-      cart_items,
-      unit_price,
-    } = body
+    const { type, order_id } = body
+    let { client_name, client_email, owner_email, product_name, quantity, total_amount, currency, shipping_address, carrier, tracking_number, tracking_url, receipt_url, workspace_name, booking_link, cart_items, unit_price } = body
+
+    if (order_id) {
+      const authHeader = req.headers.get('Authorization') || ''
+      const sb = createClient(
+        Deno.env.get('SUPABASE_URL') || '',
+        Deno.env.get('SUPABASE_ANON_KEY') || '',
+        { global: { headers: { Authorization: authHeader } } }
+      )
+      const { data: ord } = await sb
+        .from('orders')
+        .select('client_name,client_email,product_name,quantity,unit_price,total_amount,currency,cart_items,workspace_id,shipping_address')
+        .eq('id', order_id)
+        .single()
+      if (ord) {
+        client_name = client_name || ord.client_name
+        client_email = client_email || ord.client_email
+        product_name = product_name || ord.product_name
+        quantity = quantity ?? ord.quantity
+        unit_price = unit_price ?? ord.unit_price
+        total_amount = total_amount || String(ord.total_amount ?? '0.00')
+        currency = currency || ord.currency
+        cart_items = cart_items ?? ord.cart_items
+        shipping_address = shipping_address || ord.shipping_address
+        const { data: ws } = await sb
+          .from('workspaces')
+          .select('email,name')
+          .eq('id', ord.workspace_id)
+          .single()
+        if (ws) {
+          owner_email = owner_email || ws.email
+          workspace_name = workspace_name || ws.name
+        }
+      }
+    }
 
     if (!client_email || !type) {
       return new Response(JSON.stringify({ error: 'Missing required fields: client_email, type' }), {
