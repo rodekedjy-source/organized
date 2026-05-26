@@ -12,7 +12,7 @@ export async function getOrders(workspaceId) {
 export async function fetchOrders(workspaceId) {
   const { data, error } = await supabase
     .from('orders')
-    .select('id,client_name,client_email,product_id,product_name,quantity,unit_price,total_amount,currency,status,payment_status,shipping_address,carrier,tracking_number,shipped_at,delivered_at,tracking_token,created_at')
+    .select('id,client_name,client_email,product_id,product_name,quantity,unit_price,total_amount,currency,status,payment_status,shipping_address,carrier,tracking_number,shipped_at,delivered_at,tracking_token,created_at,cart_items')
     .eq('workspace_id', workspaceId)
     .is('deleted_at', null)
     .order('created_at', { ascending: false })
