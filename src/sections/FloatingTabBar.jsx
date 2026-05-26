@@ -1,4 +1,5 @@
-export default function FloatingTabBar({ activeTab, onTabChange }) {
+export default function FloatingTabBar({ activeTab, onTabChange, bookingBadge = 0, shopBadge = 0, learnBadge = 0 }) {
+  const badgeMap = { booking: bookingBadge, shop: shopBadge, learn: learnBadge }
   const TABS = [
     {
       key: 'booking', label: 'Booking',
@@ -48,6 +49,7 @@ export default function FloatingTabBar({ activeTab, onTabChange }) {
     }}>
       {TABS.map(tab => {
         const active = activeTab === tab.key
+        const badge = badgeMap[tab.key] || 0
         return (
           <button key={tab.key} onClick={() => onTabChange(tab.key)} style={{
             flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
@@ -55,7 +57,20 @@ export default function FloatingTabBar({ activeTab, onTabChange }) {
             color: active ? 'var(--accent-gold)' : 'var(--text-secondary)', borderRadius: 16, transition: 'color .15s',
             fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
           }}>
-            {tab.icon(active)}
+            <div style={{ position: 'relative' }}>
+              {tab.icon(active)}
+              {badge > 0 && (
+                <div style={{
+                  position: 'absolute', top: -2, right: -2,
+                  width: 16, height: 16,
+                  background: '#E53E3E', borderRadius: '50%',
+                  fontSize: 10, color: '#fff', fontWeight: 600,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  {badge > 9 ? '9+' : badge}
+                </div>
+              )}
+            </div>
             <span style={{ fontSize: 10, fontWeight: active ? 700 : 500, letterSpacing: '.02em' }}>
               {tab.label}
             </span>

@@ -809,6 +809,7 @@ export default function Dashboard() {
   const [activeTab,setActiveTab]=useState('booking')
   const [pendingReviews,setPendingReviews]=useState(0)
   const [pendingOrders,setPendingOrders]=useState(0)
+  const [badges,setBadges]=useState({booking:0,shop:0,learn:0})
   const [avatarExpanded,setAvatarExpanded]=useState(false)
   const [avatarUploading,setAvatarUploading]=useState(false)
   const navigate = useNavigate()
@@ -880,6 +881,22 @@ export default function Dashboard() {
       .subscribe()
     return () => { supabase.removeChannel(channel) }
   }, [workspace?.id])
+
+  async function fetchBadges(wsId){
+    if(!wsId) return
+    const[{count:bookingCount},{count:shopCount},{count:learnCount}]=await Promise.all([
+      supabase.from('appointments').select('id',{count:'exact',head:true}).eq('workspace_id',wsId).eq('status','pending'),
+      supabase.from('orders').select('id',{count:'exact',head:true}).eq('workspace_id',wsId).in('status',['pending','confirmed']).is('deleted_at',null),
+      supabase.from('enrollments').select('id',{count:'exact',head:true}).eq('workspace_id',wsId).eq('payment_status','pending'),
+    ])
+    setBadges({booking:bookingCount||0,shop:shopCount||0,learn:learnCount||0})
+  }
+  useEffect(()=>{
+    if(!workspace?.id) return
+    fetchBadges(workspace.id)
+    const interval=setInterval(()=>fetchBadges(workspace.id),60000)
+    return()=>clearInterval(interval)
+  },[workspace?.id])
 
   function setTheme(t){
     setThemeState(t)
@@ -1127,7 +1144,7 @@ export default function Dashboard() {
         })()}
       </main>
 
-      {!menuOpen&&<FloatingTabBar activeTab={activeTab} onTabChange={(tab)=>{setActiveTab(tab);setPage('overview');setPageStack([])}} />}
+      {!menuOpen&&<FloatingTabBar activeTab={activeTab} onTabChange={(tab)=>{setActiveTab(tab);setPage('overview');setPageStack([])}} bookingBadge={badges.booking} shopBadge={badges.shop} learnBadge={badges.learn} />}
 
       {/* TOAST */}
       {toastMsg&&(

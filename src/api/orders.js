@@ -32,22 +32,24 @@ export async function fetchOrderByToken(token) {
 export async function updateOrderStatus(orderId, status) {
   const { error } = await supabase
     .from('orders')
-    .update({ status })
+    .update({ status, updated_at: new Date().toISOString() })
     .eq('id', orderId)
   return { error }
 }
 
 export async function updateOrderTracking(orderId, { carrier, tracking_number }) {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('orders')
     .update({
       carrier,
       tracking_number,
-      shipped_at: new Date().toISOString(),
       status: 'shipped',
+      shipped_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     })
     .eq('id', orderId)
-  return { error }
+    .select().single()
+  return { data, error }
 }
 
 export async function markOrderDelivered(orderId) {
