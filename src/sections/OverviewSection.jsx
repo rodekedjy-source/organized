@@ -1023,16 +1023,13 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
   async function handleUnblock(id){await supabase.from('blocked_dates').delete().eq('id',id);toast('Date unblocked.');setSelectedDay(null);fetchData()}
   useEffect(()=>{
     if(activeTab!=='shop'||!workspace?.id) return
-    // Products — no is_active filter (null/missing treated as active), exclude deleted
-    supabase.from('products').select('id,name,price,stock_quantity,is_active,is_deleted')
+    // Products — no is_active filter (null/missing treated as active), exclude soft-deleted
+    supabase.from('products').select('id,name,price,stock_quantity,is_active')
       .eq('workspace_id',workspace.id)
-      .not('is_deleted','eq',true)
+      .is('deleted_at',null)
       .order('created_at',{ascending:false})
       .limit(2)
-      .then(({data,error})=>{
-        console.log('PRODUCTS FETCH:',workspace?.id,data,error)
-        setShopProducts(data||[])
-      })
+      .then(({data})=>{ setShopProducts(data||[]) })
     // Top product — fresh orders query grouped client-side
     supabase.from('orders').select('product_name,total_amount')
       .eq('workspace_id',workspace.id)

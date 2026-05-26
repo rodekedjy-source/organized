@@ -1,36 +1,44 @@
 import { useState, useEffect, useCallback } from 'react'
-import { fetchOrders, updateOrderTracking, markOrderDelivered, notifyOrderShipped, notifyOrderDelivered } from '../api/orders'
+import { fetchOrders, updateOrderStatus, updateOrderTracking, markOrderDelivered, notifyOrderShipped, notifyOrderDelivered } from '../api/orders'
 import { formatCurrency } from '../lib/formatters'
 
 const CARRIERS = ['Canada Post', 'Purolator', 'UPS', 'FedEx', 'Other']
 
 const STATUS_TABS = [
-  { key: 'pending',   label: 'Pending' },
-  { key: 'confirmed', label: 'Processing' },
-  { key: 'shipped',   label: 'Shipped' },
-  { key: 'delivered', label: 'Delivered' },
+  { key: 'new',        label: 'New' },
+  { key: 'processing', label: 'Processing' },
+  { key: 'shipped',    label: 'Shipped' },
+  { key: 'delivered',  label: 'Delivered' },
 ]
 
 const BADGE = {
-  pending:   { background:'rgba(245,158,11,.15)', color:'#b45309', border:'1px solid rgba(245,158,11,.3)' },
-  confirmed: { background:'rgba(59,130,246,.12)',  color:'#1d4ed8', border:'1px solid rgba(59,130,246,.25)' },
-  shipped:   { background:'rgba(139,92,246,.12)',  color:'#7c3aed', border:'1px solid rgba(139,92,246,.25)' },
-  delivered: { background:'rgba(34,197,94,.12)',   color:'#16a34a', border:'1px solid rgba(34,197,94,.25)' },
+  pending:    { background:'rgba(245,158,11,.15)', color:'#b45309', border:'1px solid rgba(245,158,11,.3)' },
+  confirmed:  { background:'rgba(245,158,11,.15)', color:'#b45309', border:'1px solid rgba(245,158,11,.3)' },
+  processing: { background:'rgba(59,130,246,.12)',  color:'#1d4ed8', border:'1px solid rgba(59,130,246,.25)' },
+  shipped:    { background:'rgba(139,92,246,.12)',  color:'#7c3aed', border:'1px solid rgba(139,92,246,.25)' },
+  delivered:  { background:'rgba(34,197,94,.12)',   color:'#16a34a', border:'1px solid rgba(34,197,94,.25)' },
 }
+
+const NEW_STATUSES = ['confirmed', 'pending']
 
 function fmtDate(d) {
   if (!d) return ''
   try { return new Date(d).toLocaleDateString('en-CA', { month: 'short', day: 'numeric' }) } catch { return '' }
 }
 
+function tabFilter(orders, tab) {
+  if (tab === 'new') return orders.filter(o => NEW_STATUSES.includes(o.status))
+  return orders.filter(o => o.status === tab)
+}
+
 export default function OrderHistorySection({ workspace, toast }) {
-  const [orders,  setOrders]      = useState([])
-  const [loading, setLoading]     = useState(true)
-  const [activeTab, setActiveTab] = useState('pending')
-  const [shipId,  setShipId]      = useState(null)   // expanded order id
-  const [carrier, setCarrier]     = useState(CARRIERS[0])
-  const [trackNo, setTrackNo]     = useState('')
-  const [acting,  setActing]      = useState(false)
+  const [orders,    setOrders]    = useState([])
+  const [loading,   setLoading]   = useState(true)
+  const [activeTab, setActiveTab] = useState('new')
+  const [shipId,    setShipId]    = useState(null)
+  const [carrier,   setCarrier]   = useState(CARRIERS[0])
+  const [trackNo,   setTrackNo]   = useState('')
+  const [acting,    setActing]    = useState(false)
 
   const load = useCallback(async () => {
     if (!workspace?.id) return
@@ -41,6 +49,14 @@ export default function OrderHistorySection({ workspace, toast }) {
   }, [workspace?.id])
 
   useEffect(() => { load() }, [load])
+
+  async function markProcessing(order) {
+    setActing(true)
+    const { error } = await updateOrderStatus(order.id, 'processing')
+    if (error) { toast('Could not update order.'); setActing(false); return }
+    toast('Marked as processing ✓')
+    setActing(false); load()
+  }
 
   async function ship(order) {
     if (!trackNo.trim()) return
@@ -65,15 +81,14 @@ export default function OrderHistorySection({ workspace, toast }) {
     setActing(false); load()
   }
 
-  // Stats bar data
+  // Stats bar
   const now = new Date()
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-  const mPending   = orders.filter(o => o.status === 'pending').length
+  const mNew       = orders.filter(o => NEW_STATUSES.includes(o.status)).length
   const mShipped   = orders.filter(o => o.status === 'shipped'   && new Date(o.created_at) >= monthStart).length
   const mDelivered = orders.filter(o => o.status === 'delivered' && new Date(o.created_at) >= monthStart).length
 
-  const tabOrders = orders.filter(o => o.status === activeTab)
-
+  const tabOrders = tabFilter(orders, activeTab)
   const iS = { height:34, borderRadius:7, border:'1px solid var(--border-2)', padding:'0 .75rem', fontSize:'.82rem', fontFamily:'inherit', background:'var(--bg)', color:'var(--ink)', outline:'none', width:'100%', boxSizing:'border-box' }
 
   return (
@@ -87,7 +102,7 @@ export default function OrderHistorySection({ workspace, toast }) {
 
       {/* Stats bar */}
       <div style={{ fontSize:13, color:'var(--text-secondary)', marginBottom:'1rem', fontWeight:500 }}>
-        <span style={{ color: mPending>0 ? '#b45309' : 'var(--text-secondary)', fontWeight: mPending>0 ? 700 : 500 }}>{mPending} pending</span>
+        <span style={{ color: mNew>0 ? '#b45309' : 'var(--text-secondary)', fontWeight: mNew>0 ? 700 : 500 }}>{mNew} new</span>
         {' · '}{mShipped} shipped
         {' · '}<span style={{ color:'#16a34a' }}>{mDelivered} delivered this month</span>
       </div>
@@ -95,7 +110,7 @@ export default function OrderHistorySection({ workspace, toast }) {
       {/* Internal tabs */}
       <div style={{ display:'flex', gap:'.35rem', marginBottom:'1.25rem', flexWrap:'wrap' }}>
         {STATUS_TABS.map(t => {
-          const count = orders.filter(o => o.status === t.key).length
+          const count = tabFilter(orders, t.key).length
           return (
             <button key={t.key} onClick={()=>setActiveTab(t.key)} style={{
               padding:'.35rem .85rem', borderRadius:99, border:'1.5px solid',
@@ -116,31 +131,49 @@ export default function OrderHistorySection({ workspace, toast }) {
             No {STATUS_TABS.find(t=>t.key===activeTab)?.label.toLowerCase()} orders.
           </div>
         ) : tabOrders.map(order => {
-          const badge = BADGE[order.status] || BADGE.pending
+          const badge = BADGE[order.status] || BADGE.confirmed
           const isExpanded = shipId === order.id
+          const isNew = NEW_STATUSES.includes(order.status)
+          const qty = order.quantity || 1
+          const productLabel = order.product_name || `Cart order · ${qty} item${qty !== 1 ? 's' : ''}`
+          const badgeLabel = isNew ? 'new' : order.status
           return (
             <div key={order.id} style={{ borderBottom:'1px solid var(--border)' }}>
-              {/* Card row */}
               <div style={{ padding:'1rem 1.25rem' }}>
-                <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:'.35rem' }}>
+                {/* Row 1: product name + total */}
+                <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:'.25rem' }}>
                   <div style={{ fontWeight:700, fontSize:'.9rem', color:'var(--ink)', flex:1, minWidth:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                    {order.product_name || '—'}
+                    {productLabel}
                   </div>
                   <div style={{ fontFamily:"'Playfair Display',serif", fontSize:'.95rem', color:'var(--gold)', flexShrink:0, marginLeft:'.75rem' }}>
                     {formatCurrency(order.total_amount)}
                   </div>
                 </div>
-                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                {/* Row 2: client + date + badge */}
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'.2rem' }}>
                   <div style={{ fontSize:'.75rem', color:'var(--text-secondary)' }}>
-                    {order.client_name || order.customer_name || '—'} · {fmtDate(order.created_at)}
+                    {order.client_name || '—'} · {fmtDate(order.created_at)}
                   </div>
                   <span style={{ ...badge, fontSize:'.67rem', fontWeight:700, letterSpacing:'.06em', textTransform:'uppercase', padding:'.2rem .55rem', borderRadius:5 }}>
-                    {activeTab === 'confirmed' ? 'processing' : order.status}
+                    {badgeLabel}
                   </span>
+                </div>
+                {/* Row 3: qty + unit price */}
+                <div style={{ fontSize:12, color:'var(--text-secondary)', marginBottom:'.5rem' }}>
+                  Qty: {qty} · ${Number(order.unit_price || 0).toFixed(2)} each
                 </div>
 
                 {/* Actions */}
-                {activeTab === 'confirmed' && (
+                {isNew && (
+                  <button onClick={() => markProcessing(order)} disabled={acting} style={{
+                    background:'transparent', border:'1.5px solid var(--gold)', color:'var(--gold)',
+                    borderRadius:8, padding:'.4rem 1rem', fontSize:'.78rem', fontWeight:700, cursor:'pointer', fontFamily:'inherit',
+                  }}>
+                    {acting ? 'Saving…' : 'Mark as processing →'}
+                  </button>
+                )}
+
+                {order.status === 'processing' && (
                   <div style={{ marginTop:'.65rem' }}>
                     {!isExpanded ? (
                       <button onClick={()=>{setShipId(order.id);setTrackNo('');setCarrier(CARRIERS[0])}} style={{
@@ -156,29 +189,39 @@ export default function OrderHistorySection({ workspace, toast }) {
                           <input type="text" placeholder="Tracking number" value={trackNo} onChange={e=>setTrackNo(e.target.value)} style={iS} />
                         </div>
                         <div style={{ display:'flex', gap:'.5rem' }}>
-                          <button onClick={()=>ship(order)} disabled={acting||!trackNo.trim()} style={{ background:'var(--gold)', border:'none', color:'#fff', borderRadius:7, padding:'.45rem 1rem', fontSize:'.78rem', fontWeight:700, cursor:'pointer', fontFamily:'inherit', opacity:(acting||!trackNo.trim())?.45:1 }}>
+                          <button onClick={()=>ship(order)} disabled={acting||!trackNo.trim()} style={{
+                            background:'var(--gold)', border:'none', color:'#fff', borderRadius:7,
+                            padding:'.45rem 1rem', fontSize:'.78rem', fontWeight:700, cursor:'pointer', fontFamily:'inherit',
+                            opacity: (acting || !trackNo.trim()) ? 0.45 : 1,
+                          }}>
                             {acting ? 'Saving…' : 'Confirm & Notify →'}
                           </button>
-                          <button onClick={()=>setShipId(null)} style={{ background:'transparent', border:'1px solid var(--border-2)', color:'var(--ink-3)', borderRadius:7, padding:'.45rem .85rem', fontSize:'.78rem', cursor:'pointer', fontFamily:'inherit' }}>Cancel</button>
+                          <button onClick={()=>setShipId(null)} style={{
+                            background:'transparent', border:'1px solid var(--border-2)', color:'var(--ink-3)',
+                            borderRadius:7, padding:'.45rem .85rem', fontSize:'.78rem', cursor:'pointer', fontFamily:'inherit',
+                          }}>Cancel</button>
                         </div>
                       </div>
                     )}
                   </div>
                 )}
 
-                {activeTab === 'shipped' && (
+                {order.status === 'shipped' && (
                   <div style={{ marginTop:'.65rem' }}>
                     <div style={{ fontSize:'.78rem', color:'var(--ink-2)', marginBottom:'.5rem' }}>
                       <span style={{ color:'var(--ink-3)' }}>Carrier: </span>{order.carrier}
                       {order.tracking_number && <><span style={{ color:'var(--ink-3)', marginLeft:8 }}>Tracking: </span><code style={{ fontSize:'.75rem' }}>{order.tracking_number}</code></>}
                     </div>
-                    <button onClick={()=>deliver(order)} disabled={acting} style={{ background:'rgba(34,197,94,.1)', border:'1px solid rgba(34,197,94,.3)', color:'#16a34a', borderRadius:7, padding:'.4rem .9rem', fontSize:'.78rem', fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
+                    <button onClick={()=>deliver(order)} disabled={acting} style={{
+                      background:'rgba(34,197,94,.1)', border:'1px solid rgba(34,197,94,.3)', color:'#16a34a',
+                      borderRadius:7, padding:'.4rem .9rem', fontSize:'.78rem', fontWeight:700, cursor:'pointer', fontFamily:'inherit',
+                    }}>
                       {acting ? 'Saving…' : 'Mark as delivered'}
                     </button>
                   </div>
                 )}
 
-                {activeTab === 'delivered' && (
+                {order.status === 'delivered' && (
                   <div style={{ marginTop:'.5rem', fontSize:'.78rem', color:'#16a34a', fontWeight:600 }}>
                     ✓ Delivered{order.delivered_at ? ` · ${fmtDate(order.delivered_at)}` : ''}
                   </div>
