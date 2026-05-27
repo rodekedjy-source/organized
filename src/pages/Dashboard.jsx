@@ -898,6 +898,27 @@ export default function Dashboard() {
     return()=>clearInterval(interval)
   },[workspace?.id])
 
+  useEffect(()=>{
+    if(!workspace?.id) return
+    const ordersChannel=supabase
+      .channel('orders-changes')
+      .on('postgres_changes',{event:'*',schema:'public',table:'orders',filter:`workspace_id=eq.${workspace.id}`},()=>{ fetchBadges(workspace.id) })
+      .subscribe()
+    const appointmentsChannel=supabase
+      .channel('appointments-changes')
+      .on('postgres_changes',{event:'*',schema:'public',table:'appointments',filter:`workspace_id=eq.${workspace.id}`},()=>{ fetchBadges(workspace.id) })
+      .subscribe()
+    const enrollmentsChannel=supabase
+      .channel('enrollments-changes')
+      .on('postgres_changes',{event:'*',schema:'public',table:'enrollments',filter:`workspace_id=eq.${workspace.id}`},()=>{ fetchBadges(workspace.id) })
+      .subscribe()
+    return()=>{
+      supabase.removeChannel(ordersChannel)
+      supabase.removeChannel(appointmentsChannel)
+      supabase.removeChannel(enrollmentsChannel)
+    }
+  },[workspace?.id])
+
   function setTheme(t){
     setThemeState(t)
     localStorage.setItem('org-theme',t)

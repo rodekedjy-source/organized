@@ -1021,8 +1021,8 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
     setSelectedDay(null);fetchData()
   }
   async function handleUnblock(id){await supabase.from('blocked_dates').delete().eq('id',id);toast('Date unblocked.');setSelectedDay(null);fetchData()}
-  useEffect(()=>{
-    if(activeTab!=='shop'||!workspace?.id) return
+  function fetchShopData(){
+    if(!workspace?.id) return
     // Products — no is_active filter (null/missing treated as active), exclude soft-deleted
     supabase.from('products').select('id,name,price,stock,is_active')
       .eq('workspace_id',workspace.id)
@@ -1041,7 +1041,20 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
         const top=Object.entries(map).sort((a,b)=>b[1].rev-a[1].rev)[0]
         setShopTopProd(top?{name:top[0],...top[1]}:null)
       })
+  }
+  useEffect(()=>{
+    if(activeTab!=='shop'||!workspace?.id) return
+    fetchShopData()
   },[activeTab,workspace?.id])
+  useEffect(()=>{
+    if(!workspace?.id||activeTab!=='shop') return
+    const channel=supabase
+      .channel('shop-realtime')
+      .on('postgres_changes',{event:'*',schema:'public',table:'orders',filter:`workspace_id=eq.${workspace.id}`},()=>{ fetchShopData() })
+      .on('postgres_changes',{event:'*',schema:'public',table:'products',filter:`workspace_id=eq.${workspace.id}`},()=>{ fetchShopData() })
+      .subscribe()
+    return()=>supabase.removeChannel(channel)
+  },[workspace?.id,activeTab])
   const todayCount=appts.length
   const mRev=monthRevenue(allAppts,0),lastMRev=monthRevenue(allAppts,-1),mDelta=pct(mRev,lastMRev)
   const curMonthName = new Date().toLocaleDateString(lang==='fr'?'fr-FR':lang==='es'?'es-ES':'en-US',{month:'long'})
