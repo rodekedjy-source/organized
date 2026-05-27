@@ -978,7 +978,7 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
       supabase.from('enrollments').select('id').eq('workspace_id',workspace.id),
       supabase.from('blocked_dates').select('*').eq('workspace_id',workspace.id),
       supabase.from('orders').select('id,status,total_amount,product_name,created_at,tracking_number,delivered_at').eq('workspace_id',workspace.id),
-      supabase.from('offerings').select('id,title,start_date,spots_total,spots_taken,is_active').eq('workspace_id',workspace.id),
+      supabase.from('offerings').select('id,title,workshop_date,spots_total,spots_taken,is_active').eq('workspace_id',workspace.id),
       supabase.from('services').select('id,name,price,duration_min').eq('workspace_id',workspace.id).eq('is_active',true),
     ])
     const ad=a.data||[]
@@ -1113,14 +1113,14 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
         )
       })()}
       {activeTab==='learn'&&(()=>{
-        const nextOffering=offerings.filter(o=>o.is_active&&o.start_date&&new Date(o.start_date)>=new Date()).sort((a,b)=>new Date(a.start_date)-new Date(b.start_date))[0]
+        const nextOffering=offerings.filter(o=>o.is_active&&o.workshop_date&&new Date(o.workshop_date)>=new Date()).sort((a,b)=>new Date(a.workshop_date)-new Date(b.workshop_date))[0]
         return(
           <div className="next-up-banner" style={{marginBottom:'1rem',background:'#2C1810'}}>
             <div style={{fontSize:'.65rem',fontWeight:700,color:'rgba(255,255,255,.45)',textTransform:'uppercase',letterSpacing:'.1em',marginBottom:'.5rem'}}>UPCOMING</div>
             {nextOffering?(
               <>
                 <div style={{fontSize:'1.1rem',fontWeight:700,color:'#fff',marginBottom:'.2rem'}}>{nextOffering.title}</div>
-                <div style={{fontSize:'.8rem',color:'rgba(255,255,255,.6)',marginBottom:'.35rem'}}>{new Date(nextOffering.start_date).toLocaleDateString('en-US',{month:'long',day:'numeric'})} · {(nextOffering.spots_total!=null&&nextOffering.spots_taken!=null)?`${nextOffering.spots_total-nextOffering.spots_taken} spots left`:'Open enrollment'}</div>
+                <div style={{fontSize:'.8rem',color:'rgba(255,255,255,.6)',marginBottom:'.35rem'}}>{new Date(nextOffering.workshop_date).toLocaleDateString('en-US',{month:'long',day:'numeric'})} ·{(nextOffering.spots_total!=null&&nextOffering.spots_taken!=null)?`${nextOffering.spots_total-nextOffering.spots_taken} spots left`:'Open enrollment'}</div>
               </>
             ):(
               <div style={{fontSize:'.88rem',color:'rgba(255,255,255,.6)',marginBottom:'.35rem'}}>No upcoming offerings</div>
