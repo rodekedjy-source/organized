@@ -41,9 +41,9 @@ export default function OrderDetailPage({ order: init, onBack, workspace, toast 
     setActing(true)
     const { error } = await updateOrderStatus(order.id, 'processing')
     if (error) { toast('Could not update order.'); setActing(false); return }
-    setOrder(o => ({...o, status: 'processing'}))
     toast('Marked as processing ✓')
     setActing(false)
+    onBack()
   }
 
   async function doShip() {
@@ -56,6 +56,7 @@ export default function OrderDetailPage({ order: init, onBack, workspace, toast 
     await notifyOrderShipped(updated, workspace?.name || '', link)
     toast('Shipped · client notified ✓')
     setShowShip(false); setTrackNo(''); setCarrier(CARRIERS[0]); setActing(false)
+    onBack()
   }
 
   async function doDeliver() {
