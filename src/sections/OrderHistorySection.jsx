@@ -29,7 +29,7 @@ function tabFilter(orders, tab) {
   return orders.filter(o => o.status === tab)
 }
 
-export default function OrderHistorySection({ workspace, toast }) {
+export default function OrderHistorySection({ workspace, toast, onDetailBack }) {
   const [orders,        setOrders]        = useState([])
   const [loading,       setLoading]       = useState(true)
   const [activeTab,     setActiveTab]     = useState('new')
@@ -60,7 +60,11 @@ export default function OrderHistorySection({ workspace, toast }) {
     return (
       <OrderDetailPage
         order={selectedOrder}
-        onBack={handleBack}
+        onBack={() => {
+          setSelectedOrder(null)
+          if (onDetailBack) onDetailBack()
+          else load()
+        }}
         workspace={workspace}
         toast={toast}
       />

@@ -12,10 +12,11 @@ export default function ShopTab(props) {
   const [subPage, setSubPage] = useState(null)
   const [refreshKey, setRefreshKey] = useState(0)
   const { workspace, toast, refetch } = props
-  const back = () => { setRefreshKey(k => k + 1); setSubPage(null) }
+  const back    = () => { setRefreshKey(k => k + 1); setSubPage(null) }
+  const goBack  = () => setRefreshKey(k => k + 1)
 
   if (subPage === 'revenue')  return <><BackBar onBack={back} title="Revenue" /><div style={{paddingBottom:90}}><RevenuePageShop workspace={workspace} /></div></>
-  if (subPage === 'orders')   return <><BackBar onBack={back} title="Orders" /><div style={{paddingBottom:90}}><OrderHistorySection key={refreshKey} workspace={workspace} toast={toast} /></div></>
+  if (subPage === 'orders')   return <><BackBar onBack={back} title="Orders" /><div style={{paddingBottom:90}}><OrderHistorySection key={refreshKey} workspace={workspace} toast={toast} onDetailBack={goBack} /></div></>
   if (subPage === 'products') return <><BackBar onBack={back} title="Products" /><div style={{paddingBottom:90}}><ProductsSection {...props} /></div></>
   if (subPage === 'reviews')  return <><BackBar onBack={back} title="Reviews" /><div style={{paddingBottom:90}}><ReviewsSection {...props} type="shop" /></div></>
   if (subPage === 'shipping') return <><BackBar onBack={back} title="Shipping" /><div style={{paddingBottom:90}}><ShippingSection workspace={workspace} toast={toast} /></div></>

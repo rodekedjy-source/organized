@@ -43,7 +43,7 @@ export default function OrderDetailPage({ order: init, onBack, workspace, toast 
     if (error) { toast('Could not update order.'); setActing(false); return }
     toast('Marked as processing ✓')
     setActing(false)
-    onBack()
+    setTimeout(() => onBack(), 300)
   }
 
   async function doShip() {
@@ -56,7 +56,7 @@ export default function OrderDetailPage({ order: init, onBack, workspace, toast 
     await notifyOrderShipped(updated, workspace?.name || '', link)
     toast('Shipped · client notified ✓')
     setShowShip(false); setTrackNo(''); setCarrier(CARRIERS[0]); setActing(false)
-    onBack()
+    setTimeout(() => onBack(), 300)
   }
 
   async function doDeliver() {
@@ -66,7 +66,7 @@ export default function OrderDetailPage({ order: init, onBack, workspace, toast 
     await notifyOrderDelivered(order, workspace?.name || '', link)
     toast('Delivered · client notified ✓')
     setActing(false)
-    onBack()
+    setTimeout(() => onBack(), 300)
   }
 
   return (
