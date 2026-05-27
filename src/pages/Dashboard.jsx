@@ -884,12 +884,13 @@ export default function Dashboard() {
 
   async function fetchBadges(wsId){
     if(!wsId) return
-    const[{count:bookingCount},{count:shopCount},{count:learnCount}]=await Promise.all([
+    const[{count:bookingCount},{count:shopCount},{count:learnCount},{count:waitlistCount}]=await Promise.all([
       supabase.from('appointments').select('id',{count:'exact',head:true}).eq('workspace_id',wsId).eq('status','pending'),
       supabase.from('orders').select('id',{count:'exact',head:true}).eq('workspace_id',wsId).in('status',['pending','confirmed']).is('deleted_at',null),
       supabase.from('enrollments').select('id',{count:'exact',head:true}).eq('workspace_id',wsId).eq('payment_status','pending'),
+      supabase.from('waitlist_entries').select('id',{count:'exact',head:true}).eq('workspace_id',wsId),
     ])
-    setBadges({booking:bookingCount||0,shop:shopCount||0,learn:learnCount||0})
+    setBadges({booking:bookingCount||0,shop:shopCount||0,learn:(learnCount||0)+(waitlistCount||0)})
   }
   useEffect(()=>{
     if(!workspace?.id) return
@@ -912,10 +913,15 @@ export default function Dashboard() {
       .channel('enrollments-changes')
       .on('postgres_changes',{event:'*',schema:'public',table:'enrollments',filter:`workspace_id=eq.${workspace.id}`},()=>{ fetchBadges(workspace.id) })
       .subscribe()
+    const waitlistChannel=supabase
+      .channel('waitlist-badge-changes')
+      .on('postgres_changes',{event:'*',schema:'public',table:'waitlist_entries',filter:`workspace_id=eq.${workspace.id}`},()=>{ fetchBadges(workspace.id) })
+      .subscribe()
     return()=>{
       supabase.removeChannel(ordersChannel)
       supabase.removeChannel(appointmentsChannel)
       supabase.removeChannel(enrollmentsChannel)
+      supabase.removeChannel(waitlistChannel)
     }
   },[workspace?.id])
 

@@ -1165,23 +1165,9 @@ export default function ClientPage() {
                   <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,paddingTop:12,borderTop:'1px solid var(--dark-4)'}}>
                     <div className="cb-offering-price" style={{fontSize:18}}>{isFree?'Free':`$${Number(o.price).toFixed(0)}`}</div>
                     {isFull && o.waitlist_enabled ? (
-                      waitlistOffId===o.id ? (
-                        waitlistDone ? (
-                          <span style={{fontSize:12,color:'#16a34a',fontWeight:600}}>🔔 You're on the waitlist!</span>
-                        ) : (
-                          <div style={{display:'flex',flexDirection:'column',gap:6,alignItems:'flex-end'}}>
-                            <input value={waitlistName} onChange={e=>setWaitlistName(e.target.value)} placeholder="Full name" style={{background:'var(--dark-3)',border:'1px solid var(--dark-4)',borderRadius:8,padding:'7px 10px',color:'var(--text)',fontFamily:'DM Sans,sans-serif',fontSize:12,outline:'none',width:160,boxSizing:'border-box'}}/>
-                            <input value={waitlistEmail} onChange={e=>setWaitlistEmail(e.target.value)} placeholder="Email" style={{background:'var(--dark-3)',border:'1px solid var(--dark-4)',borderRadius:8,padding:'7px 10px',color:'var(--text)',fontFamily:'DM Sans,sans-serif',fontSize:12,outline:'none',width:160,boxSizing:'border-box'}}/>
-                            <button className="cb-enroll-btn" disabled={waitlistSubmitting} onClick={()=>submitWaitlist(o)} style={{fontSize:12,padding:'7px 14px'}}>
-                              {waitlistSubmitting?'…':'Submit →'}
-                            </button>
-                          </div>
-                        )
-                      ) : (
-                        <button className="cb-enroll-btn" onClick={()=>{setWaitlistOffId(o.id);setWaitlistName('');setWaitlistEmail('');setWaitlistDone(false)}}>
-                          Join Waitlist →
-                        </button>
-                      )
+                      <button className="cb-enroll-btn" onClick={() => { window.location.href = `/book/${workspace.slug}/learn/${o.id}` }}>
+                        Join Waitlist →
+                      </button>
                     ) : (
                       <button className="cb-enroll-btn" disabled={isFull} style={isFull?{opacity:.5,cursor:'default'}:{}} onClick={openEnroll}>
                         {isFull?'Sold Out':'Reserve a Spot →'}
@@ -1276,7 +1262,7 @@ export default function ClientPage() {
         const hasContent=pdfs.length>0||vids.length>0||!!od.content_url
         const enrolled=isEnrolled(od.id)
         const openEnroll=()=>{setOfferingDetail(null);setEnrollOffering(od);setEnrollForm({name:'',email:'',phone:''});setEnrollDone(false);setEnrollError('');setEnrollOpen(true)}
-        const openWaitlist=()=>{setWaitlistOffId(od.id);setWaitlistName('');setWaitlistEmail('');setWaitlistDone(false);setOfferingDetail(null)}
+        const openWaitlist=()=>{ window.location.href=`/book/${workspace.slug}/learn/${od.id}` }
         return(
           <div className="cb-overlay open" style={{overflowY:'auto',overflowX:'hidden'}}>
             {odLightboxImg&&<div className="od-img-lightbox" onClick={()=>setOdLightboxImg(null)}><img src={odLightboxImg} alt=""/></div>}

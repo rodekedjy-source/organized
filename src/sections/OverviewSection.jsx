@@ -957,6 +957,7 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
   const [learnEnrollCount,setLearnEnrollCount]=useState(0)
   const [learnCompletedCount,setLearnCompletedCount]=useState(0)
   const [learnActiveOfferings,setLearnActiveOfferings]=useState([])
+  const [learnWaitlistCount,setLearnWaitlistCount]=useState(0)
   useEffect(()=>{
     if(!workspace) return
     const cacheKey=`org_cache_${workspace.id}`
@@ -1083,6 +1084,10 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
       .select('id,title,price,level,type')
       .eq('workspace_id',workspace.id).eq('is_active',true).limit(2)
       .then(({data})=>setLearnActiveOfferings(data||[]))
+  supabase.from('waitlist_entries')
+    .select('id',{count:'exact',head:true})
+    .eq('workspace_id',workspace.id)
+    .then(({count})=>setLearnWaitlistCount(count||0))
   }
   useEffect(()=>{
     if(!workspace?.id||activeTab!=='learn') return
@@ -1093,6 +1098,7 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
     const ch=supabase.channel('learn-realtime')
       .on('postgres_changes',{event:'*',schema:'public',table:'enrollments',filter:`workspace_id=eq.${workspace.id}`},()=>fetchLearnData())
       .on('postgres_changes',{event:'*',schema:'public',table:'offerings',filter:`workspace_id=eq.${workspace.id}`},()=>fetchLearnData())
+      .on('postgres_changes',{event:'*',schema:'public',table:'waitlist_entries',filter:`workspace_id=eq.${workspace.id}`},()=>fetchLearnData())
       .subscribe()
     return()=>supabase.removeChannel(ch)
   },[workspace?.id,activeTab])
@@ -1240,6 +1246,14 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
             </>
           ):(
             <div style={{fontSize:14,color:'rgba(255,255,255,.5)',marginBottom:'.75rem'}}>No upcoming workshops</div>
+          )}
+          {learnWaitlistCount > 0 && (
+            <div onClick={() => onNavigate?.('enrollments')}
+              style={{display:'flex',alignItems:'center',gap:'.6rem',padding:'6px 0',borderBottom:'1px solid rgba(255,255,255,0.06)',cursor:'pointer',marginBottom:'.5rem'}}>
+              <div style={{width:7,height:7,borderRadius:'50%',flexShrink:0,background:'#F59E0B'}}/>
+              <span style={{fontSize:13,color:'#fff',flex:1}}>{learnWaitlistCount} student{learnWaitlistCount > 1 ? 's' : ''} on waitlist — spot available?</span>
+              <span style={{fontSize:11,color:'rgba(255,255,255,.35)'}}>›</span>
+            </div>
           )}
           <div style={{display:'flex',justifyContent:'flex-end'}}>
             <button onClick={()=>onNavigate?.('offerings')} style={{background:'var(--gold)',border:'none',color:'#1a1814',borderRadius:8,padding:'.5rem 1.1rem',fontSize:'.78rem',fontWeight:700,cursor:'pointer',fontFamily:'inherit'}}>
