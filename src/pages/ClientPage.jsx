@@ -1592,29 +1592,46 @@ export default function ClientPage() {
               <div style={{fontFamily:'Playfair Display,serif',fontSize:20,color:'var(--text)'}}>Shop Policy</div>
               <button onClick={()=>setShopPolicyOpen(false)} style={{background:'none',border:'none',color:'var(--text-muted)',fontSize:22,cursor:'pointer',padding:0,lineHeight:1}}>✕</button>
             </div>
-            {workspace?.policy_shop&&Object.keys(workspace.policy_shop).length>0?(()=>{
-              const p=workspace.policy_shop
-              const row=(txt)=>(
-                <div style={{fontSize:14,color:'var(--text)',lineHeight:1.65,paddingLeft:'.75rem',borderLeft:'2px solid var(--gold)'}}>{txt}</div>
-              )
+            {(()=>{
+              const policy=workspace?.policy_shop
+              if(!policy){
+                return <p style={{fontSize:14,color:'var(--text-muted)',margin:0}}>Please contact the seller for policy details.</p>
+              }
+              const lines=[]
+              if(policy.returns){
+                lines.push(`✓ Returns accepted within ${policy.return_days||14} days of delivery`)
+                lines.push(`Condition required: ${policy.return_condition==='unused_only'?'Unused/unopened items only':'Any condition'}`)
+              } else {
+                lines.push('✗ All sales final — no returns accepted')
+              }
+              if(policy.refund_type&&policy.refund_type!=='none'){
+                const refundLabel=policy.refund_type==='full'?'Full refund':policy.refund_type==='store_credit'?'Store credit':policy.refund_type
+                lines.push(`Refund: ${refundLabel} within ${policy.refund_days||5} business days`)
+              }
+              if(policy.processing_days){
+                lines.push(`Orders processed within ${policy.processing_days} business days before shipping`)
+              }
+              if(policy.shipping_fee==='free'){
+                lines.push('Free shipping on all orders')
+              } else if(policy.shipping_fee==='flat'){
+                lines.push(`Flat rate shipping: $${policy.flat_rate||0}`)
+              } else if(policy.shipping_fee==='calculated'){
+                lines.push('Shipping calculated at checkout')
+              }
+              if(policy.custom){
+                lines.push(policy.custom)
+              }
               return(
-                <div style={{display:'flex',flexDirection:'column',gap:'.75rem'}}>
-                  {p.accept_returns?(
-                    <>
-                      {row(`✓ Returns accepted within ${p.return_window_days||'?'} days of delivery`)}
-                      {p.return_condition&&row(`Condition: ${p.return_condition}`)}
-                    </>
-                  ):row('✗ No returns accepted')}
-                  {p.refund_type&&p.refund_type!=='none'&&row(`Refund: ${p.refund_type}${p.refund_processing_days?` within ${p.refund_processing_days} business days`:''}`)}
-                  {p.shipping_processing_days&&row(`Orders processed within ${p.shipping_processing_days} business days before shipping`)}
-                  {p.shipping_fee_type==='free'&&row('Free shipping on all orders')}
-                  {p.shipping_fee_type==='flat'&&row(`Flat rate shipping: $${p.flat_rate_amount}`)}
-                  {p.custom_notes?.trim()&&row(p.custom_notes.trim())}
+                <div>
+                  {lines.map((line,i)=>(
+                    <div key={i} style={{display:'flex',gap:8,padding:'8px 0',borderBottom:'1px solid #f0ebe3'}}>
+                      <span style={{color:'var(--accent-gold)'}}>—</span>
+                      <span style={{fontSize:14,color:'var(--text-primary)',lineHeight:1.5}}>{line}</span>
+                    </div>
+                  ))}
                 </div>
               )
-            })():(
-              <p style={{fontSize:14,color:'var(--text-muted)',margin:0}}>Please contact the seller for policy details.</p>
-            )}
+            })()}
           </div>
         </div>
       )}
