@@ -251,6 +251,7 @@ export default function ClientPage() {
   const [checkoutAgreed,     setCheckoutAgreed]     = useState(false)
   const [postalError,        setPostalError]        = useState('')
   const [shopPolicyOpen,     setShopPolicyOpen]     = useState(false)
+  const [learnPolicyOpen,    setLearnPolicyOpen]    = useState(false)
   const [cardholderName,     setCardholderName]     = useState('')
   const checkoutStripeRef   = useRef(null)
   const checkoutElementsRef = useRef(null)
@@ -303,7 +304,7 @@ export default function ClientPage() {
           supabase.from('availability').select('day_of_week,is_open,open_time,close_time').eq('workspace_id',ws.id).order('day_of_week',{ascending:true}),
           supabase.from('blocked_dates').select('blocked_date').eq('workspace_id',ws.id).gte('blocked_date',today),
           supabase.from('products').select('id,name,description,price,currency,stock,image_url,images,discount_price,discount_ends_at').eq('workspace_id',ws.id).eq('is_active',true).is('deleted_at',null).order('created_at',{ascending:false}),
-          supabase.from('offerings').select('id,title,description,price,currency,duration_label,format,max_students,is_active,type,content_url,content_type,files,workshop_date,workshop_location,spots_total,spots_taken').eq('workspace_id',ws.id).eq('is_active',true).is('deleted_at',null).order('created_at',{ascending:false}),
+          supabase.from('offerings').select('id,title,description,price,currency,duration_label,format,max_students,is_active,type,content_url,content_type,files,workshop_date,workshop_location,spots_total,spots_taken,waitlist_enabled').eq('workspace_id',ws.id).eq('is_active',true).is('deleted_at',null).order('created_at',{ascending:false}),
           supabase.from('reviews').select('reviewer_name,rating,body,service_label,service_name,created_at').eq('workspace_id',ws.id).eq('is_visible',true).eq('is_approved',true).order('created_at',{ascending:false}).limit(12),
           supabase.from('portfolio_photos').select('id,url,caption,display_order').eq('workspace_id',ws.id).order('display_order',{ascending:true}),
         ])
@@ -1275,6 +1276,7 @@ export default function ClientPage() {
         const hasContent=pdfs.length>0||vids.length>0||!!od.content_url
         const enrolled=isEnrolled(od.id)
         const openEnroll=()=>{setOfferingDetail(null);setEnrollOffering(od);setEnrollForm({name:'',email:'',phone:''});setEnrollDone(false);setEnrollError('');setEnrollOpen(true)}
+        const openWaitlist=()=>{setWaitlistOffId(od.id);setWaitlistName('');setWaitlistEmail('');setWaitlistDone(false);setOfferingDetail(null)}
         return(
           <div className="cb-overlay open" style={{overflowY:'auto',overflowX:'hidden'}}>
             {odLightboxImg&&<div className="od-img-lightbox" onClick={()=>setOdLightboxImg(null)}><img src={odLightboxImg} alt=""/></div>}
@@ -1305,8 +1307,10 @@ export default function ClientPage() {
               {/* b. CTA row */}
               <div className="od-cta-row">
                 <div className="od-price-large">{isFr?<em>Free</em>:`$${Number(od.price).toFixed(0)}`}</div>
-                <button className="od-enroll-btn" disabled={isFu} onClick={openEnroll}>
-                  {isFu?'Sold Out':isW?'Reserve a Spot →':isFr?'Get Access →':`Enroll — $${Number(od.price).toFixed(0)} →`}
+                <button className="od-enroll-btn"
+                  disabled={isFu && !od.waitlist_enabled}
+                  onClick={isFu && od.waitlist_enabled ? openWaitlist : openEnroll}>
+                  {isFu && od.waitlist_enabled ? 'Join Waitlist →' : isFu ? 'Sold Out' : isW ? 'Reserve a Spot →' : isFr ? 'Get Access →' : `Enroll — $${Number(od.price).toFixed(0)} →`}
                 </button>
               </div>
               {/* c. Type + spots row */}
@@ -1621,7 +1625,7 @@ export default function ClientPage() {
                   <label className="cb-policy-agree" style={{marginBottom:20}}>
                     <input type="checkbox" onChange={e=>setCheckoutAgreed(e.target.checked)} checked={checkoutAgreed}/>
                     {checkoutItem?.type==='enrollment'
-                      ? <span>I agree to the enrollment policy and understand the refund terms.</span>
+                      ? <span>I agree to the{' '}<button type="button" style={{background:'none',border:'none',color:'var(--accent)',cursor:'pointer',padding:0,fontFamily:'inherit',fontSize:'inherit',textDecoration:'underline',textDecorationColor:'rgba(var(--accent-rgb,.3))'}} onClick={e=>{e.preventDefault();setLearnPolicyOpen(true)}}>enrollment policy</button>{' '}and understand the refund terms.</span>
                       : <span>I agree to the{' '}<button type="button" style={{background:'none',border:'none',color:'var(--accent)',cursor:'pointer',padding:0,fontFamily:'inherit',fontSize:'inherit',textDecoration:'underline',textDecorationColor:'rgba(var(--accent-rgb,.3))'}} onClick={e=>{e.preventDefault();setShopPolicyOpen(true)}}>shop policy</button>{' '}and understand all sales are final unless otherwise stated.</span>
                     }
                   </label>
@@ -1687,6 +1691,44 @@ export default function ClientPage() {
               if(policy.custom){
                 lines.push(policy.custom)
               }
+              return(
+                <div>
+                  {lines.map((line,i)=>(
+                    <div key={i} style={{display:'flex',gap:8,padding:'8px 0',borderBottom:'1px solid #f0ebe3'}}>
+                      <span style={{color:'var(--accent-gold)'}}>—</span>
+                      <span style={{fontSize:14,color:'var(--text-primary)',lineHeight:1.5}}>{line}</span>
+                    </div>
+                  ))}
+                </div>
+              )
+            })()}
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════ LEARN POLICY MODAL ═══════════ */}
+      {learnPolicyOpen&&(
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.75)',zIndex:1000,display:'flex',alignItems:'flex-end',justifyContent:'center'}} onClick={()=>setLearnPolicyOpen(false)}>
+          <div style={{background:'var(--body-bg,#FAF5EE)',borderRadius:'20px 20px 0 0',width:'100%',maxWidth:520,padding:'1.5rem 1.5rem 3rem',boxSizing:'border-box',maxHeight:'80vh',overflowY:'auto'}} onClick={e=>e.stopPropagation()}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1.25rem'}}>
+              <div style={{fontFamily:'Playfair Display,serif',fontSize:20,color:'var(--text)'}}>Enrollment Policy</div>
+              <button onClick={()=>setLearnPolicyOpen(false)} style={{background:'none',border:'none',color:'var(--text-muted)',fontSize:22,cursor:'pointer',padding:0,lineHeight:1}}>✕</button>
+            </div>
+            {(()=>{
+              const pl=workspace?.policy_learn
+              if(!pl) return <p style={{fontSize:14,color:'var(--text-muted)',margin:0}}>Please contact the instructor for policy details.</p>
+              const lines=[]
+              if(pl.refund_type==='full_refund')   lines.push('✓ Full refund available'+(pl.refund_days?` within ${pl.refund_days} days`:''))
+              if(pl.refund_type==='store_credit')  lines.push('✓ Store credit offered'+(pl.refund_days?` within ${pl.refund_days} days`:''))
+              if(pl.refund_type==='no_refund')     lines.push('✗ All sales final — no refunds')
+              if(pl.content_access==='lifetime')   lines.push('Lifetime access to course content')
+              if(pl.content_access==='one_year')   lines.push('Access valid for 1 year')
+              if(pl.content_access==='six_months') lines.push('Access valid for 6 months')
+              if(pl.content_access==='course_duration') lines.push('Access for the duration of the course')
+              if(pl.prerequisites?.trim())         lines.push(`Prerequisites: ${pl.prerequisites.trim()}`)
+              if(pl.issue_certificate)             lines.push('🎓 Certificate of completion included')
+              if(pl.custom_notes?.trim())          pl.custom_notes.trim().split('\n').filter(Boolean).forEach(l=>lines.push(l))
+              if(lines.length===0) return <p style={{fontSize:14,color:'var(--text-muted)',margin:0}}>Please contact the instructor for policy details.</p>
               return(
                 <div>
                   {lines.map((line,i)=>(

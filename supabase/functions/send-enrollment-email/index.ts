@@ -70,12 +70,34 @@ function buildOwnerEmail(opts: {
   return { subject, html }
 }
 
+function buildWaitlistEmail(opts: {
+  client_name: string
+  offering_title: string
+  offering_type: string
+  workshop_date: string | null
+  workspace_name: string
+  booking_link: string
+}): { subject: string; html: string } {
+  const isWorkshop = opts.offering_type === 'workshop'
+  const subject = `A spot just opened — ${opts.offering_title}`
+  const dateRow = isWorkshop && opts.workshop_date
+    ? `<tr><td style="padding:6px 0;font-size:14px;color:#555;font-family:Georgia,serif;"><strong style="color:#1A0900;">Date:</strong> ${fmtDate(opts.workshop_date)}</td></tr>`
+    : ''
+  const urgencyMsg = isWorkshop
+    ? 'A spot just opened up in this workshop. You have <strong>24 hours</strong> to reserve your place before it goes to the next person on the waitlist.'
+    : 'A spot just opened up in this course. You have <strong>24 hours</strong> to enroll before it goes to the next person on the waitlist.'
+
+  const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head><body style="margin:0;padding:0;background:#F0EDE8;font-family:Georgia,serif;"><table width="100%" cellpadding="0" cellspacing="0" style="padding:32px 16px;"><tr><td align="center"><table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;"><tr><td style="background:#1A0900;padding:24px 32px;border-radius:12px 12px 0 0;"><p style="margin:0;font-family:Georgia,serif;font-size:22px;color:#C9A84C;letter-spacing:0.1em;">Organized.</p></td></tr><tr><td style="background:#FFFFFF;padding:36px 32px;"><p style="margin:0 0 8px;font-size:16px;color:#1A0900;font-family:Georgia,serif;">Hi ${opts.client_name},</p><p style="margin:0 0 24px;font-size:15px;color:#444;line-height:1.75;font-family:Georgia,serif;">${urgencyMsg}</p><div style="background:#F8F6F2;border-radius:8px;padding:16px 20px;margin:0 0 24px;"><p style="margin:0 0 12px;font-size:13px;font-weight:700;color:#8B7355;text-transform:uppercase;letter-spacing:0.08em;font-family:Georgia,serif;">${isWorkshop ? 'Workshop' : 'Online Course'}</p><p style="margin:0 0 16px;font-size:17px;font-weight:600;color:#1A0900;font-family:Georgia,serif;">${opts.offering_title}</p><table width="100%" cellpadding="0" cellspacing="0">${dateRow}</table></div><table cellpadding="0" cellspacing="0" style="margin:0 0 24px;"><tr><td style="background:#C9A84C;border-radius:6px;"><a href="${opts.booking_link}" style="display:inline-block;padding:14px 28px;font-size:15px;font-weight:600;color:#fff;text-decoration:none;font-family:Georgia,serif;letter-spacing:0.03em;">Reserve My Spot →</a></td></tr></table><p style="margin:0;font-size:13px;color:#888;font-family:Georgia,serif;">This notification was sent because you joined the waitlist. If you no longer wish to enroll, simply ignore this email.</p></td></tr><tr><td style="background:#F8F6F2;padding:20px 32px;border-radius:0 0 12px 12px;border-top:1px solid #EDE9E3;"><p style="margin:0 0 4px;font-size:14px;color:#555;font-family:Georgia,serif;">— ${opts.workspace_name}</p><p style="margin:0;font-size:12px;color:#BBB;font-family:Georgia,serif;">Powered by Organized.</p></td></tr></table></td></tr></table></body></html>`
+  return { subject, html }
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
   try {
     const body = await req.json()
     const {
+      type = null,
       client_name,
       client_email,
       offering_title,
@@ -94,6 +116,28 @@ Deno.serve(async (req: Request) => {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
+    }
+
+    // ── WAITLIST NOTIFY ─────────────────────────────────────────────────────
+    if (type === 'waitlist_notify') {
+      const waitlistResult = buildWaitlistEmail({
+        client_name: client_name || 'there',
+        offering_title,
+        offering_type,
+        workshop_date,
+        workspace_name: workspace_name || '',
+        booking_link,
+      })
+      const res = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${RESEND_API_KEY}` },
+        body: JSON.stringify({ from: FROM, to: [client_email], subject: waitlistResult.subject, html: waitlistResult.html }),
+      })
+      if (!res.ok) {
+        const err = await res.text()
+        return new Response(JSON.stringify({ error: err }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      }
+      return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
 
     const clientResult = buildClientEmail({
