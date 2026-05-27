@@ -80,12 +80,11 @@ export default function RevenuePageShop({ workspace }) {
     if (!workspace?.id) return
     setLoading(true)
     supabase.from('orders')
-      .select('id,created_at,total_amount,product_name,customer_name,client_name,status')
+      .select('id,created_at,total_amount,product_name,client_name,status')
       .eq('workspace_id', workspace.id)
       .in('status', ['confirmed', 'processing', 'shipped', 'delivered'])
       .order('created_at', { ascending: false })
-      .then(({ data, error }) => {
-        console.log('SHOP REVENUE QUERY:', workspace?.id, data, error)
+      .then(({ data }) => {
         setOrders(data||[])
         setLoading(false)
       })
@@ -179,7 +178,7 @@ export default function RevenuePageShop({ workspace }) {
             <div style={{ flex:1, minWidth:0 }}>
               <div style={{ fontWeight:600, fontSize:'.88rem', color:'var(--text-primary)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{o.product_name||'—'}</div>
               <div style={{ fontSize:'.72rem', color:'var(--text-secondary)', marginTop:2 }}>
-                {o.client_name||o.customer_name||'—'} · {new Date(o.created_at).toLocaleDateString('en-CA',{month:'short',day:'numeric'})}
+                {o.client_name||'—'} · {new Date(o.created_at).toLocaleDateString('en-CA',{month:'short',day:'numeric'})}
               </div>
             </div>
             <div style={{ fontFamily:"'Playfair Display',serif", fontSize:'.9rem', color:'var(--accent-gold)', flexShrink:0, marginLeft:'.75rem' }}>

@@ -974,11 +974,11 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
     const today=new Date().toISOString().split('T')[0],now=new Date()
     const[a,p,e,b,ord,off,svc]=await Promise.all([
       supabase.from('appointments').select('*, services(name)').eq('workspace_id',workspace.id),
-      supabase.from('products').select('id,name,price,stock_quantity,is_active').eq('workspace_id',workspace.id).order('created_at',{ascending:false}),
+      supabase.from('products').select('id,name,price,stock,is_active').eq('workspace_id',workspace.id).order('created_at',{ascending:false}),
       supabase.from('enrollments').select('id').eq('workspace_id',workspace.id),
       supabase.from('blocked_dates').select('*').eq('workspace_id',workspace.id),
       supabase.from('orders').select('id,status,total_amount,product_name,created_at,tracking_number,delivered_at').eq('workspace_id',workspace.id),
-      supabase.from('offerings').select('id,title,start_date,spots_left,is_active').eq('workspace_id',workspace.id),
+      supabase.from('offerings').select('id,title,start_date,spots_total,spots_taken,is_active').eq('workspace_id',workspace.id),
       supabase.from('services').select('id,name,price,duration_min').eq('workspace_id',workspace.id).eq('is_active',true),
     ])
     const ad=a.data||[]
@@ -1024,7 +1024,7 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
   useEffect(()=>{
     if(activeTab!=='shop'||!workspace?.id) return
     // Products — no is_active filter (null/missing treated as active), exclude soft-deleted
-    supabase.from('products').select('id,name,price,stock_quantity,is_active')
+    supabase.from('products').select('id,name,price,stock,is_active')
       .eq('workspace_id',workspace.id)
       .is('deleted_at',null)
       .order('created_at',{ascending:false})
@@ -1064,7 +1064,7 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
   const shopPending=shopOrders.filter(o=>o.status==='pending').length
   const shopNeedTracking=shopOrders.filter(o=>o.status==='shipped'&&!o.tracking_number).length
   const shopProcessing=shopOrders.filter(o=>o.status==='confirmed').length
-  const shopLowStock=allProducts.filter(p=>p.stock_quantity!=null&&Number(p.stock_quantity)<=2)
+  const shopLowStock=allProducts.filter(p=>p.stock!=null&&Number(p.stock)<=2)
   const weekStartShop=new Date(shopNow);weekStartShop.setDate(shopNow.getDate()-shopNow.getDay());weekStartShop.setHours(0,0,0,0)
   const shopDeliveredWeek=shopOrders.filter(o=>o.status==='delivered'&&o.delivered_at&&new Date(o.delivered_at)>=weekStartShop).length
   const shopCards=[
@@ -1120,7 +1120,7 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
             {nextOffering?(
               <>
                 <div style={{fontSize:'1.1rem',fontWeight:700,color:'#fff',marginBottom:'.2rem'}}>{nextOffering.title}</div>
-                <div style={{fontSize:'.8rem',color:'rgba(255,255,255,.6)',marginBottom:'.35rem'}}>{new Date(nextOffering.start_date).toLocaleDateString('en-US',{month:'long',day:'numeric'})} · {nextOffering.spots_left!=null?`${nextOffering.spots_left} spots left`:'Open enrollment'}</div>
+                <div style={{fontSize:'.8rem',color:'rgba(255,255,255,.6)',marginBottom:'.35rem'}}>{new Date(nextOffering.start_date).toLocaleDateString('en-US',{month:'long',day:'numeric'})} · {(nextOffering.spots_total!=null&&nextOffering.spots_taken!=null)?`${nextOffering.spots_total-nextOffering.spots_taken} spots left`:'Open enrollment'}</div>
               </>
             ):(
               <div style={{fontSize:'.88rem',color:'rgba(255,255,255,.6)',marginBottom:'.35rem'}}>No upcoming offerings</div>
@@ -1185,7 +1185,7 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
                 <div key={p.id} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'.45rem 1.25rem',borderBottom:'1px solid var(--border)'}}>
                   <div style={{fontWeight:600,fontSize:'.84rem',color:'var(--text-primary)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flex:1}}>{p.name}</div>
                   <div style={{display:'flex',alignItems:'center',gap:'.5rem',flexShrink:0,marginLeft:'.5rem'}}>
-                    {p.stock_quantity!=null&&Number(p.stock_quantity)<=2&&<span style={{fontSize:'.65rem',fontWeight:700,background:'rgba(245,158,11,.15)',color:'#b45309',border:'1px solid rgba(245,158,11,.3)',borderRadius:4,padding:'1px 6px'}}>Low stock</span>}
+                    {p.stock!=null&&Number(p.stock)<=2&&<span style={{fontSize:'.65rem',fontWeight:700,background:'rgba(245,158,11,.15)',color:'#b45309',border:'1px solid rgba(245,158,11,.3)',borderRadius:4,padding:'1px 6px'}}>Low stock</span>}
                     <div style={{fontSize:'.82rem',color:'var(--text-secondary)'}}>${Number(p.price||0).toFixed(2)}</div>
                   </div>
                 </div>
