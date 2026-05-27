@@ -213,8 +213,8 @@ export default function OfferingsSection({ workspace, toast }) {
     setEnrollments(data || [])
   }
 
-  useEffect(() => { if (workspace) load() }, [workspace])
-  useEffect(() => { if (tab === 'enrollments' && workspace) loadEnrollments() }, [tab, workspace])
+  useEffect(() => { if (workspace?.id) load() }, [workspace?.id])
+  useEffect(() => { if (tab === 'enrollments' && workspace?.id) loadEnrollments() }, [tab, workspace?.id])
 
   const typeBadgeStyle = t => ({
     fontSize: '.65rem', fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', padding: '.18rem .5rem', borderRadius: 5,
