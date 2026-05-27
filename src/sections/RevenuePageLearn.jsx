@@ -78,7 +78,7 @@ export default function RevenuePageLearn({ workspace }) {
     if (!workspace?.id) return
     setLoading(true)
     supabase.from('enrollments')
-      .select('id,created_at,amount_paid,offering_id,student_name,client_name,status,payment_status,offerings(title)')
+      .select('id,created_at,amount_paid,offering_id,client_name,client_email,status,payment_status,offerings(title)')
       .eq('workspace_id', workspace.id)
       .eq('payment_status', 'paid')
       .order('created_at', { ascending: false })
@@ -171,7 +171,7 @@ export default function RevenuePageLearn({ workspace }) {
             <div style={{ flex:1, minWidth:0 }}>
               <div style={{ fontWeight:600, fontSize:'.88rem', color:'var(--text-primary)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{e.offerings?.title||'Formation'}</div>
               <div style={{ fontSize:'.72rem', color:'var(--text-secondary)', marginTop:2 }}>
-                {e.student_name||e.client_name||'—'} · {new Date(e.created_at).toLocaleDateString('en-CA',{month:'short',day:'numeric'})}
+                {e.client_name||e.client_email||'—'} · {new Date(e.created_at).toLocaleDateString('en-CA',{month:'short',day:'numeric'})}
               </div>
             </div>
             <div style={{ fontFamily:"'Playfair Display',serif", fontSize:'.9rem', color:'var(--accent-gold)', flexShrink:0, marginLeft:'.75rem' }}>

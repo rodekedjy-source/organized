@@ -291,7 +291,7 @@ export default function ClientPage() {
       setLoading(true); setNotFound(false)
       try {
         const { data: ws } = await supabase.from('workspaces')
-          .select('id,name,slug,tagline,bio,avatar_url,instagram,tiktok,phone,email,location,timezone,currency,is_published,theme,accepts_bookings,accepts_orders,offers_domicile,domicile_fee,domicile_radius_km,domicile_notes,address_visibility,neighborhood,address_street,address_city,address_province,address_postal,share_address,show_address_on_page,faq_settings,featured_product_id,featured_product_note,working_hours,deposit_required,deposit_type,deposit_value,review_requests_enabled,payment_mode,policy_enabled,policy_deposit_pct,policy_cancel_hours,policy_late_fee,policy_no_show_fee,policy_custom,policy_shop')
+          .select('id,name,slug,tagline,bio,avatar_url,instagram,tiktok,phone,email,location,timezone,currency,is_published,theme,accepts_bookings,accepts_orders,offers_domicile,domicile_fee,domicile_radius_km,domicile_notes,address_visibility,neighborhood,address_street,address_city,address_province,address_postal,share_address,show_address_on_page,faq_settings,featured_product_id,featured_product_note,working_hours,deposit_required,deposit_type,deposit_value,review_requests_enabled,payment_mode,policy_enabled,policy_deposit_pct,policy_cancel_hours,policy_late_fee,policy_no_show_fee,policy_custom,policy_shop,policy_learn')
           .eq('slug', slug).eq('is_published', true).maybeSingle()
         if (!ws) { if (!cancelled) { setNotFound(true); setLoading(false) }; return }
         if (!cancelled) setWorkspace(ws)
@@ -1333,12 +1333,34 @@ export default function ClientPage() {
               <div style={{height:1,background:'var(--dark-4)',marginBottom:20}}/>
               {/* f. Description */}
               {od.description&&<><div className="od-section-label">About</div><p className="od-description">{od.description}</p></>}
-              {/* g. Policy */}
-              {workspace?.policy_enabled&&policyLines.length>0&&<>
-                <div className="od-section-label" style={{marginTop:8}}>Booking Policy</div>
-                {policyLines.map((line,i)=><div key={i} className="cb-policy-line">{line}</div>)}
-                <div style={{marginBottom:20}}/>
-              </>}
+              {/* g. Learn Policy */}
+              {(()=>{
+                const pl=workspace?.policy_learn
+                if(!pl&&!workspace?.policy_enabled) return null
+                const lines=[]
+                if(pl){
+                  if(pl.refund_type==='full_refund')    lines.push(`✓ Full refund available${pl.refund_days?` within ${pl.refund_days} days`:''}`)
+                  if(pl.refund_type==='store_credit')   lines.push(`✓ Store credit offered${pl.refund_days?` within ${pl.refund_days} days`:''}`)
+                  if(pl.refund_type==='no_refund')      lines.push('✗ All sales final — no refunds')
+                  if(pl.content_access==='lifetime')    lines.push('Lifetime access to course content')
+                  if(pl.content_access==='one_year')    lines.push('Access valid for 1 year')
+                  if(pl.content_access==='six_months')  lines.push('Access valid for 6 months')
+                  if(pl.content_access==='course_duration') lines.push('Access valid for the duration of the course')
+                  if(pl.prerequisites?.trim())          lines.push(`Prerequisites: ${pl.prerequisites.trim()}`)
+                  if(pl.issue_certificate)              lines.push('🎓 Certificate of completion included')
+                  if(pl.custom_notes?.trim())           pl.custom_notes.trim().split('\n').filter(Boolean).forEach(l=>lines.push(l))
+                }
+                return(
+                  <>
+                    <div className="od-section-label" style={{marginTop:8}}>Enrollment Policy</div>
+                    {lines.length>0
+                      ? lines.map((line,i)=><div key={i} className="cb-policy-line">{line}</div>)
+                      : <div className="cb-policy-line" style={{color:'var(--text-muted)',fontStyle:'italic'}}>Please contact the instructor for policy details.</div>
+                    }
+                    <div style={{marginBottom:20}}/>
+                  </>
+                )
+              })()}
               {/* h. Content gate */}
               {hasContent&&(enrolled?(
                 <div style={{marginBottom:20}}>
@@ -1598,7 +1620,10 @@ export default function ClientPage() {
                   {/* Policy checkbox */}
                   <label className="cb-policy-agree" style={{marginBottom:20}}>
                     <input type="checkbox" onChange={e=>setCheckoutAgreed(e.target.checked)} checked={checkoutAgreed}/>
-                    <span>I agree to the{' '}<button type="button" style={{background:'none',border:'none',color:'var(--accent)',cursor:'pointer',padding:0,fontFamily:'inherit',fontSize:'inherit',textDecoration:'underline',textDecorationColor:'rgba(var(--accent-rgb,.3))'}} onClick={e=>{e.preventDefault();setShopPolicyOpen(true)}}>shop policy</button>{' '}and understand all sales are final unless otherwise stated.</span>
+                    {checkoutItem?.type==='enrollment'
+                      ? <span>I agree to the enrollment policy and understand the refund terms.</span>
+                      : <span>I agree to the{' '}<button type="button" style={{background:'none',border:'none',color:'var(--accent)',cursor:'pointer',padding:0,fontFamily:'inherit',fontSize:'inherit',textDecoration:'underline',textDecorationColor:'rgba(var(--accent-rgb,.3))'}} onClick={e=>{e.preventDefault();setShopPolicyOpen(true)}}>shop policy</button>{' '}and understand all sales are final unless otherwise stated.</span>
+                    }
                   </label>
 
                   {checkoutError&&<p style={{fontSize:12,color:'#e05c5c',marginBottom:12,lineHeight:1.5}}>{checkoutError}</p>}

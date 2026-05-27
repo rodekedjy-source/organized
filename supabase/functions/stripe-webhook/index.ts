@@ -217,21 +217,24 @@ Deno.serve(async (req: Request) => {
               .maybeSingle();
 
             if (!existing) {
+              const amount_paid = pi.amount / 100;
+
               await supabase.from('enrollments').insert({
                 workspace_id,
                 offering_id: item_id,
                 client_name,
                 client_email,
-                amount_paid: pi.amount / 100,
+                amount_paid,
                 currency: pi.currency,
                 payment_status: 'paid',
                 status: 'confirmed',
                 stripe_payment_intent_id: pi.id,
               });
 
+              // Fetch offering for type + date
               const { data: offeringData } = await supabase
                 .from('offerings')
-                .select('spots_taken')
+                .select('spots_taken, type, workshop_date, workshop_location')
                 .eq('id', item_id)
                 .single();
               if (offeringData) {
@@ -241,11 +244,22 @@ Deno.serve(async (req: Request) => {
                   .eq('id', item_id);
               }
 
-              const { data: wsData } = await supabase
+              // Fetch workspace + owner email
+              const { data: wsWithUser } = await supabase
                 .from('workspaces')
-                .select('name, slug')
+                .select('name, slug, user_id')
                 .eq('id', workspace_id)
                 .single();
+
+              let ownerEmail: string | null = null;
+              if (wsWithUser?.user_id) {
+                const { data: wsOwner } = await supabase
+                  .from('users')
+                  .select('email')
+                  .eq('id', wsWithUser.user_id)
+                  .single();
+                ownerEmail = wsOwner?.email || null;
+              }
 
               await fetch(`${SUPABASE_URL}/functions/v1/send-enrollment-email`, {
                 method: 'POST',
@@ -257,9 +271,14 @@ Deno.serve(async (req: Request) => {
                   client_name,
                   client_email,
                   offering_title: item_name,
-                  offering_type: 'online',
-                  workspace_name: wsData?.name || '',
-                  booking_link: wsData?.slug ? `https://beorganized.io/${wsData.slug}` : '',
+                  offering_type: offeringData?.type || 'online',
+                  workshop_date: offeringData?.workshop_date || null,
+                  workshop_location: offeringData?.workshop_location || null,
+                  amount_paid,
+                  currency: pi.currency,
+                  workspace_name: wsWithUser?.name || '',
+                  owner_email: ownerEmail,
+                  booking_link: wsWithUser?.slug ? `https://beorganized.io/${wsWithUser.slug}` : '',
                 }),
               }).catch(emailErr => console.error('Enrollment email error:', emailErr));
             }
