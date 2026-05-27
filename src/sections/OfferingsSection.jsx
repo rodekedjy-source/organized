@@ -55,10 +55,22 @@ function OfferingModal({ offering, workspaceId, onClose, onSaved, toast }) {
     spots_total: String(offering?.spots_total || ''),
     is_active: offering?.is_active ?? true,
     media: offering?.files || [],
+    // Advanced
+    cover_image: offering?.cover_image || '',
+    level: offering?.level || '',
+    learning_outcomes: offering?.learning_outcomes || [],
+    whats_included: offering?.whats_included || [],
+    agenda: offering?.agenda || [],
+    early_bird_enabled: !!(offering?.early_bird_price),
+    early_bird_price: String(offering?.early_bird_price || ''),
+    early_bird_ends_at: offering?.early_bird_ends_at ? offering.early_bird_ends_at.slice(0,10) : '',
+    waitlist_enabled: offering?.waitlist_enabled || false,
+    modules: offering?.modules || [],
   })
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [confirmDel, setConfirmDel] = useState(false)
+  const [showAdv, setShowAdv] = useState(false)
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
   const iS = { width: '100%', padding: '.58rem .82rem', border: '1px solid var(--border-2)', borderRadius: 9, fontSize: '.84rem', fontFamily: 'inherit', color: 'var(--ink)', background: 'var(--surface)', outline: 'none', boxSizing: 'border-box' }
 
@@ -95,6 +107,16 @@ function OfferingModal({ offering, workspaceId, onClose, onSaved, toast }) {
         ? { content_type: form.content_type, content_url: form.content_url, workshop_date: null, workshop_location: null, spots_total: 0 }
         : { workshop_date: form.workshop_date || null, workshop_location: form.workshop_location, spots_total: parseInt(form.spots_total) || 0, content_url: null, content_type: 'custom' }
       ),
+      // Advanced fields
+      cover_image: form.cover_image || null,
+      level: form.level || null,
+      learning_outcomes: form.learning_outcomes.filter(x => x.trim()),
+      whats_included: form.type==='workshop' ? form.whats_included.filter(x => x.trim()) : null,
+      agenda: form.type==='workshop' ? form.agenda.filter(a => a.time||a.description) : null,
+      waitlist_enabled: form.type==='workshop' ? form.waitlist_enabled : false,
+      modules: form.type!=='workshop' ? form.modules.filter(m => m.title?.trim()) : null,
+      early_bird_price: form.early_bird_enabled && form.early_bird_price ? parseFloat(form.early_bird_price) : null,
+      early_bird_ends_at: form.early_bird_enabled && form.early_bird_ends_at ? form.early_bird_ends_at : null,
     }
     const { error } = isNew ? await insertOffering(payload) : await updateOffering(offering.id, payload)
     setSaving(false)
@@ -152,6 +174,116 @@ function OfferingModal({ offering, workspaceId, onClose, onSaved, toast }) {
               <div className="field"><label>Duration</label><input style={iS} value={form.duration_label} onChange={e => set('duration_label', e.target.value)} placeholder="e.g. Full day · 8h" onFocus={e => e.target.style.borderColor = 'var(--gold)'} onBlur={e => e.target.style.borderColor = 'var(--border-2)'} /></div>
             </div>
           </>}
+          {/* ── Advanced Settings ──────────────────────────────── */}
+          <div style={{ borderRadius:10, border:'1px solid var(--border)', overflow:'hidden' }}>
+            <button onClick={() => setShowAdv(v=>!v)} style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'space-between', padding:'.7rem 1rem', background:'var(--bg)', border:'none', cursor:'pointer', fontFamily:'inherit', fontSize:'.83rem', fontWeight:600, color:'var(--ink-2)' }}>
+              Advanced Settings {showAdv ? '▲' : '▼'}
+            </button>
+            {showAdv && (
+              <div style={{ padding:'1rem', display:'flex', flexDirection:'column', gap:'1rem', borderTop:'1px solid var(--border)' }}>
+                {/* Cover image */}
+                <div className="field">
+                  <label>Cover image URL</label>
+                  <input style={iS} value={form.cover_image} onChange={e=>set('cover_image',e.target.value)} placeholder="https://…" onFocus={e=>e.target.style.borderColor='var(--gold)'} onBlur={e=>e.target.style.borderColor='var(--border-2)'}/>
+                  {form.cover_image && <img src={form.cover_image} alt="" style={{ marginTop:6, height:60, borderRadius:6, objectFit:'cover', width:'100%' }} onError={e=>e.target.style.display='none'}/>}
+                </div>
+                {/* Level */}
+                <div className="field">
+                  <label>Level</label>
+                  <select style={{...iS,cursor:'pointer'}} value={form.level} onChange={e=>set('level',e.target.value)}>
+                    <option value="">All levels</option>
+                    <option value="beginner">Beginner</option>
+                    <option value="intermediate">Intermediate</option>
+                    <option value="advanced">Advanced</option>
+                  </select>
+                </div>
+                {/* Learning outcomes */}
+                <div>
+                  <label style={{ display:'block', fontSize:'.78rem', fontWeight:600, color:'var(--ink-2)', marginBottom:'.35rem' }}>Learning outcomes</label>
+                  {form.learning_outcomes.map((o,i) => (
+                    <div key={i} style={{ display:'flex', gap:'.4rem', marginBottom:'.35rem' }}>
+                      <input style={{...iS,flex:1}} value={o} onChange={e=>{ const a=[...form.learning_outcomes];a[i]=e.target.value;set('learning_outcomes',a) }} placeholder={`Outcome ${i+1}`} onFocus={e=>e.target.style.borderColor='var(--gold)'} onBlur={e=>e.target.style.borderColor='var(--border-2)'}/>
+                      <button onClick={()=>set('learning_outcomes',form.learning_outcomes.filter((_,j)=>j!==i))} style={{ flexShrink:0, padding:'0 .6rem', background:'none', border:'1px solid var(--border)', borderRadius:7, color:'var(--ink-3)', cursor:'pointer', fontSize:'.8rem' }}>✕</button>
+                    </div>
+                  ))}
+                  {form.learning_outcomes.length < 5 && (
+                    <button onClick={()=>set('learning_outcomes',[...form.learning_outcomes,''])} style={{ background:'none', border:'none', color:'var(--gold)', fontSize:'.8rem', fontWeight:600, cursor:'pointer', padding:0 }}>+ Add outcome</button>
+                  )}
+                </div>
+                {/* Workshop-only fields */}
+                {form.type==='workshop' && <>
+                  <div>
+                    <label style={{ display:'block', fontSize:'.78rem', fontWeight:600, color:'var(--ink-2)', marginBottom:'.35rem' }}>What's included</label>
+                    {form.whats_included.map((item,i) => (
+                      <div key={i} style={{ display:'flex', gap:'.4rem', marginBottom:'.35rem' }}>
+                        <input style={{...iS,flex:1}} value={item} onChange={e=>{ const a=[...form.whats_included];a[i]=e.target.value;set('whats_included',a) }} placeholder={`Item ${i+1}`} onFocus={e=>e.target.style.borderColor='var(--gold)'} onBlur={e=>e.target.style.borderColor='var(--border-2)'}/>
+                        <button onClick={()=>set('whats_included',form.whats_included.filter((_,j)=>j!==i))} style={{ flexShrink:0, padding:'0 .6rem', background:'none', border:'1px solid var(--border)', borderRadius:7, color:'var(--ink-3)', cursor:'pointer', fontSize:'.8rem' }}>✕</button>
+                      </div>
+                    ))}
+                    {form.whats_included.length < 8 && (
+                      <button onClick={()=>set('whats_included',[...form.whats_included,''])} style={{ background:'none', border:'none', color:'var(--gold)', fontSize:'.8rem', fontWeight:600, cursor:'pointer', padding:0 }}>+ Add item</button>
+                    )}
+                  </div>
+                  <div>
+                    <label style={{ display:'block', fontSize:'.78rem', fontWeight:600, color:'var(--ink-2)', marginBottom:'.35rem' }}>Workshop agenda</label>
+                    {form.agenda.map((slot,i) => (
+                      <div key={i} style={{ display:'flex', gap:'.4rem', marginBottom:'.35rem' }}>
+                        <input style={{...iS,maxWidth:90}} value={slot.time||''} onChange={e=>{ const a=[...form.agenda];a[i]={...a[i],time:e.target.value};set('agenda',a) }} placeholder="9:00 AM" onFocus={e=>e.target.style.borderColor='var(--gold)'} onBlur={e=>e.target.style.borderColor='var(--border-2)'}/>
+                        <input style={{...iS,flex:1}} value={slot.description||''} onChange={e=>{ const a=[...form.agenda];a[i]={...a[i],description:e.target.value};set('agenda',a) }} placeholder="Description" onFocus={e=>e.target.style.borderColor='var(--gold)'} onBlur={e=>e.target.style.borderColor='var(--border-2)'}/>
+                        <button onClick={()=>set('agenda',form.agenda.filter((_,j)=>j!==i))} style={{ flexShrink:0, padding:'0 .6rem', background:'none', border:'1px solid var(--border)', borderRadius:7, color:'var(--ink-3)', cursor:'pointer', fontSize:'.8rem' }}>✕</button>
+                      </div>
+                    ))}
+                    <button onClick={()=>set('agenda',[...form.agenda,{time:'',description:''}])} style={{ background:'none', border:'none', color:'var(--gold)', fontSize:'.8rem', fontWeight:600, cursor:'pointer', padding:0 }}>+ Add time slot</button>
+                  </div>
+                  <div style={{ display:'flex', alignItems:'center', gap:'.75rem' }}>
+                    <button onClick={() => set('waitlist_enabled',!form.waitlist_enabled)} style={{ width:44, height:24, borderRadius:12, border:'none', background:form.waitlist_enabled?'var(--gold)':'var(--border-2)', cursor:'pointer', transition:'background .2s', position:'relative', flexShrink:0 }}>
+                      <span style={{ position:'absolute', top:3, left:form.waitlist_enabled?22:3, width:18, height:18, borderRadius:'50%', background:'#fff', transition:'left .2s' }}/>
+                    </button>
+                    <span style={{ fontSize:'.83rem', color:'var(--ink-2)' }}>Enable waitlist when full</span>
+                  </div>
+                </>}
+                {/* Early bird */}
+                <div>
+                  <div style={{ display:'flex', alignItems:'center', gap:'.75rem', marginBottom:form.early_bird_enabled?'.75rem':0 }}>
+                    <button onClick={() => set('early_bird_enabled',!form.early_bird_enabled)} style={{ width:44, height:24, borderRadius:12, border:'none', background:form.early_bird_enabled?'var(--gold)':'var(--border-2)', cursor:'pointer', transition:'background .2s', position:'relative', flexShrink:0 }}>
+                      <span style={{ position:'absolute', top:3, left:form.early_bird_enabled?22:3, width:18, height:18, borderRadius:'50%', background:'#fff', transition:'left .2s' }}/>
+                    </button>
+                    <span style={{ fontSize:'.83rem', color:'var(--ink-2)' }}>Enable early bird pricing</span>
+                  </div>
+                  {form.early_bird_enabled && (
+                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'.75rem' }}>
+                      <div className="field"><label>Early bird price $</label><input style={iS} type="number" min="0" value={form.early_bird_price} onChange={e=>set('early_bird_price',e.target.value)} onFocus={e=>e.target.style.borderColor='var(--gold)'} onBlur={e=>e.target.style.borderColor='var(--border-2)'}/></div>
+                      <div className="field"><label>Offer ends</label><input style={iS} type="date" value={form.early_bird_ends_at} onChange={e=>set('early_bird_ends_at',e.target.value)} onFocus={e=>e.target.style.borderColor='var(--gold)'} onBlur={e=>e.target.style.borderColor='var(--border-2)'}/></div>
+                    </div>
+                  )}
+                </div>
+                {/* Modules (online only) */}
+                {form.type!=='workshop' && (
+                  <div>
+                    <label style={{ display:'block', fontSize:'.78rem', fontWeight:600, color:'var(--ink-2)', marginBottom:'.35rem' }}>Course modules</label>
+                    {form.modules.map((mod,i) => (
+                      <div key={i} style={{ border:'1px solid var(--border)', borderRadius:9, padding:'.65rem .85rem', marginBottom:'.4rem' }}>
+                        <div style={{ display:'flex', gap:'.4rem', marginBottom:'.4rem' }}>
+                          <input style={{...iS,flex:1}} value={mod.title||''} onChange={e=>{ const a=[...form.modules];a[i]={...a[i],title:e.target.value};set('modules',a) }} placeholder="Module title" onFocus={e=>e.target.style.borderColor='var(--gold)'} onBlur={e=>e.target.style.borderColor='var(--border-2)'}/>
+                          <button onClick={()=>set('modules',form.modules.filter((_,j)=>j!==i))} style={{ flexShrink:0, padding:'0 .6rem', background:'none', border:'1px solid var(--border)', borderRadius:7, color:'var(--ink-3)', cursor:'pointer', fontSize:'.8rem' }}>✕</button>
+                        </div>
+                        <select style={{...iS,cursor:'pointer',marginBottom:'.4rem'}} value={mod.content_type||'video'} onChange={e=>{ const a=[...form.modules];a[i]={...a[i],content_type:e.target.value};set('modules',a) }}>
+                          <option value="video">Video URL</option>
+                          <option value="pdf">PDF URL</option>
+                          <option value="text">Text</option>
+                        </select>
+                        {mod.content_type==='text'
+                          ? <textarea style={{...iS,minHeight:56,resize:'vertical'}} value={mod.content||''} onChange={e=>{ const a=[...form.modules];a[i]={...a[i],content:e.target.value};set('modules',a) }} placeholder="Module content…" onFocus={e=>e.target.style.borderColor='var(--gold)'} onBlur={e=>e.target.style.borderColor='var(--border-2)'}/>
+                          : <input style={iS} value={mod.content||''} onChange={e=>{ const a=[...form.modules];a[i]={...a[i],content:e.target.value};set('modules',a) }} placeholder="https://…" onFocus={e=>e.target.style.borderColor='var(--gold)'} onBlur={e=>e.target.style.borderColor='var(--border-2)'}/>
+                        }
+                      </div>
+                    ))}
+                    <button onClick={()=>set('modules',[...form.modules,{title:'',content_type:'video',content:''}])} style={{ background:'none', border:'none', color:'var(--gold)', fontSize:'.8rem', fontWeight:600, cursor:'pointer', padding:0 }}>+ Add module</button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
           {/* Media upload */}
           <div>
             <label style={{ display: 'block', fontSize: '.78rem', fontWeight: 600, color: 'var(--ink-2)', marginBottom: '.35rem' }}>Media <span style={{ fontWeight: 400, color: 'var(--ink-3)' }}>(optional · images, PDF, video · max 5)</span></label>

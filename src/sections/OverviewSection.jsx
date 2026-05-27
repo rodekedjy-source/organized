@@ -952,6 +952,11 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
   const [shopTopProd,setShopTopProd]=useState(null)
   const [offerings,setOfferings]=useState([])
   const [allServices,setAllServices]=useState([])
+  const [upcomingOffering,setUpcomingOffering]=useState(null)
+  const [learnRevMonth,setLearnRevMonth]=useState(0)
+  const [learnEnrollCount,setLearnEnrollCount]=useState(0)
+  const [learnCompletedCount,setLearnCompletedCount]=useState(0)
+  const [learnActiveOfferings,setLearnActiveOfferings]=useState([])
   useEffect(()=>{
     if(!workspace) return
     const cacheKey=`org_cache_${workspace.id}`
@@ -1054,6 +1059,44 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
       .subscribe()
     return()=>supabase.removeChannel(channel)
   },[workspace?.id,activeTab])
+
+  // ── Learn data ────────────────────────────────────────────────────────────
+  function fetchLearnData(){
+    if(!workspace?.id) return
+    const now=new Date(),monthStart=new Date(now.getFullYear(),now.getMonth(),1)
+    supabase.from('offerings')
+      .select('id,title,type,workshop_date,spots_total,spots_taken,price,level,early_bird_price,early_bird_ends_at')
+      .eq('workspace_id',workspace.id).eq('is_active',true)
+      .not('workshop_date','is',null).gt('workshop_date',now.toISOString())
+      .order('workshop_date',{ascending:true}).limit(1)
+      .then(({data})=>setUpcomingOffering(data?.[0]||null))
+    supabase.from('enrollments')
+      .select('id,amount_paid,completed_at,payment_status,created_at')
+      .eq('workspace_id',workspace.id)
+      .then(({data})=>{
+        const d=data||[]
+        setLearnEnrollCount(d.length)
+        setLearnCompletedCount(d.filter(e=>e.completed_at).length)
+        setLearnRevMonth(d.filter(e=>e.payment_status==='paid'&&new Date(e.created_at)>=monthStart).reduce((s,e)=>s+Number(e.amount_paid||0),0))
+      })
+    supabase.from('offerings')
+      .select('id,title,price,level,type')
+      .eq('workspace_id',workspace.id).eq('is_active',true).limit(2)
+      .then(({data})=>setLearnActiveOfferings(data||[]))
+  }
+  useEffect(()=>{
+    if(!workspace?.id||activeTab!=='learn') return
+    fetchLearnData()
+  },[activeTab,workspace?.id])
+  useEffect(()=>{
+    if(!workspace?.id||activeTab!=='learn') return
+    const ch=supabase.channel('learn-realtime')
+      .on('postgres_changes',{event:'*',schema:'public',table:'enrollments',filter:`workspace_id=eq.${workspace.id}`},()=>fetchLearnData())
+      .on('postgres_changes',{event:'*',schema:'public',table:'offerings',filter:`workspace_id=eq.${workspace.id}`},()=>fetchLearnData())
+      .subscribe()
+    return()=>supabase.removeChannel(ch)
+  },[workspace?.id,activeTab])
+
   const todayCount=appts.length
   const mRev=monthRevenue(allAppts,0),lastMRev=monthRevenue(allAppts,-1),mDelta=pct(mRev,lastMRev)
   const curMonthName = new Date().toLocaleDateString(lang==='fr'?'fr-FR':lang==='es'?'es-ES':'en-US',{month:'long'})
@@ -1065,6 +1108,9 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
             stats.cancelled>0?`${stats.cancelled} ${lang==='fr'?'annulé(s)':lang==='es'?'cancelados':'cancelled'}`:
             stats.confirmed>0?`${stats.confirmed} ${lang==='fr'?'confirmé(s)':lang==='es'?'confirmados':'confirmed'}`:'—',
       up:stats.pending===0,isCancelled:stats.pending===0&&stats.cancelled>0,page:'appointments'},
+  ]
+  const learnCards=[
+    {label:'Revenue — '+curMonthName,value:fmtRev(learnRevMonth),delta:'—',up:true,page:'revenue'},
   ]
   // ── Shop-specific data ────────────────────────────────────────────────────────
   const shopNow=new Date(),shopMonthStart=new Date(shopNow.getFullYear(),shopNow.getMonth(),1)
@@ -1163,25 +1209,45 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
           </div>
         )
       })()}
-      {activeTab==='learn'&&(()=>{
-        const nextOffering=offerings.filter(o=>o.is_active&&o.workshop_date&&new Date(o.workshop_date)>=new Date()).sort((a,b)=>new Date(a.workshop_date)-new Date(b.workshop_date))[0]
-        return(
-          <div className="next-up-banner" style={{marginBottom:'1rem',background:'#2C1810'}}>
-            <div style={{fontSize:'.65rem',fontWeight:700,color:'rgba(255,255,255,.45)',textTransform:'uppercase',letterSpacing:'.1em',marginBottom:'.5rem'}}>UPCOMING</div>
-            {nextOffering?(
-              <>
-                <div style={{fontSize:'1.1rem',fontWeight:700,color:'#fff',marginBottom:'.2rem'}}>{nextOffering.title}</div>
-                <div style={{fontSize:'.8rem',color:'rgba(255,255,255,.6)',marginBottom:'.35rem'}}>{new Date(nextOffering.workshop_date).toLocaleDateString('en-US',{month:'long',day:'numeric'})} ·{(nextOffering.spots_total!=null&&nextOffering.spots_taken!=null)?`${nextOffering.spots_total-nextOffering.spots_taken} spots left`:'Open enrollment'}</div>
-              </>
-            ):(
-              <div style={{fontSize:'.88rem',color:'rgba(255,255,255,.6)',marginBottom:'.35rem'}}>No upcoming offerings</div>
-            )}
-            <div style={{display:'flex',justifyContent:'flex-end',marginTop:'.75rem'}}>
-              <button onClick={()=>onNavigate?.('offerings')} style={{background:'var(--gold)',border:'none',color:'#1a1814',borderRadius:8,padding:'.5rem 1.1rem',fontSize:'.78rem',fontWeight:700,cursor:'pointer',fontFamily:'inherit'}}>View details →</button>
-            </div>
+      {activeTab==='learn'&&(
+        <div style={{background:'linear-gradient(135deg,#2C1810,#1A0F0A)',borderRadius:20,padding:20,marginBottom:12,border:'1px solid rgba(201,168,76,0.2)'}}>
+          <div style={{fontSize:'.65rem',fontWeight:700,color:'var(--gold)',textTransform:'uppercase',letterSpacing:'.1em',marginBottom:'.75rem'}}>UPCOMING</div>
+          {upcomingOffering?(
+            <>
+              <div style={{display:'flex',alignItems:'center',gap:'.5rem',marginBottom:'.3rem',flexWrap:'wrap'}}>
+                <div style={{fontSize:18,fontWeight:700,color:'#fff'}}>{upcomingOffering.title}</div>
+                {upcomingOffering.level&&<span style={{fontSize:10,fontWeight:700,color:'var(--gold)',background:'rgba(201,168,76,.15)',border:'1px solid rgba(201,168,76,.3)',borderRadius:20,padding:'2px 8px',textTransform:'capitalize'}}>{upcomingOffering.level}</span>}
+              </div>
+              <div style={{fontSize:13,color:'rgba(255,255,255,.6)',marginBottom:'.35rem'}}>
+                {new Date(upcomingOffering.workshop_date).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}
+              </div>
+              {upcomingOffering.spots_total>0&&(()=>{
+                const left=upcomingOffering.spots_total-(upcomingOffering.spots_taken||0)
+                const pct=Math.min(100,((upcomingOffering.spots_taken||0)/upcomingOffering.spots_total)*100)
+                return(<>
+                  <div style={{fontSize:12,color:'rgba(255,255,255,.5)',marginBottom:4}}>{left} spot{left!==1?'s':''} remaining</div>
+                  <div style={{height:4,background:'rgba(255,255,255,.1)',borderRadius:2,marginBottom:'.6rem'}}>
+                    <div style={{height:'100%',background:'var(--gold)',borderRadius:2,width:`${pct}%`,transition:'width .4s'}}/>
+                  </div>
+                </>)
+              })()}
+              <div style={{fontSize:14,color:upcomingOffering.early_bird_price&&new Date(upcomingOffering.early_bird_ends_at)>new Date()?'#F59E0B':'#fff',fontWeight:600,marginBottom:'.75rem'}}>
+                {upcomingOffering.early_bird_price&&new Date(upcomingOffering.early_bird_ends_at)>new Date()
+                  ?`$${upcomingOffering.early_bird_price} early bird · ends ${new Date(upcomingOffering.early_bird_ends_at).toLocaleDateString('en-US',{month:'short',day:'numeric'})}`
+                  :`$${Number(upcomingOffering.price||0).toFixed(0)}`
+                }
+              </div>
+            </>
+          ):(
+            <div style={{fontSize:14,color:'rgba(255,255,255,.5)',marginBottom:'.75rem'}}>No upcoming workshops</div>
+          )}
+          <div style={{display:'flex',justifyContent:'flex-end'}}>
+            <button onClick={()=>onNavigate?.('offerings')} style={{background:'var(--gold)',border:'none',color:'#1a1814',borderRadius:8,padding:'.5rem 1.1rem',fontSize:'.78rem',fontWeight:700,cursor:'pointer',fontFamily:'inherit'}}>
+              {upcomingOffering?'Manage →':'+ Add workshop →'}
+            </button>
           </div>
-        )
-      })()}
+        </div>
+      )}
       {remindersSent.length>0&&!reminderBannerDismissed&&(
         <div style={{background:'var(--bg-card-dark)',borderRadius:10,padding:'.65rem 1.1rem',marginBottom:'1rem',display:'flex',alignItems:'center',gap:'.75rem',animation:'milestoneIn .35s ease'}}>
           <span style={{fontSize:'.9rem'}}>💬</span>
@@ -1196,7 +1262,7 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
       )}
       <CoachSlider appts={allAppts} stats={stats} workspace={workspace} session={session} lang={lang} activeTab={activeTab}/>
       <div className="stats-scroll">
-        {(activeTab==='shop'?shopCards:cards).map((s,i)=>(
+        {(activeTab==='shop'?shopCards:activeTab==='learn'?learnCards:cards).map((s,i)=>(
           <button key={i} className="stat-card stat-card-btn" onClick={()=>onNavigate?.(s.page)}>
             <div className="stat-label">{s.label}</div>
             <div className="stat-value">{s.value}</div>
@@ -1295,7 +1361,69 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
             </div>
           </div>
         </>
-      ):(
+      ) : activeTab==='learn' ? (
+        <>
+          {/* Enrollments */}
+          <div className="card" style={{marginBottom:'1.25rem',cursor:'pointer',marginTop:12}} onClick={()=>onNavigate?.('enrollments')}>
+            <div className="card-head">
+              <div>
+                <div style={{fontSize:'.65rem',fontWeight:700,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'.25rem'}}>ENROLLMENTS</div>
+                <div className="card-title">{learnEnrollCount} enrolled · {learnCompletedCount} completed</div>
+              </div>
+              <div className="stat-arrow">&#8594;</div>
+            </div>
+            <div style={{padding:'.4rem 1.25rem',fontSize:'.78rem',fontWeight:500,color:'var(--accent-gold)'}}>View all enrollments →</div>
+          </div>
+          {/* Formations & Workshops */}
+          <div className="card" style={{marginBottom:'1.25rem',cursor:'pointer'}} onClick={()=>onNavigate?.('offerings')}>
+            <div className="card-head">
+              <div>
+                <div style={{fontSize:'.65rem',fontWeight:700,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'.25rem'}}>FORMATIONS &amp; WORKSHOPS</div>
+                <div className="card-title">Your offerings</div>
+              </div>
+              <div className="stat-arrow">&#8594;</div>
+            </div>
+            {learnActiveOfferings.length>0
+              ? learnActiveOfferings.map(o=>(
+                <div key={o.id} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'.45rem 1.25rem',borderBottom:'1px solid var(--border)'}}>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontWeight:600,fontSize:'.84rem',color:'var(--text-primary)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{o.title}</div>
+                    {o.level&&<span style={{fontSize:'.65rem',color:'var(--text-secondary)',textTransform:'capitalize'}}>{o.level}</span>}
+                  </div>
+                  <div style={{display:'flex',alignItems:'center',gap:'.4rem',flexShrink:0,marginLeft:'.5rem'}}>
+                    <span style={{fontSize:'.65rem',fontWeight:700,background:o.type==='workshop'?'rgba(201,168,76,.12)':'rgba(34,197,94,.1)',color:o.type==='workshop'?'var(--gold)':'#16a34a',borderRadius:4,padding:'1px 6px'}}>{o.type==='workshop'?'Workshop':'Online'}</span>
+                    <div style={{fontSize:'.82rem',color:'var(--text-secondary)'}}>{Number(o.price)===0?'Free':`$${Number(o.price).toFixed(0)}`}</div>
+                  </div>
+                </div>
+              ))
+              : <div style={{padding:'.6rem 1.25rem',fontSize:'.78rem',color:'var(--text-secondary)',fontStyle:'italic'}}>No active offerings yet</div>
+            }
+            <div style={{padding:'.5rem 1.25rem',fontSize:'.78rem',fontWeight:600,color:'var(--accent-gold)'}}>+ Add formation</div>
+          </div>
+          {/* Reviews */}
+          <div className="card" style={{marginBottom:'1.25rem',cursor:'pointer'}} onClick={()=>onNavigate?.('reviews')}>
+            <div className="card-head">
+              <div>
+                <div style={{fontSize:'.65rem',fontWeight:700,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'.25rem'}}>REVIEWS</div>
+                <div className="card-title">Student reviews</div>
+                <div className="card-sub">See what students are saying</div>
+              </div>
+              <div className="stat-arrow">&#8594;</div>
+            </div>
+          </div>
+          {/* Learn Policy */}
+          <div className="card" style={{marginBottom:'1.25rem',cursor:'pointer'}} onClick={()=>onNavigate?.('policy')}>
+            <div className="card-head">
+              <div>
+                <div style={{fontSize:'.65rem',fontWeight:700,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'.25rem'}}>LEARN POLICY</div>
+                <div className="card-title">Refund & access terms</div>
+                <div className="card-sub">Define your course terms</div>
+              </div>
+              <div className="stat-arrow">&#8594;</div>
+            </div>
+          </div>
+        </>
+      ) : (
         <>
           <MonthlyGoal appts={allAppts} workspace={workspace} refetchWorkspace={refetchWorkspace} lang={lang}/>
           <div className="grid-2" style={{marginBottom:'1.25rem',marginTop:12}}>

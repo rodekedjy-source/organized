@@ -1,39 +1,33 @@
 import { useState } from 'react'
 import OverviewSection  from './OverviewSection'
 import OfferingsSection from './OfferingsSection'
+import EnrollmentsView  from './EnrollmentsView'
 import ReviewsSection   from './ReviewsSection'
 import PolicySection    from './PolicySection'
+import RevenuePageLearn from './RevenuePageLearn'
 import BackBar          from './BackBar'
 
 export default function LearnTab(props) {
   const [subPage, setSubPage] = useState(null)
+  const [refreshKey, setRefreshKey] = useState(0)
   const { workspace, toast, refetch } = props
-  const back = () => setSubPage(null)
 
-  if (subPage === 'offerings') return <><BackBar onBack={back} title="Offerings" /><OfferingsSection {...props} /></>
-  if (subPage === 'reviews')   return <><BackBar onBack={back} title="Reviews"   /><ReviewsSection  {...props} type="learn" /></>
-  if (subPage === 'policy')    return (
-    <>
-      <BackBar onBack={back} title="Policy" />
-      <PolicySection workspace={workspace} toast={toast} refetch={refetch} type="learn" />
-    </>
+  function goBack() { setSubPage(null); setRefreshKey(k => k + 1) }
+
+  const wrap = (title, child) => (
+    <><BackBar onBack={goBack} title={title} /><div style={{ paddingBottom: 90 }}>{child}</div></>
   )
 
-  const navCard = (label, page) => (
-    <div key={page} className="card" style={{marginBottom:'1.25rem',cursor:'pointer'}} onClick={()=>setSubPage(page)}>
-      <div className="card-head">
-        <div style={{fontSize:'.65rem',fontWeight:700,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'.08em'}}>{label}</div>
-        <div className="stat-arrow">&#8594;</div>
-      </div>
-    </div>
-  )
+  if (subPage === 'revenue')
+    return wrap('Revenue', <RevenuePageLearn workspace={workspace} />)
+  if (subPage === 'offerings')
+    return wrap('Formations', <OfferingsSection key={refreshKey} {...props} />)
+  if (subPage === 'enrollments')
+    return wrap('Enrollments', <EnrollmentsView key={refreshKey} workspace={workspace} toast={toast} />)
+  if (subPage === 'reviews')
+    return wrap('Reviews', <ReviewsSection {...props} type="learn" />)
+  if (subPage === 'policy')
+    return wrap('Policy', <PolicySection workspace={workspace} toast={toast} refetch={refetch} type="learn" />)
 
-  return (
-    <>
-      <OverviewSection {...props} activeTab="learn" onNavigate={(page) => setSubPage(page)} />
-      {navCard('FORMATIONS & WORKSHOPS', 'offerings')}
-      {navCard('REVIEWS',                'reviews')}
-      {navCard('POLICY',                 'policy')}
-    </>
-  )
+  return <OverviewSection {...props} activeTab="learn" onNavigate={setSubPage} />
 }

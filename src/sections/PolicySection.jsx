@@ -194,8 +194,101 @@ function ShopPolicySection({ workspace, toast, refetch }) {
   )
 }
 
+// ── LearnPolicySection ────────────────────────────────────────────────────────
+function LearnPolicySection({ workspace, toast, refetch }) {
+  const DEF = { refund_type:'no_refund', refund_days:7, content_access:'lifetime', prerequisites:'', issue_certificate:false, custom_notes:'' }
+  const [form, setForm] = useState(() => ({ ...DEF, ...(workspace?.policy_learn||{}) }))
+  const [saving, setSaving] = useState(false)
+  const set = (k,v) => setForm(f => ({...f,[k]:v}))
+  const iS = { width:'100%', padding:'.6rem .85rem', border:'1px solid var(--border-2)', borderRadius:9, fontSize:'.85rem', fontFamily:'inherit', color:'var(--ink)', background:'var(--surface)', outline:'none', transition:'border .15s' }
+  const focus = e => (e.target.style.borderColor='var(--gold)')
+  const blur  = e => (e.target.style.borderColor='var(--border-2)')
+
+  async function save() {
+    setSaving(true)
+    const { error } = await supabase.from('workspaces').update({ policy_learn: form }).eq('id', workspace.id)
+    setSaving(false)
+    if (error) { toast('Could not save policy.'); return }
+    toast('Policy saved.')
+    if (refetch) await refetch()
+  }
+
+  const previewLines = []
+  if (form.refund_type==='no_refund') previewLines.push('No refunds after enrollment.')
+  else if (form.refund_type==='full_refund') previewLines.push(`Full refund within ${form.refund_days} days of purchase.`)
+  else previewLines.push('Store credit issued upon refund request.')
+  const accessLabels = { lifetime:'Lifetime access to course content.', one_year:'Content access for 1 year.', six_months:'Content access for 6 months.', course_duration:'Access limited to course duration.' }
+  if (accessLabels[form.content_access]) previewLines.push(accessLabels[form.content_access])
+  if (form.prerequisites?.trim()) previewLines.push(`Prerequisites: ${form.prerequisites.trim()}`)
+  if (form.issue_certificate) previewLines.push('A certificate of completion is issued upon finishing the course.')
+  if (form.custom_notes?.trim()) form.custom_notes.trim().split('\n').filter(l=>l.trim()).forEach(l=>previewLines.push(l.trim()))
+
+  return (
+    <div>
+      <div className="page-head"><div><div className="page-title">Learn Policy</div><div className="page-sub">Define your refund, access and certificate terms.</div></div></div>
+      <div className="card" style={{ marginBottom:'1rem' }}>
+        <div className="card-body" style={{ display:'flex', flexDirection:'column', gap:'1.4rem' }}>
+          <div><SHead title="Refund Policy" />
+            <div className="field"><label>Refund terms</label>
+              <select style={{...iS,cursor:'pointer'}} value={form.refund_type} onChange={e=>set('refund_type',e.target.value)} onFocus={focus} onBlur={blur}>
+                <option value="no_refund">No refunds after enrollment</option>
+                <option value="full_refund">Full refund within X days of purchase</option>
+                <option value="store_credit">Store credit only</option>
+              </select>
+            </div>
+            {form.refund_type==='full_refund'&&(
+              <div className="field" style={{marginTop:'.75rem'}}>
+                <label>Refund window</label>
+                <div style={{display:'flex',alignItems:'center',gap:'.6rem'}}>
+                  <input style={{...iS,maxWidth:80}} type="number" min="1" value={form.refund_days} onChange={e=>set('refund_days',Number(e.target.value))} onFocus={focus} onBlur={blur}/>
+                  <span style={{fontSize:'.88rem',color:'var(--ink-2)',flexShrink:0}}>days</span>
+                </div>
+              </div>
+            )}
+          </div>
+          <div><SHead title="Content Access" />
+            <div className="field"><label>Access duration</label>
+              <select style={{...iS,cursor:'pointer'}} value={form.content_access} onChange={e=>set('content_access',e.target.value)} onFocus={focus} onBlur={blur}>
+                <option value="lifetime">Lifetime access</option>
+                <option value="one_year">1 year</option>
+                <option value="six_months">6 months</option>
+                <option value="course_duration">Course duration only</option>
+              </select>
+            </div>
+          </div>
+          <div><SHead title="Prerequisites" />
+            <div className="field">
+              <textarea style={{...iS,minHeight:64,resize:'vertical'}} value={form.prerequisites} onChange={e=>set('prerequisites',e.target.value)} placeholder="Requirements to join (optional)" onFocus={focus} onBlur={blur}/>
+            </div>
+          </div>
+          <div><SHead title="Certificate" />
+            <Toggle checked={form.issue_certificate} onChange={v=>set('issue_certificate',v)} label="Issue certificate upon completion"/>
+          </div>
+          <div><SHead title="Additional Terms" />
+            <div className="field">
+              <textarea style={{...iS,minHeight:80,resize:'vertical'}} value={form.custom_notes} onChange={e=>set('custom_notes',e.target.value)} placeholder="Any additional terms…" onFocus={focus} onBlur={blur}/>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="card" style={{ marginBottom:'1rem' }}>
+        <div className="card-body">
+          <div style={{ fontSize:'.67rem', fontWeight:700, color:'var(--ink-3)', textTransform:'uppercase', letterSpacing:'.08em', marginBottom:'.85rem' }}>Preview</div>
+          {previewLines.map((line,i) => (
+            <div key={i} style={{ borderLeft:'2px solid var(--gold)', paddingLeft:12, paddingTop:6, paddingBottom:6, margin:'8px 0', fontSize:'.85rem', color:'var(--ink-2)', lineHeight:1.65 }}>{line}</div>
+          ))}
+        </div>
+      </div>
+      <button className="btn btn-primary" style={{ justifyContent:'center', padding:'.75rem 2rem' }} onClick={save} disabled={saving}>
+        {saving ? 'Saving…' : 'Save Policy'}
+      </button>
+    </div>
+  )
+}
+
 // ── PolicySection ─────────────────────────────────────────────────────────────
 export default function PolicySection({ workspace, toast, refetch, type = 'booking' }) {
+  if (type === 'learn') return <LearnPolicySection workspace={workspace} toast={toast} refetch={refetch} />
   if (type === 'shop') return <ShopPolicySection workspace={workspace} toast={toast} refetch={refetch} />
   const [form, setForm] = useState({
     policy_enabled:      workspace?.policy_enabled      || false,
