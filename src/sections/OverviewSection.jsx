@@ -1028,7 +1028,6 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
       .eq('workspace_id',workspace.id)
       .is('deleted_at',null)
       .order('created_at',{ascending:false})
-      .limit(2)
       .then(({data})=>{ setShopProducts(data||[]) })
     // Top product — fresh orders query grouped client-side
     supabase.from('orders').select('product_name,total_amount')
@@ -1233,7 +1232,7 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
               <div className="stat-arrow">&#8594;</div>
             </div>
             {shopProducts.length>0
-              ?shopProducts.map(p=>(
+              ?shopProducts.slice(0,2).map(p=>(
                 <div key={p.id} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'.45rem 1.25rem',borderBottom:'1px solid var(--border)'}}>
                   <div style={{fontWeight:600,fontSize:'.84rem',color:'var(--text-primary)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flex:1}}>{p.name}</div>
                   <div style={{display:'flex',alignItems:'center',gap:'.5rem',flexShrink:0,marginLeft:'.5rem'}}>
