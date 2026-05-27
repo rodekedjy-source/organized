@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import { formatCurrency } from '../lib/formatters'
 
 const TABS = ['Day', 'Week', 'Month', 'Year']
-const PAID = ['confirmed', 'shipped', 'delivered']
+const PAID = ['confirmed', 'processing', 'shipped', 'delivered']
 
 function startOf(tab) {
   const now = new Date()
@@ -82,8 +82,13 @@ export default function RevenuePageShop({ workspace }) {
     supabase.from('orders')
       .select('id,created_at,total_amount,product_name,customer_name,client_name,status')
       .eq('workspace_id', workspace.id)
+      .in('status', ['confirmed', 'processing', 'shipped', 'delivered'])
       .order('created_at', { ascending: false })
-      .then(({ data }) => { setOrders(data||[]); setLoading(false) })
+      .then(({ data, error }) => {
+        console.log('SHOP REVENUE QUERY:', workspace?.id, data, error)
+        setOrders(data||[])
+        setLoading(false)
+      })
   }, [workspace?.id])
 
   const paid = orders.filter(o => PAID.includes(o.status))

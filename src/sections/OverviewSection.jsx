@@ -1069,7 +1069,6 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
   const shopDeliveredWeek=shopOrders.filter(o=>o.status==='delivered'&&o.delivered_at&&new Date(o.delivered_at)>=weekStartShop).length
   const shopCards=[
     {label:'Revenue — '+curMonthName,value:fmtRev(shopRevMonth),delta:shopRevDelta!==null?`${shopRevDelta>=0?'↑':'↓'} ${Math.abs(shopRevDelta)}% vs last month`:'—',up:shopRevDelta===null||shopRevDelta>=0,page:'revenue'},
-    {label:'SHIPPING',value:'Setup',delta:'Carriers & rules',up:true,page:'shipping'},
   ]
   return (
     <div style={{background:'var(--bg-base)',minHeight:'100%'}}>
@@ -1229,6 +1228,17 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
                 <div style={{fontSize:'.65rem',fontWeight:700,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'.25rem'}}>SHOP POLICY</div>
                 <div className="card-title">Refunds & shipping terms</div>
                 <div className="card-sub">Define your shop terms</div>
+              </div>
+              <div className="stat-arrow">&#8594;</div>
+            </div>
+          </div>
+          {/* Shipping */}
+          <div className="card" style={{marginBottom:'1.25rem',cursor:'pointer'}} onClick={()=>onNavigate?.('shipping')}>
+            <div className="card-head">
+              <div>
+                <div style={{fontSize:'.65rem',fontWeight:700,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'.25rem'}}>SHIPPING</div>
+                <div className="card-title">Carriers & rules</div>
+                <div className="card-sub">Configure your shipping setup</div>
               </div>
               <div className="stat-arrow">&#8594;</div>
             </div>
