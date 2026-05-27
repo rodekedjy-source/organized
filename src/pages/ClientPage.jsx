@@ -1594,19 +1594,23 @@ export default function ClientPage() {
             </div>
             {workspace?.policy_shop&&Object.keys(workspace.policy_shop).length>0?(()=>{
               const p=workspace.policy_shop
-              const items=[]
-              if(p.returns_days) items.push(`Returns accepted within ${p.returns_days} day${p.returns_days!==1?'s':''}${p.returns_condition?` — ${p.returns_condition}`:''}`)
-              if(p.refund_type){const lbl=p.refund_type==='full'?'Full refund':p.refund_type==='store_credit'?'Store credit':'No refunds';items.push(`Refund type: ${lbl}`)}
-              if(p.shipping_days) items.push(`Processing time: ${p.shipping_days} business day${p.shipping_days!==1?'s':''}`)
-              if(p.custom_terms?.trim()) items.push(p.custom_terms.trim())
-              return items.length>0?(
+              const row=(txt)=>(
+                <div style={{fontSize:14,color:'var(--text)',lineHeight:1.65,paddingLeft:'.75rem',borderLeft:'2px solid var(--gold)'}}>{txt}</div>
+              )
+              return(
                 <div style={{display:'flex',flexDirection:'column',gap:'.75rem'}}>
-                  {items.map((item,i)=>(
-                    <div key={i} style={{fontSize:14,color:'var(--text)',lineHeight:1.65,paddingLeft:'.75rem',borderLeft:'2px solid var(--gold)'}}>{item}</div>
-                  ))}
+                  {p.accept_returns?(
+                    <>
+                      {row(`✓ Returns accepted within ${p.return_window_days||'?'} days of delivery`)}
+                      {p.return_condition&&row(`Condition: ${p.return_condition}`)}
+                    </>
+                  ):row('✗ No returns accepted')}
+                  {p.refund_type&&p.refund_type!=='none'&&row(`Refund: ${p.refund_type}${p.refund_processing_days?` within ${p.refund_processing_days} business days`:''}`)}
+                  {p.shipping_processing_days&&row(`Orders processed within ${p.shipping_processing_days} business days before shipping`)}
+                  {p.shipping_fee_type==='free'&&row('Free shipping on all orders')}
+                  {p.shipping_fee_type==='flat'&&row(`Flat rate shipping: $${p.flat_rate_amount}`)}
+                  {p.custom_notes?.trim()&&row(p.custom_notes.trim())}
                 </div>
-              ):(
-                <p style={{fontSize:14,color:'var(--text-muted)',margin:0}}>Please contact the seller for policy details.</p>
               )
             })():(
               <p style={{fontSize:14,color:'var(--text-muted)',margin:0}}>Please contact the seller for policy details.</p>
