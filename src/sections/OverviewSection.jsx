@@ -977,7 +977,7 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
       supabase.from('products').select('id,name,price,stock,is_active').eq('workspace_id',workspace.id).order('created_at',{ascending:false}),
       supabase.from('enrollments').select('id').eq('workspace_id',workspace.id),
       supabase.from('blocked_dates').select('*').eq('workspace_id',workspace.id),
-      supabase.from('orders').select('id,status,total_amount,product_name,created_at,tracking_number,delivered_at').eq('workspace_id',workspace.id),
+      supabase.from('orders').select('id,status,total_amount,product_name,client_name,created_at,tracking_number,delivered_at').eq('workspace_id',workspace.id),
       supabase.from('offerings').select('id,title,workshop_date,spots_total,spots_taken,is_active').eq('workspace_id',workspace.id),
       supabase.from('services').select('id,name,price,duration_min').eq('workspace_id',workspace.id).eq('is_active',true),
     ])
@@ -1097,18 +1097,57 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
       </div>
       {activeTab==='booking'&&<NextUpBanner appts={allAppts} workspace={workspace} onReloaded={fetchData} toast={toast} lang={lang}/>}
       {activeTab==='shop'&&(()=>{
-        let msg,color
-        if(shopNeedTracking>0){msg=`${shopNeedTracking} order${shopNeedTracking>1?'s':''} need a tracking number`;color='#ef4444'}
-        else if(shopProcessing>0){msg=`${shopProcessing} order${shopProcessing>1?'s':''} ready to ship`;color='#F59E0B'}
-        else if(shopLowStock.length>0){msg=`Low stock: ${shopLowStock[0].name}`;color='#F59E0B'}
-        else{msg=shopDeliveredWeek>0?`${shopDeliveredWeek} delivered this week`:'All caught up!';color='#22c55e'}
+        const newOrders=shopOrders.filter(o=>['pending','confirmed'].includes(o.status))
+        const needsTracking=shopOrders.filter(o=>o.status==='processing'&&!o.tracking_number)
+        const lowStock=shopProducts.filter(p=>p.stock!==null&&p.stock<=3)
+        const actions=[]
+        newOrders.slice(0,3).forEach(o=>actions.push({
+          type:'order',priority:'high',
+          label:`New order — ${o.client_name||'Client'} · $${Number(o.total_amount||0).toFixed(2)}`,
+        }))
+        if(needsTracking.length>0) actions.push({
+          type:'tracking',priority:'high',
+          label:`${needsTracking.length} order${needsTracking.length>1?'s':''} need${needsTracking.length===1?'s':''} tracking number`,
+        })
+        lowStock.forEach(p=>actions.push({
+          type:'stock',priority:'medium',
+          label:`Low stock: ${p.name} — ${p.stock} left`,
+        }))
+        const hasHigh=actions.some(a=>a.priority==='high')
+        const visible=actions.slice(0,4)
+        const extra=actions.length-4
         return(
-          <div className="next-up-banner" style={{marginBottom:'1rem'}}>
-            <div style={{fontSize:'.65rem',fontWeight:700,color:'rgba(255,255,255,.45)',textTransform:'uppercase',letterSpacing:'.1em',marginBottom:'.5rem'}}>SHOP STATUS</div>
-            <div style={{fontSize:'1.1rem',fontWeight:700,color,marginBottom:'.35rem'}}>{msg}</div>
-            <div style={{display:'flex',justifyContent:'flex-end',marginTop:'.75rem'}}>
-              <button onClick={()=>onNavigate?.('orders')} style={{background:'var(--gold)',border:'none',color:'#1a1814',borderRadius:8,padding:'.5rem 1.1rem',fontSize:'.78rem',fontWeight:700,cursor:'pointer',fontFamily:'inherit'}}>View orders →</button>
+          <div className="next-up-banner" style={{marginBottom:'1rem',borderTop:'2px solid rgba(201,168,76,0.3)'}}>
+            <div style={{fontSize:'.65rem',fontWeight:700,color:'rgba(255,255,255,.45)',textTransform:'uppercase',letterSpacing:'.1em',marginBottom:'.75rem'}}>
+              {actions.length>0?'ACTION NEEDED':'ALL CLEAR'}
             </div>
+            {actions.length===0?(
+              <>
+                <div style={{fontSize:'1rem',fontWeight:700,color:'#22c55e',marginBottom:'.25rem'}}>✓ Everything is up to date</div>
+                <div style={{fontSize:'.78rem',color:'rgba(255,255,255,.5)',marginBottom:'.75rem'}}>No pending orders or stock alerts</div>
+                <div style={{display:'flex',justifyContent:'flex-end'}}>
+                  <button onClick={()=>onNavigate?.('orders')} style={{background:'var(--gold)',border:'none',color:'#1a1814',borderRadius:8,padding:'.5rem 1.1rem',fontSize:'.78rem',fontWeight:700,cursor:'pointer',fontFamily:'inherit'}}>View orders →</button>
+                </div>
+              </>
+            ):(
+              <>
+                {visible.map((a,i)=>(
+                  <div key={i} onClick={()=>onNavigate?.(a.type==='stock'?'products':'orders')}
+                    style={{display:'flex',alignItems:'center',gap:'.6rem',padding:'6px 0',borderBottom:'1px solid rgba(255,255,255,0.06)',cursor:'pointer'}}>
+                    <div style={{width:7,height:7,borderRadius:'50%',flexShrink:0,background:a.priority==='high'?'#EF4444':'#F59E0B'}}/>
+                    <span style={{fontSize:13,color:'#fff',flex:1}}>{a.label}</span>
+                    <span style={{fontSize:11,color:'rgba(255,255,255,.35)'}}>›</span>
+                  </div>
+                ))}
+                {extra>0&&<div style={{fontSize:'.72rem',color:'rgba(255,255,255,.4)',paddingTop:'.4rem'}}>+ {extra} more</div>}
+                <div style={{display:'flex',justifyContent:'flex-end',marginTop:'.75rem'}}>
+                  <button onClick={()=>onNavigate?.(hasHigh?'orders':'products')}
+                    style={{background:'var(--gold)',border:'none',color:'#1a1814',borderRadius:8,padding:'.5rem 1.1rem',fontSize:'.78rem',fontWeight:700,cursor:'pointer',fontFamily:'inherit'}}>
+                    {hasHigh?'Review orders →':'Manage products →'}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         )
       })()}
