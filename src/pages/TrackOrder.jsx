@@ -99,9 +99,8 @@ export default function TrackOrder() {
   }
 
   const step1Active = true
-  const step2Active = ['processing', 'shipped', 'delivered'].includes(order.status)
-  const step3Active = !!(order.shipped_at)
-  const step4Active = !!(order.delivered_at)
+  const step2Active = ['shipped', 'delivered'].includes(order.status)
+  const step3Active = order.status === 'delivered'
   const carrierUrl  = getCarrierUrl(order.carrier, order.tracking_number)
 
   return (
@@ -127,31 +126,24 @@ export default function TrackOrder() {
           <div style={{ display: 'flex', alignItems: 'flex-start', position: 'relative' }}>
             {/* Background track */}
             <div style={{
-              position: 'absolute', top: 15, left: 'calc(12.5% + 16px)',
-              right: 'calc(12.5% + 16px)', height: 2, background: '#E5E2DE', zIndex: 0,
+              position: 'absolute', top: 15, left: 'calc(16.67% + 16px)',
+              right: 'calc(16.67% + 16px)', height: 2, background: '#E5E2DE', zIndex: 0,
             }}/>
             {/* Step 1→2 fill */}
             <div style={{
               position: 'absolute', top: 15,
-              left: 'calc(12.5% + 16px)', right: 'calc(62.5% + 16px)',
+              left: 'calc(16.67% + 16px)', right: 'calc(50% + 16px)',
               height: 2, background: step2Active ? GOLD : '#E5E2DE', zIndex: 1, transition: 'background .3s',
             }}/>
             {/* Step 2→3 fill */}
             <div style={{
               position: 'absolute', top: 15,
-              left: 'calc(37.5% + 16px)', right: 'calc(37.5% + 16px)',
+              left: 'calc(50% + 16px)', right: 'calc(16.67% + 16px)',
               height: 2, background: step3Active ? GOLD : '#E5E2DE', zIndex: 1, transition: 'background .3s',
             }}/>
-            {/* Step 3→4 fill */}
-            <div style={{
-              position: 'absolute', top: 15,
-              left: 'calc(62.5% + 16px)', right: 'calc(12.5% + 16px)',
-              height: 2, background: step4Active ? GOLD : '#E5E2DE', zIndex: 1, transition: 'background .3s',
-            }}/>
-            <StepCircle active={step1Active} label="Confirmed"  sub={fmtDate(order.created_at)} />
-            <StepCircle active={step2Active} label="Processing" sub={''} />
-            <StepCircle active={step3Active} label="Shipped"    sub={step3Active ? fmtDate(order.shipped_at) : ''} />
-            <StepCircle active={step4Active} label="Delivered"  sub={step4Active ? fmtDate(order.delivered_at) : ''} />
+            <StepCircle active={step1Active} label="Confirmed" sub={fmtDate(order.created_at)} />
+            <StepCircle active={step2Active} label="Shipped"   sub={step2Active ? fmtDate(order.shipped_at) : ''} />
+            <StepCircle active={step3Active} label="Delivered" sub={step3Active ? fmtDate(order.delivered_at) : ''} />
           </div>
         </div>
 
