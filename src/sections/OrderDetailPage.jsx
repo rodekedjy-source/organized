@@ -41,7 +41,8 @@ export default function OrderDetailPage({ order: init, onBack, workspace, toast 
     setActing(true)
     const { error } = await updateOrderStatus(order.id, 'processing')
     if (error) { toast('Could not update order.'); setActing(false); return }
-    setOrder(o => ({...o, status:'processing'}))
+    setOrder(o => ({...o, status: 'processing'}))
+    toast('Marked as processing ✓')
     setActing(false)
   }
 
@@ -62,9 +63,9 @@ export default function OrderDetailPage({ order: init, onBack, workspace, toast 
     const { error } = await markOrderDelivered(order.id)
     if (error) { toast('Could not update order.'); setActing(false); return }
     await notifyOrderDelivered(order, workspace?.name || '', link)
-    setOrder(o => ({...o, status:'delivered', delivered_at: new Date().toISOString()}))
     toast('Delivered · client notified ✓')
     setActing(false)
+    onBack()
   }
 
   return (
@@ -106,6 +107,15 @@ export default function OrderDetailPage({ order: init, onBack, workspace, toast 
                 ))}
               </tbody>
             </table>
+          ) : order.product_name === 'Cart order' ? (
+            <div>
+              <div style={{fontSize:14,color:'var(--ink)'}}>
+                Cart order — {order.quantity || '?'} items · ${Number(order.total_amount||0).toFixed(2)} total
+              </div>
+              <div style={{fontSize:11,color:'var(--text-secondary)',marginTop:4}}>
+                Item breakdown not available for this order
+              </div>
+            </div>
           ) : (
             <div style={{display:'flex',justifyContent:'space-between',fontSize:14,color:'var(--ink)'}}>
               <span>{order.product_name || 'Product'}</span>

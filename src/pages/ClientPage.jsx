@@ -128,6 +128,15 @@ function Stars({rating}) {
   return <span style={{color:'var(--gold)',fontSize:12,letterSpacing:2}}>{'★'.repeat(Math.round(rating))}{'☆'.repeat(5-Math.round(rating))}</span>
 }
 function formatDateLabel(y,m,d) { return `${MONTHS[m]} ${d}, ${y}` }
+function validatePostal(value, country) {
+  if (country === 'Canada' || country === 'CA') {
+    return /^[A-Za-z]\d[A-Za-z][ -]?\d[A-Za-z]\d$/.test(value.trim())
+  }
+  if (country === 'United States' || country === 'US') {
+    return /^\d{5}(-\d{4})?$/.test(value.trim())
+  }
+  return true
+}
 
 const CA_PROVINCES = [
   ['AB','Alberta'],['BC','British Columbia'],['MB','Manitoba'],['NB','New Brunswick'],
@@ -234,6 +243,7 @@ export default function ClientPage() {
   const [checkoutPhone,      setCheckoutPhone]      = useState('')
   const [checkoutAgreed,     setCheckoutAgreed]     = useState(false)
   const [postalError,        setPostalError]        = useState('')
+  const [shopPolicyOpen,     setShopPolicyOpen]     = useState(false)
   const [cardholderName,     setCardholderName]     = useState('')
   const checkoutStripeRef   = useRef(null)
   const checkoutElementsRef = useRef(null)
@@ -274,7 +284,7 @@ export default function ClientPage() {
       setLoading(true); setNotFound(false)
       try {
         const { data: ws } = await supabase.from('workspaces')
-          .select('id,name,slug,tagline,bio,avatar_url,instagram,tiktok,phone,email,location,timezone,currency,is_published,theme,accepts_bookings,accepts_orders,offers_domicile,domicile_fee,domicile_radius_km,domicile_notes,address_visibility,neighborhood,address_street,address_city,address_province,address_postal,share_address,show_address_on_page,faq_settings,featured_product_id,featured_product_note,working_hours,deposit_required,deposit_type,deposit_value,review_requests_enabled,payment_mode,policy_enabled,policy_deposit_pct,policy_cancel_hours,policy_late_fee,policy_no_show_fee,policy_custom')
+          .select('id,name,slug,tagline,bio,avatar_url,instagram,tiktok,phone,email,location,timezone,currency,is_published,theme,accepts_bookings,accepts_orders,offers_domicile,domicile_fee,domicile_radius_km,domicile_notes,address_visibility,neighborhood,address_street,address_city,address_province,address_postal,share_address,show_address_on_page,faq_settings,featured_product_id,featured_product_note,working_hours,deposit_required,deposit_type,deposit_value,review_requests_enabled,payment_mode,policy_enabled,policy_deposit_pct,policy_cancel_hours,policy_late_fee,policy_no_show_fee,policy_custom,policy_shop')
           .eq('slug', slug).eq('is_published', true).maybeSingle()
         if (!ws) { if (!cancelled) { setNotFound(true); setLoading(false) }; return }
         if (!cancelled) setWorkspace(ws)
@@ -1412,7 +1422,7 @@ export default function ClientPage() {
         const coPrice = checkoutItem.type==='product'&&isDiscountActive(checkoutItem.item)
           ? Number(checkoutItem.item.discount_price) : Number(checkoutItem.item.price)
         const coName  = (checkoutItem.type==='product'||checkoutItem.type==='cart') ? checkoutItem.item.name : checkoutItem.item.title
-        const step1Valid = checkoutForm.name.trim()&&checkoutForm.email.trim()&&checkoutAddress.street.trim()&&checkoutAddress.city.trim()&&checkoutAddress.province.trim()&&checkoutAddress.postal.trim()&&checkoutAddress.country.trim()&&!postalError
+        const step1Valid = checkoutForm.name.trim()&&checkoutForm.email.trim()&&checkoutAddress.street.trim()&&checkoutAddress.city.trim()&&checkoutAddress.province.trim()&&checkoutAddress.postal.trim()&&checkoutAddress.country.trim()
         return(
           <div className="cb-overlay open" style={{zIndex:950,background:'var(--body-bg,#FAF5EE)',overflowY:'auto',overflowX:'hidden'}}>
             {/* Header */}
@@ -1482,14 +1492,11 @@ export default function ClientPage() {
                     onBlur={e=>{
                       const v = e.target.value.trim()
                       if (!v) return
-                      if (checkoutAddress.country==='Canada') {
-                        if (!/^[A-Za-z]\d[A-Za-z][ -]?\d[A-Za-z]\d$/.test(v)) setPostalError('Invalid postal code')
-                      } else {
-                        if (!/^\d{5}(-\d{4})?$/.test(v)) setPostalError('Invalid ZIP code')
-                      }
+                      const valid = validatePostal(v, checkoutAddress.country)
+                      setPostalError(valid ? '' : checkoutAddress.country === 'Canada' ? 'Format: A1A 1A1' : 'Format: 12345')
                     }}
                   />
-                  {postalError&&<div style={{fontSize:'0.72rem',color:'#e05c5c',marginTop:-8,marginBottom:6,paddingLeft:2}}>{postalError}</div>}
+                  {postalError&&<div style={{color:'#E53E3E',fontSize:12,marginTop:4}}>⚠ {postalError}</div>}
 
                   {checkoutError&&<p style={{fontSize:12,color:'#e05c5c',margin:'4px 0 12px',lineHeight:1.5}}>{checkoutError}</p>}
                   <button className="co-pay-btn" style={{marginTop:8,opacity:(!step1Valid||checkoutSubmitting)?0.4:1}} disabled={!step1Valid||checkoutSubmitting} onClick={initCheckoutStripe}>
@@ -1501,25 +1508,44 @@ export default function ClientPage() {
                 {checkoutStep===2&&(<>
                   {/* Order summary */}
                   <div className="co-summary-card">
-                    <div className="co-summary-row">
-                      <span>{coName}</span>
-                      {checkoutItem.type==='product'&&<span>× {checkoutItem.quantity||1}</span>}
-                    </div>
-                    <div className="co-summary-row">
-                      <span>Unit price</span>
-                      <span>${coPrice.toFixed(2)}</span>
-                    </div>
-                    <div className="co-summary-row">
-                      <span>Subtotal</span>
-                      <span>${(coPrice*(checkoutItem.quantity||1)).toFixed(2)}</span>
-                    </div>
-                    <div className="co-summary-row">
-                      <span>Shipping</span>
-                      <span style={{color:'var(--text-muted)',fontStyle:'italic'}}>Calculated by studio</span>
-                    </div>
-                    <div className="co-summary-row co-summary-total">
-                      <span>Total</span>
-                      <span>${(coPrice*(checkoutItem.quantity||1)).toFixed(2)}</span>
+                    {checkoutItem.type==='cart'
+                      ? checkoutItem.items.map(item=>{
+                          const itemPrice = isDiscountActive(item) ? Number(item.discount_price) : Number(item.price)
+                          return (
+                            <div key={item.id} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 0',borderBottom:'1px solid var(--dark-4)'}}>
+                              <div style={{width:40,height:40,borderRadius:8,overflow:'hidden',flexShrink:0,background:'var(--dark-4)',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                                {(item.image_url||item.images?.[0])
+                                  ? <img src={item.image_url||item.images?.[0]} alt={item.name} style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+                                  : <span style={{fontSize:16,color:'var(--text-muted)'}}>✦</span>}
+                              </div>
+                              <div style={{flex:1}}>
+                                <div style={{fontSize:14,fontWeight:700,color:'var(--text)',lineHeight:1.3}}>{item.name}</div>
+                                <div style={{fontSize:12,color:'var(--text-muted)',marginTop:2}}>× {item.qty}</div>
+                              </div>
+                              <div style={{fontSize:14,color:'var(--gold)',fontWeight:600}}>${(itemPrice*item.qty).toFixed(2)}</div>
+                            </div>
+                          )
+                        })
+                      : (
+                          <div style={{display:'flex',alignItems:'center',gap:10,padding:'8px 0',borderBottom:'1px solid var(--dark-4)'}}>
+                            <div style={{width:40,height:40,borderRadius:8,overflow:'hidden',flexShrink:0,background:'var(--dark-4)',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                              {(checkoutItem.item.image_url||checkoutItem.item.images?.[0])
+                                ? <img src={checkoutItem.item.image_url||checkoutItem.item.images?.[0]} alt={checkoutItem.item.name} style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+                                : <span style={{fontSize:16,color:'var(--text-muted)'}}>✦</span>}
+                            </div>
+                            <div style={{flex:1}}>
+                              <div style={{fontSize:14,fontWeight:700,color:'var(--text)',lineHeight:1.3}}>{checkoutItem.item.name}</div>
+                              <div style={{fontSize:12,color:'var(--text-muted)',marginTop:2}}>× {checkoutItem.quantity||1}</div>
+                            </div>
+                            <div style={{fontSize:14,color:'var(--gold)',fontWeight:600}}>${(coPrice*(checkoutItem.quantity||1)).toFixed(2)}</div>
+                          </div>
+                        )
+                    }
+                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',paddingTop:10,marginTop:2}}>
+                      <span style={{fontWeight:700,fontSize:'.85rem',color:'var(--text)'}}>Total</span>
+                      <span style={{fontWeight:700,fontSize:'1rem',color:'var(--gold)'}}>
+                        ${checkoutItem.type==='cart' ? coPrice.toFixed(2) : (coPrice*(checkoutItem.quantity||1)).toFixed(2)}
+                      </span>
                     </div>
                   </div>
 
@@ -1531,7 +1557,7 @@ export default function ClientPage() {
                   {/* Policy checkbox */}
                   <label className="cb-policy-agree" style={{marginBottom:20}}>
                     <input type="checkbox" onChange={e=>setCheckoutAgreed(e.target.checked)} checked={checkoutAgreed}/>
-                    <span>I agree to the{' '}<span style={{color:'var(--accent)'}}>shop policy</span>{' '}and understand all sales are final unless otherwise stated.</span>
+                    <span>I agree to the{' '}<button type="button" style={{background:'none',border:'none',color:'var(--accent)',cursor:'pointer',padding:0,fontFamily:'inherit',fontSize:'inherit',textDecoration:'underline',textDecorationColor:'rgba(var(--accent-rgb,.3))'}} onClick={e=>{e.preventDefault();setShopPolicyOpen(true)}}>shop policy</button>{' '}and understand all sales are final unless otherwise stated.</span>
                   </label>
 
                   {checkoutError&&<p style={{fontSize:12,color:'#e05c5c',marginBottom:12,lineHeight:1.5}}>{checkoutError}</p>}
@@ -1557,6 +1583,37 @@ export default function ClientPage() {
           </div>
         )
       })()}
+
+      {/* ═══════════ SHOP POLICY MODAL ═══════════ */}
+      {shopPolicyOpen&&(
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.75)',zIndex:1000,display:'flex',alignItems:'flex-end',justifyContent:'center'}} onClick={()=>setShopPolicyOpen(false)}>
+          <div style={{background:'var(--body-bg,#FAF5EE)',borderRadius:'20px 20px 0 0',width:'100%',maxWidth:520,padding:'1.5rem 1.5rem 3rem',boxSizing:'border-box',maxHeight:'80vh',overflowY:'auto'}} onClick={e=>e.stopPropagation()}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1.25rem'}}>
+              <div style={{fontFamily:'Playfair Display,serif',fontSize:20,color:'var(--text)'}}>Shop Policy</div>
+              <button onClick={()=>setShopPolicyOpen(false)} style={{background:'none',border:'none',color:'var(--text-muted)',fontSize:22,cursor:'pointer',padding:0,lineHeight:1}}>✕</button>
+            </div>
+            {workspace?.policy_shop&&Object.keys(workspace.policy_shop).length>0?(()=>{
+              const p=workspace.policy_shop
+              const items=[]
+              if(p.returns_days) items.push(`Returns accepted within ${p.returns_days} day${p.returns_days!==1?'s':''}${p.returns_condition?` — ${p.returns_condition}`:''}`)
+              if(p.refund_type){const lbl=p.refund_type==='full'?'Full refund':p.refund_type==='store_credit'?'Store credit':'No refunds';items.push(`Refund type: ${lbl}`)}
+              if(p.shipping_days) items.push(`Processing time: ${p.shipping_days} business day${p.shipping_days!==1?'s':''}`)
+              if(p.custom_terms?.trim()) items.push(p.custom_terms.trim())
+              return items.length>0?(
+                <div style={{display:'flex',flexDirection:'column',gap:'.75rem'}}>
+                  {items.map((item,i)=>(
+                    <div key={i} style={{fontSize:14,color:'var(--text)',lineHeight:1.65,paddingLeft:'.75rem',borderLeft:'2px solid var(--gold)'}}>{item}</div>
+                  ))}
+                </div>
+              ):(
+                <p style={{fontSize:14,color:'var(--text-muted)',margin:0}}>Please contact the seller for policy details.</p>
+              )
+            })():(
+              <p style={{fontSize:14,color:'var(--text-muted)',margin:0}}>Please contact the seller for policy details.</p>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ═══════════ BOOKING OVERLAY ═══════════ */}
       <div className={`cb-overlay${bkOpen?' open':''}`}>

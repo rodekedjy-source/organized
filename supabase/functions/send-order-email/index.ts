@@ -1,4 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts"
+import { createClient } from 'jsr:@supabase/supabase-js@2'
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') || ''
 const FROM = 'Organized. <noreply@beorganized.io>'
@@ -67,7 +68,7 @@ function buildConfirmedEmail(opts: {
     ? `<tr><td style="padding:6px 0;font-size:14px;color:#555;font-family:Georgia,serif;"><strong style="color:#1A0900;">Ships to:</strong> ${opts.shipping_address}</td></tr>`
     : ''
   const itemsBlock = buildItemsTable(opts)
-  const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head><body style="margin:0;padding:0;background:#F0EDE8;font-family:Georgia,serif;"><table width="100%" cellpadding="0" cellspacing="0" style="padding:32px 16px;"><tr><td align="center"><table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;"><tr><td style="background:#1A0900;padding:24px 32px;border-radius:12px 12px 0 0;"><p style="margin:0;font-family:Georgia,serif;font-size:22px;color:#C9A84C;letter-spacing:0.1em;">Organized.</p></td></tr><tr><td style="background:#FFFFFF;padding:36px 32px;"><p style="margin:0 0 8px;font-size:16px;color:#1A0900;font-family:Georgia,serif;">Hi ${opts.client_name},</p><p style="margin:0 0 24px;font-size:15px;color:#444;line-height:1.75;font-family:Georgia,serif;">Your order has been confirmed. We&#39;ll notify you as soon as it ships.</p><div style="background:#F8F6F2;border-radius:8px;padding:16px 20px;margin:0 0 20px;">${itemsBlock}<table width="100%" cellpadding="0" cellspacing="0">${shippingRow}</table></div>${receiptBlock}</td></tr><tr><td style="background:#F8F6F2;padding:20px 32px;border-radius:0 0 12px 12px;border-top:1px solid #EDE9E3;"><p style="margin:0 0 4px;font-size:14px;color:#555;font-family:Georgia,serif;">— ${opts.workspace_name}</p><p style="margin:0;font-size:12px;color:#BBB;font-family:Georgia,serif;">Powered by Organized.</p></td></tr></table></td></tr></table></body></html>`
+  const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head><body style="margin:0;padding:0;background:#F0EDE8;font-family:Georgia,serif;"><table width="100%" cellpadding="0" cellspacing="0" style="padding:32px 16px;"><tr><td align="center"><table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;"><tr><td style="background:#1A0900;padding:24px 32px;border-radius:12px 12px 0 0;"><p style="margin:0;font-family:Georgia,serif;font-size:22px;color:#C9A84C;letter-spacing:0.1em;">Organized.</p></td></tr><tr><td style="background:#FFFFFF;padding:36px 32px;"><p style="margin:0 0 8px;font-size:16px;color:#1A0900;font-family:Georgia,serif;">Hi ${opts.client_name},</p><p style="margin:0 0 24px;font-size:15px;color:#444;line-height:1.75;font-family:Georgia,serif;">Your order has been confirmed and is currently being processed. You&#39;ll receive a shipping confirmation with tracking details once your order is on its way.</p><div style="background:#F8F6F2;border-radius:8px;padding:16px 20px;margin:0 0 20px;">${itemsBlock}<table width="100%" cellpadding="0" cellspacing="0">${shippingRow}</table></div>${receiptBlock}</td></tr><tr><td style="background:#F8F6F2;padding:20px 32px;border-radius:0 0 12px 12px;border-top:1px solid #EDE9E3;"><p style="margin:0 0 4px;font-size:14px;color:#555;font-family:Georgia,serif;">— ${opts.workspace_name}</p><p style="margin:0;font-size:12px;color:#BBB;font-family:Georgia,serif;">Powered by Organized.</p></td></tr></table></td></tr></table></body></html>`
   return { subject, html }
 }
 
@@ -122,25 +123,42 @@ Deno.serve(async (req: Request) => {
 
   try {
     const body = await req.json()
-    const {
-      type,
-      client_name,
-      client_email,
-      owner_email,
-      product_name,
-      quantity,
-      total_amount,
-      currency,
-      shipping_address,
-      carrier,
-      tracking_number,
-      tracking_url,
-      receipt_url,
-      workspace_name,
-      booking_link,
-      cart_items,
-      unit_price,
-    } = body
+    const { type, order_id } = body
+    let { client_name, client_email, owner_email, product_name, quantity, total_amount, currency, shipping_address, carrier, tracking_number, tracking_url, receipt_url, workspace_name, booking_link, cart_items, unit_price } = body
+
+    if (order_id) {
+      const authHeader = req.headers.get('Authorization') || ''
+      const sb = createClient(
+        Deno.env.get('SUPABASE_URL') || '',
+        Deno.env.get('SUPABASE_ANON_KEY') || '',
+        { global: { headers: { Authorization: authHeader } } }
+      )
+      const { data: ord } = await sb
+        .from('orders')
+        .select('client_name,client_email,product_name,quantity,unit_price,total_amount,currency,cart_items,workspace_id,shipping_address')
+        .eq('id', order_id)
+        .single()
+      if (ord) {
+        client_name = client_name || ord.client_name
+        client_email = client_email || ord.client_email
+        product_name = product_name || ord.product_name
+        quantity = quantity ?? ord.quantity
+        unit_price = unit_price ?? ord.unit_price
+        total_amount = total_amount || String(ord.total_amount ?? '0.00')
+        currency = currency || ord.currency
+        cart_items = cart_items ?? ord.cart_items
+        shipping_address = shipping_address || ord.shipping_address
+        const { data: ws } = await sb
+          .from('workspaces')
+          .select('email,name')
+          .eq('id', ord.workspace_id)
+          .single()
+        if (ws) {
+          owner_email = owner_email || ws.email
+          workspace_name = workspace_name || ws.name
+        }
+      }
+    }
 
     if (!client_email || !type) {
       return new Response(JSON.stringify({ error: 'Missing required fields: client_email, type' }), {
@@ -212,20 +230,20 @@ Deno.serve(async (req: Request) => {
       })
     }
 
-    // Send owner notification for confirmed orders only
+    // Send owner notification for confirmed orders
     if (type === 'confirmed' && owner_email) {
       try {
         const ownerResult = buildOwnerConfirmedEmail({
-          product_name: product_name || 'your order',
-          quantity: quantity || 1,
-          total_amount: total_amount || '0.00',
-          currency: currency || 'CAD',
-          client_name: client_name || '',
-          client_email: client_email || '',
-          shipping_address: shipping_address || '',
-          cart_items: cart_items || null,
-          unit_price: unit_price || null,
-        })
+              product_name: product_name || 'your order',
+              quantity: quantity || 1,
+              total_amount: total_amount || '0.00',
+              currency: currency || 'CAD',
+              client_name: client_name || '',
+              client_email: client_email || '',
+              shipping_address: shipping_address || '',
+              cart_items: cart_items || null,
+              unit_price: unit_price || null,
+            })
         await fetch('https://api.resend.com/emails', {
           method: 'POST',
           headers: {

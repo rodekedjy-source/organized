@@ -63,6 +63,18 @@ export async function markOrderDelivered(orderId) {
   return { error }
 }
 
+export async function notifyOrderProcessing(orderId, workspace) {
+  const { data: session } = await supabase.auth.getSession()
+  await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-order-email`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session?.session?.access_token}`,
+    },
+    body: JSON.stringify({ order_id: orderId, type: 'processing' }),
+  })
+}
+
 export async function notifyOrderShipped(order, workspaceName, bookingLink) {
   const trackingUrl = `https://beorganized.io/track/${order.tracking_token}`
   const { data, error } = await supabase.functions.invoke('send-order-email', {
