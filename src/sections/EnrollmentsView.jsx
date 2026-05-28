@@ -114,6 +114,19 @@ export default function EnrollmentsView({ workspace, toast }) {
     setEnrollments(prev => prev.map(e => e.id===enrollment.id ? {...e, certificate_issued_at: ts} : e))
   }
 
+  async function handleRefund(enrollment) {
+    const confirmed = window.confirm(
+      `Refund $${Number(enrollment.amount_paid).toFixed(2)} to ${enrollment.client_name}?`
+    )
+    if (!confirmed) return
+    const { error } = await supabase.functions.invoke('refund-enrollment', {
+      body: { enrollment_id: enrollment.id }
+    })
+    if (error) { toast('Refund failed. Try again.'); return }
+    toast('Refund issued ✓')
+    load()
+  }
+
   async function notifyWaitlist(entry) {
     setNotifying(entry.id)
     try {
@@ -273,6 +286,15 @@ export default function EnrollmentsView({ workspace, toast }) {
                 )}
                 {e.certificate_issued_at && (
                   <span style={{ fontSize:'.72rem', color:'#16a34a' }}>📜 Certificate issued {fmtDate(e.certificate_issued_at)}</span>
+                )}
+                {e.payment_status === 'paid' && !e.refunded_at && (
+                  <button onClick={() => handleRefund(e)}
+                    style={{ padding:'.38rem .85rem', background:'transparent', border:'1.5px solid rgba(239,68,68,.4)', color:'#dc2626', borderRadius:8, fontSize:'.78rem', fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
+                    Refund
+                  </button>
+                )}
+                {e.refunded_at && (
+                  <span style={{ fontSize:'.67rem', fontWeight:700, color:'var(--ink-3)', background:'rgba(100,116,139,.12)', borderRadius:5, padding:'.18rem .55rem', textTransform:'uppercase', letterSpacing:'.06em' }}>Refunded</span>
                 )}
               </div>
             </div>
