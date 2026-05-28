@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { getOfferingById } from '../api/offerings'
 
 function fmtDate(d) {
   try { return new Date(d).toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'}) } catch { return '' }
@@ -43,14 +44,10 @@ export default function OfferingPage() {
 
   useEffect(() => {
     async function load() {
-      const { data: workspace } = await supabase.from('workspaces').select('id,name,bio,photo_url').eq('slug', slug).maybeSingle()
+      const { data: workspace } = await supabase.from('workspaces').select('id,name,bio,avatar_url').eq('slug', slug).maybeSingle()
       if (!workspace) { setLoading(false); return }
       setWs(workspace)
-      const { data: o } = await supabase.from('offerings')
-        .select('*')
-        .eq('id', offeringId)
-        .eq('workspace_id', workspace.id)
-        .maybeSingle()
+      const { data: o } = await getOfferingById(offeringId, workspace.id)
       setOffering(o)
       if (o) {
         const { data: rv } = await supabase.from('reviews')
@@ -201,11 +198,11 @@ export default function OfferingPage() {
         )}
 
         {/* About instructor */}
-        {ws && (ws.bio || ws.photo_url) && (
+        {ws && (ws.bio || ws.avatar_url) && (
           <section style={{ marginBottom:24, background:'#fff', borderRadius:14, padding:'1.25rem', boxShadow:'0 1px 6px rgba(0,0,0,.07)' }}>
             <h2 style={{ fontFamily:"'Playfair Display',serif", fontSize:18, color:'#1a1a1a', marginBottom:12 }}>Your instructor</h2>
             <div style={{ display:'flex', gap:14, alignItems:'flex-start' }}>
-              {ws.photo_url && <img src={ws.photo_url} alt={ws.name} style={{ width:52, height:52, borderRadius:'50%', objectFit:'cover', flexShrink:0 }}/>}
+              {ws.avatar_url && <img src={ws.avatar_url} alt={ws.name} style={{ width:52, height:52, borderRadius:'50%', objectFit:'cover', flexShrink:0 }}/>}
               <div>
                 <div style={{ fontWeight:700, fontSize:15, color:'#1a1a1a', marginBottom:4 }}>{ws.name}</div>
                 {ws.bio && <p style={{ fontSize:13, color:'#666', lineHeight:1.6, margin:0 }}>{ws.bio}</p>}

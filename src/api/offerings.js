@@ -1,5 +1,12 @@
 import { supabase } from '../lib/supabase'
 
+export async function getOfferingById(offeringId, workspaceId) {
+  const query = supabase.from('offerings').select('*').eq('id', offeringId)
+  if (workspaceId) query.eq('workspace_id', workspaceId)
+  const { data, error } = await query.maybeSingle()
+  return { data, error }
+}
+
 export async function fetchOfferings(workspaceId) {
   const { data, error } = await supabase
     .from('offerings')
