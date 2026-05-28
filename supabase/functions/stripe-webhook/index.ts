@@ -214,7 +214,23 @@ Deno.serve(async (req: Request) => {
               .select('id')
               .eq('offering_id', item_id)
               .eq('client_email', client_email)
+              .not('payment_status', 'eq', 'refunded')
               .maybeSingle();
+
+            if (existing) {
+              if (pi.amount > 0) {
+                try {
+                  await stripe.refunds.create({
+                    payment_intent: pi.id,
+                    reason: 'duplicate',
+                  });
+                  console.error('Duplicate enrollment refunded:', client_email, item_id);
+                } catch (refundErr) {
+                  console.error('Auto-refund failed:', refundErr);
+                }
+              }
+              break;
+            }
 
             if (!existing) {
               const amount_paid = pi.amount / 100;
