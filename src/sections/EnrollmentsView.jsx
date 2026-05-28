@@ -210,6 +210,7 @@ export default function EnrollmentsView({ workspace, toast }) {
               <div style={{ display:'flex', alignItems:'center', gap:'.5rem' }}>
                 <span style={{ fontSize:'.7rem', fontWeight:700, color:'var(--gold)', background:'rgba(201,168,76,.1)', borderRadius:6, padding:'.1rem .45rem' }}>#{idx + 1}</span>
                 <div style={{ fontWeight:700, fontSize:'.9rem', color:'var(--ink)' }}>{w.student_name || '—'}</div>
+                {w.notified_at && <span style={{ fontSize:'.67rem', fontWeight:700, color:'#16a34a', background:'rgba(34,197,94,.12)', borderRadius:5, padding:'.1rem .45rem' }}>Notified</span>}
               </div>
               <span style={{ fontSize:'.72rem', color:'var(--ink-3)' }}>{fmtDate(w.created_at)}</span>
             </div>
