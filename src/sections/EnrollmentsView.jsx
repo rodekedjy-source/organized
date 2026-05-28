@@ -69,11 +69,12 @@ export default function EnrollmentsView({ workspace, toast }) {
 
   async function loadWaitlist() {
     setWlLoading(true)
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('waitlist_entries')
-      .select('*, offerings(title, type, workshop_date)')
+      .select('*')
       .eq('workspace_id', workspace.id)
       .order('created_at', { ascending: true })
+    if (error) { console.error('Waitlist fetch error:', error); setWaitlist([]); setWlLoading(false); return }
     setWaitlist(data || [])
     setWlLoading(false)
   }
