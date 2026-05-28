@@ -13,7 +13,7 @@ function startOf(tab) {
   }
   if (tab === 'Week') {
     // Rolling last 28 days (4 weeks)
-    const d = new Date(now); d.setDate(d.getDate() - 27); d.setHours(0,0,0,0); return d
+    const d = new Date(now); d.setDate(d.getDate() - 7); d.setHours(0,0,0,0); return d
   }
   if (tab === 'Month') return new Date(now.getFullYear(), now.getMonth(), 1)
   return new Date(now.getFullYear(), 0, 1)
