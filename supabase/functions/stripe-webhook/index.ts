@@ -261,7 +261,7 @@ Deno.serve(async (req: Request) => {
                 ownerEmail = wsOwner?.email || null;
               }
 
-              await fetch(`${SUPABASE_URL}/functions/v1/send-enrollment-email`, {
+              const emailRes = await fetch(`${SUPABASE_URL}/functions/v1/send-enrollment-email`, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
@@ -270,7 +270,7 @@ Deno.serve(async (req: Request) => {
                 body: JSON.stringify({
                   client_name,
                   client_email,
-                  offering_title: item_name,
+                  offering_title: item_name || '',
                   offering_type: offeringData?.type || 'online',
                   workshop_date: offeringData?.workshop_date || null,
                   workshop_location: offeringData?.workshop_location || null,
@@ -278,9 +278,13 @@ Deno.serve(async (req: Request) => {
                   currency: pi.currency,
                   workspace_name: wsWithUser?.name || '',
                   owner_email: ownerEmail,
-                  booking_link: wsWithUser?.slug ? `https://beorganized.io/${wsWithUser.slug}` : '',
+                  booking_link: wsWithUser?.slug ? `https://beorganized.io/book/${wsWithUser.slug}` : 'https://beorganized.io',
                 }),
-              }).catch(emailErr => console.error('Enrollment email error:', emailErr));
+              });
+              if (!emailRes.ok) {
+                const errText = await emailRes.text();
+                console.error('Enrollment email failed:', errText);
+              }
             }
           } catch (enrollErr) {
             console.error('Enrollment error:', enrollErr);
