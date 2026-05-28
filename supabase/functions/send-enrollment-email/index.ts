@@ -140,6 +140,38 @@ Deno.serve(async (req: Request) => {
       return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
 
+    // ── DUPLICATE REFUND ────────────────────────────────────────────────────
+    if (type === 'duplicate_refund') {
+      const subject = `Paiement remboursé — ${offering_title}`
+      const html = `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#F0EDE8;font-family:Georgia,serif;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="padding:32px 16px;">
+    <tr><td align="center"><table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;">
+    <tr><td style="background:#1A0900;padding:24px 32px;border-radius:12px 12px 0 0;">
+    <p style="margin:0;font-size:22px;color:#C9A84C;font-family:Georgia,serif;">Organized.</p></td></tr>
+    <tr><td style="background:#fff;padding:36px 32px;">
+    <p style="margin:0 0 16px;font-size:16px;color:#1A0900;">Hi ${client_name || 'there'},</p>
+    <p style="margin:0 0 16px;font-size:15px;color:#444;line-height:1.75;">
+      You are already enrolled in <strong>${offering_title}</strong>.<br/>
+      Your payment has been automatically refunded. You should see it back
+      on your card within 5–10 business days.
+    </p>
+    <p style="margin:0;font-size:15px;color:#444;line-height:1.75;">
+      If you'd like to re-enroll after a refund, simply register again
+      once a spot is available.
+    </p>
+    </td></tr>
+    <tr><td style="background:#F8F6F2;padding:20px 32px;border-radius:0 0 12px 12px;">
+    <p style="margin:0;font-size:12px;color:#BBB;font-family:Georgia,serif;">Powered by Organized.</p>
+    </td></tr></table></td></tr></table></body></html>`
+      const res = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${RESEND_API_KEY}` },
+        body: JSON.stringify({ from: FROM, to: [client_email], subject, html }),
+      })
+      if (!res.ok) { const err = await res.text(); console.error('Duplicate refund email error:', err) }
+      return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    }
+
     const clientResult = buildClientEmail({
       client_name: client_name || 'there',
       offering_title,

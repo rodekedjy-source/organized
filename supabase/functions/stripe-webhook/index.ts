@@ -214,20 +214,25 @@ Deno.serve(async (req: Request) => {
               .select('id')
               .eq('offering_id', item_id)
               .eq('client_email', client_email)
-              .not('payment_status', 'eq', 'refunded')
+              .is('refunded_at', null)
               .maybeSingle();
 
             if (existing) {
-              if (pi.amount > 0) {
-                try {
-                  await stripe.refunds.create({
-                    payment_intent: pi.id,
-                    reason: 'duplicate',
-                  });
-                  console.error('Duplicate enrollment refunded:', client_email, item_id);
-                } catch (refundErr) {
-                  console.error('Auto-refund failed:', refundErr);
-                }
+              try {
+                await stripe.refunds.create({ payment_intent: pi.id, reason: 'duplicate' });
+                await fetch(`${SUPABASE_URL}/functions/v1/send-enrollment-email`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}` },
+                  body: JSON.stringify({
+                    type: 'duplicate_refund',
+                    client_name,
+                    client_email,
+                    offering_title: item_name || '',
+                    workspace_name: '',
+                  }),
+                });
+              } catch (refundErr) {
+                console.error('Auto-refund failed:', refundErr);
               }
               break;
             }
