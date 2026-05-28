@@ -16,3 +16,11 @@ export async function getUnnotifiedWaitlistCount(workspaceId) {
     .is('notified_at', null)
   return { count: count || 0, error }
 }
+
+export async function removeWaitlistEntry(id) {
+  const { error } = await supabase
+    .from('waitlist_entries')
+    .delete()
+    .eq('id', id)
+  return { error }
+}
