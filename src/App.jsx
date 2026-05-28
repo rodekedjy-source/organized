@@ -8,6 +8,7 @@ import ClientPage        from './pages/ClientPage'
 import CancelAppointment from './pages/CancelAppointment'
 import ReviewPage        from './pages/ReviewPage'
 import TrackOrder        from './pages/TrackOrder'
+import RefundRequestPage from './pages/RefundRequestPage'
 import OfferingPage        from './pages/OfferingPage'
 import Legal               from './pages/Legal'
 import AdminConsole        from './pages/AdminConsole'
@@ -78,6 +79,9 @@ export default function App() {
 
       {/* Order tracking — public */}
       <Route path="/track/:token" element={<TrackOrder />} />
+
+      {/* Enrollment refund request — public */}
+      <Route path="/enrollment/:token/refund" element={<RefundRequestPage />} />
 
       {/* Offering sales page — public, before /book/:slug */}
       <Route path="/book/:slug/learn/:offeringId" element={<OfferingPage />} />
