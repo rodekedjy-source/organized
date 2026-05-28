@@ -213,12 +213,6 @@ export default function ClientPage() {
   const [shopFilter,     setShopFilter]     = useState('all')
   const [learnFilter,    setLearnFilter]    = useState('all')
 
-  // ── Waitlist state ────────────────────────────────────────────────────────
-  const [waitlistOffId,      setWaitlistOffId]      = useState(null)
-  const [waitlistName,       setWaitlistName]       = useState('')
-  const [waitlistEmail,      setWaitlistEmail]      = useState('')
-  const [waitlistSubmitting, setWaitlistSubmitting] = useState(false)
-  const [waitlistDone,       setWaitlistDone]       = useState(false)
 
   // ── Enrollment state ──────────────────────────────────────────────────────
   const [enrollOpen,      setEnrollOpen]      = useState(false)
@@ -482,19 +476,6 @@ export default function ClientPage() {
   }
 
   // ── Waitlist handler ──────────────────────────────────────────────────────
-  async function submitWaitlist(offering) {
-    if (!waitlistName.trim() || !waitlistEmail.trim()) return
-    setWaitlistSubmitting(true)
-    await supabase.from('waitlist_entries').insert({
-      offering_id:   offering.id,
-      workspace_id:  workspace.id,
-      student_name:  waitlistName.trim(),
-      student_email: waitlistEmail.trim(),
-    })
-    setWaitlistDone(true)
-    setWaitlistSubmitting(false)
-  }
-
   // ── isEnrolled helper ─────────────────────────────────────────────────────
   function isEnrolled(offeringId) {
     try {
