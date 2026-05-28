@@ -1456,7 +1456,8 @@ export default function ClientPage() {
         const coPrice = checkoutItem.type==='product'&&isDiscountActive(checkoutItem.item)
           ? Number(checkoutItem.item.discount_price) : Number(checkoutItem.item.price)
         const coName  = (checkoutItem.type==='product'||checkoutItem.type==='cart') ? checkoutItem.item.name : checkoutItem.item.title
-        const step1Valid = checkoutForm.name.trim()&&checkoutForm.email.trim()&&checkoutAddress.street.trim()&&checkoutAddress.city.trim()&&checkoutAddress.province.trim()&&checkoutAddress.postal.trim()&&checkoutAddress.country.trim()
+        const isEnrollment = checkoutItem.type === 'enrollment'
+        const step1Valid = checkoutForm.name.trim()&&checkoutForm.email.trim()&&(isEnrollment||(checkoutAddress.street.trim()&&checkoutAddress.city.trim()&&checkoutAddress.province.trim()&&checkoutAddress.postal.trim()&&checkoutAddress.country.trim()))
         return(
           <div className="cb-overlay open" style={{zIndex:950,background:'var(--body-bg,#FAF5EE)',overflowY:'auto',overflowX:'hidden'}}>
             {/* Header */}
@@ -1478,6 +1479,7 @@ export default function ClientPage() {
                   <input type="email" className="co-field" placeholder="Email address" required autoComplete="email" value={checkoutForm.email} onChange={e=>setCheckoutForm(f=>({...f,email:e.target.value}))}/>
                   <input type="tel" className="co-field" placeholder="Phone (optional)" autoComplete="tel" value={checkoutPhone} onChange={e=>setCheckoutPhone(e.target.value)}/>
 
+                  {!isEnrollment&&(<>
                   <div className="co-section-label">Shipping Address</div>
                   {/* Country selector */}
                   <div style={{display:'flex',gap:'.5rem',marginBottom:'.75rem'}}>
@@ -1531,6 +1533,7 @@ export default function ClientPage() {
                     }}
                   />
                   {postalError&&<div style={{color:'#E53E3E',fontSize:12,marginTop:4}}>⚠ {postalError}</div>}
+                  </>)}
 
                   {checkoutError&&<p style={{fontSize:12,color:'#e05c5c',margin:'4px 0 12px',lineHeight:1.5}}>{checkoutError}</p>}
                   <button className="co-pay-btn" style={{marginTop:8,opacity:(!step1Valid||checkoutSubmitting)?0.4:1}} disabled={!step1Valid||checkoutSubmitting} onClick={initCheckoutStripe}>
