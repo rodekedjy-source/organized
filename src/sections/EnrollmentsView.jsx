@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { markWaitlistNotified } from '../api/waitlist'
+import { markWaitlistNotified, removeWaitlistEntry } from '../api/waitlist'
 
 const STATUS_TABS = ['All', 'Paid', 'Free', 'Pending', 'Cancelled', 'Waitlist']
 const BADGE = {
@@ -78,8 +78,24 @@ export default function EnrollmentsView({ workspace, toast }) {
     setWlLoading(false)
   }
 
-  useEffect(() => { if (workspace?.id) load() }, [workspace?.id])
+  useEffect(() => { if (workspace?.id) { load(); loadWaitlist() } }, [workspace?.id])
   useEffect(() => { if (tab === 'Waitlist' && workspace?.id) loadWaitlist() }, [tab, workspace?.id])
+
+  useEffect(() => {
+    if (!workspace?.id) return
+    const sub = supabase
+      .channel('enrollments-realtime')
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'enrollments', filter: `workspace_id=eq.${workspace.id}` },
+        () => load()
+      )
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'waitlist_entries', filter: `workspace_id=eq.${workspace.id}` },
+        () => loadWaitlist()
+      )
+      .subscribe()
+    return () => supabase.removeChannel(sub)
+  }, [workspace?.id])
 
   async function markCompleted(id) {
     const ts = new Date().toISOString()
@@ -123,7 +139,8 @@ export default function EnrollmentsView({ workspace, toast }) {
   }
 
   async function removeWaitlist(id) {
-    await supabase.from('waitlist_entries').delete().eq('id', id)
+    const { error } = await removeWaitlistEntry(id)
+    if (error) { toast('Could not remove.'); return }
     setWaitlist(prev => prev.filter(e => e.id !== id))
     toast('Removed from waitlist')
   }
