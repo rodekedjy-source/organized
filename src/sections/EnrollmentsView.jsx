@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { markWaitlistNotified } from '../api/waitlist'
 
 const STATUS_TABS = ['All', 'Paid', 'Free', 'Pending', 'Cancelled', 'Waitlist']
 const BADGE = {
@@ -111,6 +112,8 @@ export default function EnrollmentsView({ workspace, toast }) {
           booking_link:   workspace.slug ? `https://beorganized.io/${workspace.slug}` : 'https://beorganized.io',
         }
       })
+      await markWaitlistNotified(entry.id)
+      setWaitlist(prev => prev.map(e => e.id === entry.id ? { ...e, notified_at: new Date().toISOString() } : e))
       toast('Notification sent ✓')
     } catch {
       toast('Could not send notification.')

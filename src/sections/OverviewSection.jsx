@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { createAppointment } from '../api/appointments'
+import { getUnnotifiedWaitlistCount } from '../api/waitlist'
 
 // ── I18N ──────────────────────────────────────────────────────────────────────
 const LANG = {
@@ -1084,10 +1085,8 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
       .select('id,title,price,level,type')
       .eq('workspace_id',workspace.id).eq('is_active',true).limit(2)
       .then(({data})=>setLearnActiveOfferings(data||[]))
-  supabase.from('waitlist_entries')
-    .select('id',{count:'exact',head:true})
-    .eq('workspace_id',workspace.id)
-    .then(({count})=>setLearnWaitlistCount(count||0))
+  getUnnotifiedWaitlistCount(workspace.id)
+    .then(({count})=>setLearnWaitlistCount(count))
   }
   useEffect(()=>{
     if(!workspace?.id||activeTab!=='learn') return

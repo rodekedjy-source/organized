@@ -888,7 +888,7 @@ export default function Dashboard() {
       supabase.from('appointments').select('id',{count:'exact',head:true}).eq('workspace_id',wsId).eq('status','pending'),
       supabase.from('orders').select('id',{count:'exact',head:true}).eq('workspace_id',wsId).in('status',['pending','confirmed']).is('deleted_at',null),
       supabase.from('enrollments').select('id',{count:'exact',head:true}).eq('workspace_id',wsId).eq('payment_status','pending'),
-      supabase.from('waitlist_entries').select('id',{count:'exact',head:true}).eq('workspace_id',wsId),
+      supabase.from('waitlist_entries').select('id',{count:'exact',head:true}).eq('workspace_id',wsId).is('notified_at',null),
     ])
     setBadges({booking:bookingCount||0,shop:shopCount||0,learn:(learnCount||0)+(waitlistCount||0)})
   }
