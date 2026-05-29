@@ -13,6 +13,7 @@ import ReviewsSection       from '../sections/ReviewsSection'
 import ServicesSection      from '../sections/ServicesSection'
 import SettingsSection      from '../sections/SettingsSection'
 import PolicySection       from '../sections/PolicySection'
+import PaymentsSection     from '../sections/PaymentsSection'
 import FloatingTabBar from '../sections/FloatingTabBar'
 import BookingTab     from '../sections/BookingTab'
 import ShopTab        from '../sections/ShopTab'
@@ -814,6 +815,11 @@ export default function Dashboard() {
   const [avatarUploading,setAvatarUploading]=useState(false)
   const navigate = useNavigate()
 
+  // Auto-navigate to Payments after Stripe Connect redirect
+  useEffect(()=>{
+    if(new URLSearchParams(window.location.search).get('stripe')==='success') setPage('payments')
+  },[])
+
   // Lock body scroll when sidebar is open
   useEffect(()=>{
     if(menuOpen){
@@ -949,6 +955,7 @@ export default function Dashboard() {
   async function handleSignOut(){ await supabase.auth.signOut(); navigate('/') }
 
   const NAV=[
+    {key:'payments',label:'nav_payments',icon:I.card},
     {key:'settings',label:'nav_settings',icon:I.gear},
   ]
 
@@ -973,7 +980,7 @@ export default function Dashboard() {
       case 'orders':       return <OrdersSection workspace={workspace} toast={toast}/>
       case 'formations':   return canAccess(subscription,'formations') ? <OfferingsSection {...props}/> : <UpgradeGate feature="formations"/>
       case 'clients':      return <ClientsSection {...props}/>
-      case 'payments':     return <Payments {...props}/>
+      case 'payments':     return <PaymentsSection workspace={workspace} toast={toast} refetchWorkspace={fetchWorkspace}/>
       case 'portfolio':    return <PortfolioSection {...props}/>
       case 'reviews':      return <ReviewsSection {...props}/>
       case 'availability': return <AvailabilitySection {...props}/>
