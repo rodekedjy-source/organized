@@ -109,6 +109,7 @@ Deno.serve(async (req: Request) => {
       workspace_name,
       owner_email = null,
       booking_link = 'https://beorganized.io',
+      decline_reason = null,
     } = body
 
     if (!client_email || !offering_title) {
@@ -168,6 +169,23 @@ Deno.serve(async (req: Request) => {
         body: JSON.stringify({ from: FROM, to: [client_email], subject, html }),
       })
       if (!res.ok) { const err = await res.text(); console.error('Refund email error:', err) }
+      return new Response(JSON.stringify({ success: true }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    }
+
+    // ── REFUND DECLINED ─────────────────────────────────────────────────────
+    if (type === 'refund_declined') {
+      const subject = `About your refund request — ${offering_title}`
+      const reasonBlock = decline_reason
+        ? `<div style="background:#F8F6F2;border-radius:8px;padding:14px 18px;margin:0 0 16px;font-size:14px;color:#555;line-height:1.6;font-style:italic;">"${decline_reason}"</div>`
+        : ''
+      const html = `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#F0EDE8;font-family:Georgia,serif;"><table width="100%" cellpadding="0" cellspacing="0" style="padding:32px 16px;"><tr><td align="center"><table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;"><tr><td style="background:#1A0900;padding:24px 32px;border-radius:12px 12px 0 0;"><p style="margin:0;font-size:22px;color:#C9A84C;font-family:Georgia,serif;">Organized.</p></td></tr><tr><td style="background:#fff;padding:36px 32px;"><p style="margin:0 0 16px;font-size:16px;color:#1A0900;">Hi ${client_name || 'there'},</p><p style="margin:0 0 16px;font-size:15px;color:#444;line-height:1.75;">We reviewed your refund request for <strong>${offering_title}</strong> and unfortunately we are unable to process it at this time.</p>${reasonBlock}<p style="margin:0;font-size:13px;color:#888;">If you have questions, please contact ${workspace_name} directly.</p></td></tr><tr><td style="background:#F8F6F2;padding:20px 32px;border-radius:0 0 12px 12px;"><p style="margin:0;font-size:12px;color:#BBB;">Powered by Organized.</p></td></tr></table></td></tr></table></body></html>`
+      const res = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${RESEND_API_KEY}` },
+        body: JSON.stringify({ from: FROM, to: [client_email], subject, html }),
+      })
+      if (!res.ok) { const err = await res.text(); console.error('Decline email error:', err) }
       return new Response(JSON.stringify({ success: true }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }

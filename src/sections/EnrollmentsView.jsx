@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { markWaitlistNotified, removeWaitlistEntry } from '../api/waitlist'
+import { getRefundRequests } from '../api/refundRequests'
+import RefundRequestsTab from './RefundRequestsTab'
 
-const STATUS_TABS = ['All', 'Paid', 'Free', 'Pending', 'Cancelled', 'Waitlist']
+const STATUS_TABS = ['All', 'Paid', 'Free', 'Pending', 'Cancelled', 'Waitlist', 'Refunds']
 const BADGE = {
   paid:      { bg:'rgba(34,197,94,.12)',   color:'#16a34a' },
   free:      { bg:'rgba(59,130,246,.12)',  color:'#1d4ed8' },
@@ -56,6 +58,10 @@ export default function EnrollmentsView({ workspace, toast }) {
   const [wlLoading, setWlLoading]     = useState(false)
   const [notifying, setNotifying]     = useState(null) // id being notified
 
+  // Refund requests state
+  const [refundReqs, setRefundReqs]   = useState([])
+  const [rrLoading, setRrLoading]     = useState(false)
+
   async function load() {
     setLoading(true)
     const { data } = await supabase
@@ -79,8 +85,17 @@ export default function EnrollmentsView({ workspace, toast }) {
     setWlLoading(false)
   }
 
-  useEffect(() => { if (workspace?.id) { load(); loadWaitlist() } }, [workspace?.id])
+  async function loadRefundReqs() {
+    setRrLoading(true)
+    const { data, error } = await getRefundRequests(workspace.id)
+    if (error) { console.error('Refund requests fetch error:', error); setRefundReqs([]); setRrLoading(false); return }
+    setRefundReqs(data || [])
+    setRrLoading(false)
+  }
+
+  useEffect(() => { if (workspace?.id) { load(); loadWaitlist(); loadRefundReqs() } }, [workspace?.id])
   useEffect(() => { if (tab === 'Waitlist' && workspace?.id) loadWaitlist() }, [tab, workspace?.id])
+  useEffect(() => { if (tab === 'Refunds' && workspace?.id) loadRefundReqs() }, [tab, workspace?.id])
 
   useEffect(() => {
     if (!workspace?.id) return
@@ -93,6 +108,10 @@ export default function EnrollmentsView({ workspace, toast }) {
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'waitlist_entries', filter: `workspace_id=eq.${workspace.id}` },
         () => loadWaitlist()
+      )
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'refund_requests', filter: `workspace_id=eq.${workspace.id}` },
+        () => loadRefundReqs()
       )
       .subscribe()
     return () => supabase.removeChannel(sub)
@@ -175,8 +194,8 @@ export default function EnrollmentsView({ workspace, toast }) {
 
   function tabCount(t) {
     if (t === 'Waitlist') return waitlist.length
+    if (t === 'Refunds')  return refundReqs.filter(r => r.status === 'pending').length
     if (t === 'All') return enrollments.length
-    const tmp = tab; // use current data
     if (t==='Paid')      return enrollments.filter(e => e.payment_status==='paid' || (Number(e.amount_paid)>0 && e.payment_status!=='free')).length
     if (t==='Free')      return enrollments.filter(e => e.payment_status==='free' || Number(e.amount_paid)===0).length
     if (t==='Pending')   return enrollments.filter(e => e.payment_status==='pending').length
@@ -200,19 +219,31 @@ export default function EnrollmentsView({ workspace, toast }) {
       </div>
 
       <div style={{ display:'flex', gap:'.35rem', marginBottom:'1rem', flexWrap:'wrap' }}>
-        {STATUS_TABS.map(t => (
-          <button key={t} onClick={() => setTab(t)} style={{
-            padding:'.35rem .85rem', borderRadius:99, border:'1.5px solid',
-            borderColor: tab===t ? 'var(--gold)' : 'var(--border)',
-            background:  tab===t ? 'rgba(201,168,76,.1)' : 'transparent',
-            color:       tab===t ? 'var(--gold)' : 'var(--ink-3)',
-            fontSize:'.75rem', fontWeight:700, cursor:'pointer', fontFamily:'inherit',
-          }}>{t} ({tabCount(t)})</button>
-        ))}
+        {STATUS_TABS.map(t => {
+          const cnt      = tabCount(t)
+          const isRedTab = t === 'Refunds' && cnt > 0
+          return (
+            <button key={t} onClick={() => setTab(t)} style={{
+              padding:'.35rem .85rem', borderRadius:99, border:'1.5px solid',
+              borderColor: tab===t ? 'var(--gold)' : isRedTab ? 'rgba(239,68,68,.4)' : 'var(--border)',
+              background:  tab===t ? 'rgba(201,168,76,.1)' : 'transparent',
+              color:       tab===t ? 'var(--gold)' : isRedTab ? '#dc2626' : 'var(--ink-3)',
+              fontSize:'.75rem', fontWeight:700, cursor:'pointer', fontFamily:'inherit',
+            }}>{t} ({cnt})</button>
+          )
+        })}
       </div>
 
-      {/* ── WAITLIST TAB ── */}
-      {tab === 'Waitlist' ? (
+      {/* ── REFUNDS TAB ── */}
+      {tab === 'Refunds' ? (
+        <RefundRequestsTab
+          workspace={workspace}
+          toast={toast}
+          requests={refundReqs}
+          loading={rrLoading}
+          onReload={loadRefundReqs}
+        />
+      ) : tab === 'Waitlist' ? (
         wlLoading ? (
           <div style={{ padding:'2rem', color:'var(--ink-3)', fontSize:'.85rem' }}>Loading…</div>
         ) : waitlist.length === 0 ? (
