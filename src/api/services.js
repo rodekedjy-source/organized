@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase'
+import { cacheInvalidate, cacheInvalidatePrefix } from '../lib/cache'
 
 /**
  * Récupère les services actifs d'un workspace (pour le formulaire de RDV).
@@ -26,6 +27,7 @@ export async function fetchServices(workspaceId) {
  * Crée un nouveau service.
  */
 export async function insertService({ workspaceId, name, price, durationMin, description }) {
+  cacheInvalidate(`services:${workspaceId}`)
   return supabase
     .from('services')
     .insert({
@@ -44,6 +46,7 @@ export async function insertService({ workspaceId, name, price, durationMin, des
  * Met à jour l'image d'un service.
  */
 export async function updateServiceImage(id, imageUrl) {
+  cacheInvalidatePrefix('services:')
   return supabase
     .from('services')
     .update({ image_url: imageUrl })
@@ -64,6 +67,7 @@ export async function removeServiceImage(id) {
  * Active ou désactive un service.
  */
 export async function toggleServiceActive(id, currentValue) {
+  cacheInvalidatePrefix('services:')
   return supabase
     .from('services')
     .update({ is_active: !currentValue })
@@ -74,6 +78,7 @@ export async function toggleServiceActive(id, currentValue) {
  * Supprime un service.
  */
 export async function deleteService(id) {
+  cacheInvalidatePrefix('services:')
   return supabase
     .from('services')
     .delete()

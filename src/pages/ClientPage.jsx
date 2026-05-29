@@ -1,6 +1,7 @@
 import { useRef, useState, useEffect, useLayoutEffect, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { cacheGet, cacheSet } from '../lib/cache'
 import { enrollFree } from '../api/offerings'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -312,21 +313,27 @@ export default function ClientPage() {
     async function fetchAll() {
       setLoading(true); setNotFound(false)
       try {
+        const cacheKey = `workspace:${slug}`
+        const cachedWs = cacheGet(cacheKey)
+        if (cachedWs) { if (!cancelled) { setWorkspace(cachedWs); setLoading(false) }; return }
         const { data: ws, error: wsError } = await supabase.from('workspaces')
           .select('id,name,slug,tagline,bio,avatar_url,instagram,tiktok,phone,email,location,timezone,currency,is_published,theme,accepts_bookings,accepts_orders,offers_domicile,domicile_fee,domicile_radius_km,domicile_notes,address_visibility,neighborhood,address_street,address_city,address_province,address_postal,share_address,show_address_on_page,faq_settings,featured_product_id,featured_product_note,working_hours,deposit_required,deposit_type,deposit_value,review_requests_enabled,payment_mode,policy_enabled,policy_deposit_pct,policy_cancel_hours,policy_late_fee,policy_no_show_fee,policy_custom,policy_shop,policy_learn,stat_clients,stat_years,stat_rating,shop_advice,learn_graduates,learn_rating')
           .eq('slug', slug).eq('is_published', true).maybeSingle()
         if (wsError) { console.error('Workspace fetch error:', wsError); if (!cancelled) { setNotFound(true); setLoading(false) }; return }
         if (!ws) { if (!cancelled) { setNotFound(true); setLoading(false) }; return }
-        if (!cancelled) setWorkspace(ws)
+        if (!cancelled) { setWorkspace(ws); cacheSet(cacheKey, ws, 60_000) }
         const today = new Date().toISOString().split('T')[0]
+        const cachedSvc  = cacheGet(`services:${ws.id}`)
+        const cachedProd = cacheGet(`products:${ws.id}`)
+        const cachedOff  = cacheGet(`offerings:${ws.id}`)
         const [
           {data:svc},{data:avail},{data:blk},{data:prod},{data:offer},{data:rev},{data:port}
         ] = await Promise.all([
-          supabase.from('services').select('id,name,description,duration_min,price,is_free,display_order,addons,deposit_amount,category,image_url').eq('workspace_id',ws.id).eq('is_active',true).is('deleted_at',null).order('display_order',{ascending:true}),
+          cachedSvc  ? Promise.resolve({data:cachedSvc})  : supabase.from('services').select('id,name,description,duration_min,price,is_free,display_order,addons,deposit_amount,category,image_url').eq('workspace_id',ws.id).eq('is_active',true).is('deleted_at',null).order('display_order',{ascending:true}),
           supabase.from('availability').select('day_of_week,is_open,open_time,close_time').eq('workspace_id',ws.id).order('day_of_week',{ascending:true}),
           supabase.from('blocked_dates').select('blocked_date').eq('workspace_id',ws.id).gte('blocked_date',today),
-          supabase.from('products').select('id,name,description,price,currency,stock,image_url,images,discount_price,discount_ends_at').eq('workspace_id',ws.id).eq('is_active',true).is('deleted_at',null).order('created_at',{ascending:false}),
-          supabase.from('offerings').select('id,title,description,price,currency,duration_label,format,max_students,is_active,type,content_url,content_type,files,workshop_date,workshop_location,spots_total,spots_taken,waitlist_enabled').eq('workspace_id',ws.id).eq('is_active',true).is('deleted_at',null).order('created_at',{ascending:false}),
+          cachedProd ? Promise.resolve({data:cachedProd}) : supabase.from('products').select('id,name,description,price,currency,stock,image_url,images,discount_price,discount_ends_at').eq('workspace_id',ws.id).eq('is_active',true).is('deleted_at',null).order('created_at',{ascending:false}),
+          cachedOff  ? Promise.resolve({data:cachedOff})  : supabase.from('offerings').select('id,title,description,price,currency,duration_label,format,max_students,is_active,type,content_url,content_type,files,workshop_date,workshop_location,spots_total,spots_taken,waitlist_enabled').eq('workspace_id',ws.id).eq('is_active',true).is('deleted_at',null).order('created_at',{ascending:false}),
           supabase.from('reviews').select('reviewer_name,rating,body,service_label,service_name,created_at').eq('workspace_id',ws.id).eq('is_visible',true).eq('is_approved',true).order('created_at',{ascending:false}).limit(12),
           supabase.from('portfolio_photos').select('id,url,caption,display_order').eq('workspace_id',ws.id).order('display_order',{ascending:true}),
         ])
@@ -335,6 +342,9 @@ export default function ClientPage() {
           setBlockedDates((blk||[]).map(b=>b.blocked_date))
           setProducts(prod||[]); setOfferings(offer||[])
           setReviews(rev||[]); setPortfolio(port||[])
+          if (!cachedSvc  && svc)  cacheSet(`services:${ws.id}`,  svc,  300_000)
+          if (!cachedProd && prod) cacheSet(`products:${ws.id}`,  prod, 120_000)
+          if (!cachedOff  && offer) cacheSet(`offerings:${ws.id}`, offer, 120_000)
         }
       } catch(e) { console.error(e) } finally { if (!cancelled) setLoading(false) }
     }
