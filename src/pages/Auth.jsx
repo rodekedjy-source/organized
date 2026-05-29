@@ -273,6 +273,8 @@ export default function Auth({ onAuth }) {
 
       const{data:{session}}=await supabase.auth.getSession()
       onAuth(session)
+      // Laisser le temps au WorkspaceContext de fetch le workspace
+      await new Promise(r => setTimeout(r, 500))
       navigate('/dashboard')
     }catch(err){
       setError(err.message||'Something went wrong. Please try again.')
