@@ -409,7 +409,7 @@ export default function ClientPage() {
           s.onload = res; s.onerror = rej; document.head.appendChild(s)
         })
       }
-      const pk = import.meta.env.VITE_STRIPE_PK
+      const pk = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY
       if (!pk) { setBkPaymentErr('Payment not configured. Please contact the studio directly.'); setBkPaymentLoading(false); return }
       stripeRef.current = window.Stripe(pk)
       const { data, error } = await supabase.functions.invoke('create-checkout-payment-intent', {
