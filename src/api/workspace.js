@@ -79,18 +79,9 @@ export async function updateBusinessProfile(workspaceId, fields) {
       stat_clients: fields.stat_clients || null,
       stat_years: fields.stat_years || null,
       stat_rating: fields.stat_rating || null,
-      shop_stat_1_value: fields.shop_stat_1_value || null,
-      shop_stat_1_label: fields.shop_stat_1_label || null,
-      shop_stat_2_value: fields.shop_stat_2_value || null,
-      shop_stat_2_label: fields.shop_stat_2_label || null,
-      shop_stat_3_value: fields.shop_stat_3_value || null,
-      shop_stat_3_label: fields.shop_stat_3_label || null,
-      learn_stat_1_value: fields.learn_stat_1_value || null,
-      learn_stat_1_label: fields.learn_stat_1_label || null,
-      learn_stat_2_value: fields.learn_stat_2_value || null,
-      learn_stat_2_label: fields.learn_stat_2_label || null,
-      learn_stat_3_value: fields.learn_stat_3_value || null,
-      learn_stat_3_label: fields.learn_stat_3_label || null,
+      shop_advice: fields.shop_advice || null,
+      learn_graduates: fields.learn_graduates || null,
+      learn_rating: fields.learn_rating || null,
     })
     .eq('id', workspaceId)
 }
@@ -101,14 +92,7 @@ export async function updateBusinessProfile(workspaceId, fields) {
 export async function updateShopStats(workspaceId, fields) {
   return supabase
     .from('workspaces')
-    .update({
-      shop_stat_1_value: fields.shop_stat_1_value || null,
-      shop_stat_1_label: fields.shop_stat_1_label || null,
-      shop_stat_2_value: fields.shop_stat_2_value || null,
-      shop_stat_2_label: fields.shop_stat_2_label || null,
-      shop_stat_3_value: fields.shop_stat_3_value || null,
-      shop_stat_3_label: fields.shop_stat_3_label || null,
-    })
+    .update({ shop_advice: fields.shop_advice || null })
     .eq('id', workspaceId)
 }
 
@@ -116,12 +100,8 @@ export async function updateLearnStats(workspaceId, fields) {
   return supabase
     .from('workspaces')
     .update({
-      learn_stat_1_value: fields.learn_stat_1_value || null,
-      learn_stat_1_label: fields.learn_stat_1_label || null,
-      learn_stat_2_value: fields.learn_stat_2_value || null,
-      learn_stat_2_label: fields.learn_stat_2_label || null,
-      learn_stat_3_value: fields.learn_stat_3_value || null,
-      learn_stat_3_label: fields.learn_stat_3_label || null,
+      learn_graduates: fields.learn_graduates || null,
+      learn_rating: fields.learn_rating || null,
     })
     .eq('id', workspaceId)
 }

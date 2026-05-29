@@ -209,12 +209,8 @@ function SettingsBusinessForm({ workspace, toast, refetch, lang='en' }) {
     address_in_confirmations:ws?.address_in_confirmations!==false,
     email:ws?.email||'',phone:ws?.phone||'',instagram:ws?.instagram||'',tiktok:ws?.tiktok||'',
     stat_clients:ws?.stat_clients||'',stat_years:ws?.stat_years||'',stat_rating:ws?.stat_rating||'',
-    shop_stat_1_value:ws?.shop_stat_1_value||'',shop_stat_1_label:ws?.shop_stat_1_label||'',
-    shop_stat_2_value:ws?.shop_stat_2_value||'',shop_stat_2_label:ws?.shop_stat_2_label||'',
-    shop_stat_3_value:ws?.shop_stat_3_value||'',shop_stat_3_label:ws?.shop_stat_3_label||'',
-    learn_stat_1_value:ws?.learn_stat_1_value||'',learn_stat_1_label:ws?.learn_stat_1_label||'',
-    learn_stat_2_value:ws?.learn_stat_2_value||'',learn_stat_2_label:ws?.learn_stat_2_label||'',
-    learn_stat_3_value:ws?.learn_stat_3_value||'',learn_stat_3_label:ws?.learn_stat_3_label||'',
+    shop_advice:ws?.shop_advice||'',
+    learn_graduates:ws?.learn_graduates||'',learn_rating:ws?.learn_rating||'',
     offers_domicile:ws?.offers_domicile||false,
     domicile_fee:ws?.domicile_fee||'45',
     domicile_radius_km:ws?.domicile_radius_km||25,
@@ -303,19 +299,17 @@ function SettingsBusinessForm({ workspace, toast, refetch, lang='en' }) {
           <div className="field"><label>Rating</label><input style={iS} value={form.stat_rating} onChange={e=>setForm(f=>({...f,stat_rating:e.target.value}))} onFocus={foc} onBlur={blu} placeholder="4.9"/></div>
         </div>
         <div style={{fontSize:'.65rem',color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'-.25rem'}}>Shop</div>
-        {[1,2,3].map(n=>(
-          <div key={n} style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'.65rem'}}>
-            <div className="field"><label>Value {n}</label><input style={iS} value={form[`shop_stat_${n}_value`]} onChange={e=>setForm(f=>({...f,[`shop_stat_${n}_value`]:e.target.value}))} onFocus={foc} onBlur={blu} placeholder={n===1?String(0):n===2?'$29+':'Free'}/></div>
-            <div className="field"><label>Label {n}</label><input style={iS} value={form[`shop_stat_${n}_label`]} onChange={e=>setForm(f=>({...f,[`shop_stat_${n}_label`]:e.target.value}))} onFocus={foc} onBlur={blu} placeholder={n===1?'PRODUCTS':n===2?'STARTING':'ADVICE'}/></div>
-          </div>
-        ))}
+        <div className="field">
+          <label>Advice stat</label>
+          <input style={iS} value={form.shop_advice} onChange={e=>setForm(f=>({...f,shop_advice:e.target.value}))} onFocus={foc} onBlur={blu} placeholder="Free"/>
+          <div style={{fontSize:'.69rem',color:'var(--ink-3)',marginTop:'.2rem'}}>Products and starting price are tracked automatically</div>
+        </div>
         <div style={{fontSize:'.65rem',color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'-.25rem'}}>Learn</div>
-        {[1,2,3].map(n=>(
-          <div key={n} style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'.65rem'}}>
-            <div className="field"><label>Value {n}</label><input style={iS} value={form[`learn_stat_${n}_value`]} onChange={e=>setForm(f=>({...f,[`learn_stat_${n}_value`]:e.target.value}))} onFocus={foc} onBlur={blu} placeholder={n===1?'2':n===2?'120+':'4.8'}/></div>
-            <div className="field"><label>Label {n}</label><input style={iS} value={form[`learn_stat_${n}_label`]} onChange={e=>setForm(f=>({...f,[`learn_stat_${n}_label`]:e.target.value}))} onFocus={foc} onBlur={blu} placeholder={n===1?'PROGRAMS':n===2?'GRADUATES':'RATING'}/></div>
-          </div>
-        ))}
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'.65rem'}}>
+          <div className="field"><label>Graduates</label><input style={iS} value={form.learn_graduates} onChange={e=>setForm(f=>({...f,learn_graduates:e.target.value}))} onFocus={foc} onBlur={blu} placeholder="120+"/></div>
+          <div className="field"><label>Rating</label><input style={iS} value={form.learn_rating} onChange={e=>setForm(f=>({...f,learn_rating:e.target.value}))} onFocus={foc} onBlur={blu} placeholder="4.9"/></div>
+        </div>
+        <div style={{fontSize:'.69rem',color:'var(--ink-3)',marginTop:'-.4rem'}}>Program count is tracked automatically</div>
         <div style={{height:1,background:'var(--border)',margin:'.15rem 0'}}/>
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
           <div>

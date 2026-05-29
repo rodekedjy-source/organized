@@ -313,7 +313,7 @@ export default function ClientPage() {
       setLoading(true); setNotFound(false)
       try {
         const { data: ws, error: wsError } = await supabase.from('workspaces')
-          .select('id,name,slug,tagline,bio,avatar_url,instagram,tiktok,phone,email,location,timezone,currency,is_published,theme,accepts_bookings,accepts_orders,offers_domicile,domicile_fee,domicile_radius_km,domicile_notes,address_visibility,neighborhood,address_street,address_city,address_province,address_postal,share_address,show_address_on_page,faq_settings,featured_product_id,featured_product_note,working_hours,deposit_required,deposit_type,deposit_value,review_requests_enabled,payment_mode,policy_enabled,policy_deposit_pct,policy_cancel_hours,policy_late_fee,policy_no_show_fee,policy_custom,policy_shop,policy_learn,stat_clients,stat_years,stat_rating,shop_stat_1_value,shop_stat_1_label,shop_stat_2_value,shop_stat_2_label,shop_stat_3_value,shop_stat_3_label,learn_stat_1_value,learn_stat_1_label,learn_stat_2_value,learn_stat_2_label,learn_stat_3_value,learn_stat_3_label')
+          .select('id,name,slug,tagline,bio,avatar_url,instagram,tiktok,phone,email,location,timezone,currency,is_published,theme,accepts_bookings,accepts_orders,offers_domicile,domicile_fee,domicile_radius_km,domicile_notes,address_visibility,neighborhood,address_street,address_city,address_province,address_postal,share_address,show_address_on_page,faq_settings,featured_product_id,featured_product_note,working_hours,deposit_required,deposit_type,deposit_value,review_requests_enabled,payment_mode,policy_enabled,policy_deposit_pct,policy_cancel_hours,policy_late_fee,policy_no_show_fee,policy_custom,policy_shop,policy_learn,stat_clients,stat_years,stat_rating,shop_advice,learn_graduates,learn_rating')
           .eq('slug', slug).eq('is_published', true).maybeSingle()
         if (wsError) { console.error('Workspace fetch error:', wsError); if (!cancelled) { setNotFound(true); setLoading(false) }; return }
         if (!ws) { if (!cancelled) { setNotFound(true); setLoading(false) }; return }
@@ -863,15 +863,18 @@ export default function ClientPage() {
     workspace.stat_years   ? [workspace.stat_years,   'Years']   : null,
     workspace.stat_rating  ? [workspace.stat_rating,  'Rating']  : null,
   ].filter(Boolean)
+  const shopMinPrice = products.length > 0
+    ? Math.min(...products.map(p => Number(p.discount_price || p.price)).filter(n => !isNaN(n) && n > 0))
+    : null
   const shopStats = [
-    (workspace.shop_stat_1_value && workspace.shop_stat_1_label) ? [workspace.shop_stat_1_value, workspace.shop_stat_1_label] : null,
-    (workspace.shop_stat_2_value && workspace.shop_stat_2_label) ? [workspace.shop_stat_2_value, workspace.shop_stat_2_label] : null,
-    (workspace.shop_stat_3_value && workspace.shop_stat_3_label) ? [workspace.shop_stat_3_value, workspace.shop_stat_3_label] : null,
+    [String(products.length), 'PRODUCTS'],
+    shopMinPrice ? [`$${shopMinPrice}+`, 'STARTING'] : null,
+    [workspace.shop_advice || 'Free', 'ADVICE'],
   ].filter(Boolean)
   const learnStats = [
-    (workspace.learn_stat_1_value && workspace.learn_stat_1_label) ? [workspace.learn_stat_1_value, workspace.learn_stat_1_label] : null,
-    (workspace.learn_stat_2_value && workspace.learn_stat_2_label) ? [workspace.learn_stat_2_value, workspace.learn_stat_2_label] : null,
-    (workspace.learn_stat_3_value && workspace.learn_stat_3_label) ? [workspace.learn_stat_3_value, workspace.learn_stat_3_label] : null,
+    [String(offerings.length), 'PROGRAMS'],
+    workspace.learn_graduates ? [workspace.learn_graduates, 'GRADUATES'] : null,
+    workspace.learn_rating    ? [workspace.learn_rating,    'RATING']    : null,
   ].filter(Boolean)
   const HERO_CONTENT = {
     book:  { tag:'Accepting New Clients', eyebrow:workspace.tagline||workspace.location||'Beauty Professional', bio:workspace.bio||'Expert beauty services — crafting confidence one appointment at a time.', stats:wsStats, ctas:['Book your Service','View our portfolio'], pills:['Color & Highlights','Precision Cut','Keratin Treatment'], edLabel:'Portfolio · Studio' },
