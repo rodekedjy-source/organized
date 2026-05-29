@@ -830,8 +830,13 @@ export default function ClientPage() {
   if (notFound) return <div style={{minHeight:'100vh',background:'#080706',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',color:'#F0EAE0',textAlign:'center',padding:32}}><div style={{fontFamily:'Playfair Display,serif',fontSize:64,color:'#C9A84C',lineHeight:1}}>404</div><div style={{fontFamily:'Playfair Display,serif',fontSize:24,marginTop:16}}>Profile not found</div><div style={{fontSize:14,color:'#9A8E7E',marginTop:8}}>This page does not exist or has not been published yet.</div></div>
 
   // ── Hero content per tab ─────────────────────────────────────────────────
+  const wsStats = [
+    workspace.stat_clients ? [workspace.stat_clients, 'Clients'] : null,
+    workspace.stat_years   ? [workspace.stat_years,   'Years']   : null,
+    workspace.stat_rating  ? [workspace.stat_rating,  'Rating']  : null,
+  ].filter(Boolean)
   const HERO_CONTENT = {
-    book:  { tag:'Accepting New Clients', eyebrow:workspace.tagline||workspace.location||'Beauty Professional', bio:workspace.bio||'Expert beauty services — crafting confidence one appointment at a time.', stats:[['200+','Clients'],['10','Years'],['4.9','Rating']], ctas:['Book your Service','View our portfolio'], pills:['Color & Highlights','Precision Cut','Keratin Treatment'], edLabel:'Portfolio · Studio' },
+    book:  { tag:'Accepting New Clients', eyebrow:workspace.tagline||workspace.location||'Beauty Professional', bio:workspace.bio||'Expert beauty services — crafting confidence one appointment at a time.', stats:wsStats, ctas:['Book your Service','View our portfolio'], pills:['Color & Highlights','Precision Cut','Keratin Treatment'], edLabel:'Portfolio · Studio' },
     shop:  { tag:'Studio Curated Products', eyebrow:`${workspace.name} · Hair & Beauty Edit`, bio:'Products personally tested and used in the studio. Every item on this shelf is a recommendation.', stats:[[String(products.length),'Products'],['$29+','Starting'],['Free','Advice']], ctas:['Browse Products','Open my Bag'], pills:['Hair Care','Styling','Treatment'], edLabel:'The Edit · Shop' },
     learn: { tag:'Workshops & Online Courses', eyebrow:'Education · All Levels Welcome', bio:'From intensive in-person workshops to self-paced online programs — grow on your terms.', stats:[[String(offerings.length),'Programs'],['120+','Graduates'],['4.8','Rating']], ctas:['View Workshops','Browse Online'], pills:['In-Person','Online Courses','All Levels'], edLabel:'Knowledge · Learn' }
   }
@@ -871,14 +876,14 @@ export default function ClientPage() {
           })()}</h1>
           <div className={`hero-eyebrow${heroFading?' hero-fading':''}`}>{hc.eyebrow}</div>
           <p className={`hero-bio${heroFading?' hero-fading':''}`}>{hc.bio}</p>
-          <div className={`hero-stats${heroFading?' hero-fading':''}`}>
+          {hc.stats.length>0&&<div className={`hero-stats${heroFading?' hero-fading':''}`}>
             {hc.stats.map(([num,lbl],i)=>(
               <div key={i} className="stat-item">
                 <span className="stat-num">{num}</span>
                 <span className="stat-label">{lbl}</span>
               </div>
             ))}
-          </div>
+          </div>}
           <div className={`hero-cta-row${heroFading?' hero-fading':''}`}>
             <button className="cb-btn-primary" onClick={()=>document.querySelector('.tab-bar-wrap')?.scrollIntoView({behavior:'smooth'})}>{hc.ctas[0]}</button>
             <button className="cb-btn-ghost" onClick={()=>setPortfolioOpen(true)}>{hc.ctas[1]}</button>

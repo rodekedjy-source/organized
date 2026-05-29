@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { getWorkspaceSettings, upsertWorkspaceSettings } from '../api/workspaceSettings'
+import { updateBusinessProfile } from '../api/workspace'
 
 // ── I18N ──────────────────────────────────────────────────────────────────────
 const LANG = {
@@ -207,6 +208,7 @@ function SettingsBusinessForm({ workspace, toast, refetch, lang='en' }) {
     show_address_on_page:ws?.show_address_on_page||false,
     address_in_confirmations:ws?.address_in_confirmations!==false,
     email:ws?.email||'',phone:ws?.phone||'',instagram:ws?.instagram||'',tiktok:ws?.tiktok||'',
+    stat_clients:ws?.stat_clients||'',stat_years:ws?.stat_years||'',stat_rating:ws?.stat_rating||'',
     offers_domicile:ws?.offers_domicile||false,
     domicile_fee:ws?.domicile_fee||'45',
     domicile_radius_km:ws?.domicile_radius_km||25,
@@ -223,19 +225,7 @@ function SettingsBusinessForm({ workspace, toast, refetch, lang='en' }) {
     setAddrError('')
     if(!workspace?.id){toast('Workspace not loaded.');return}
     setLoading(true);setSaved(false)
-    const{error}=await supabase.from('workspaces').update({
-      name:form.name,tagline:form.tagline,bio:form.bio,
-      address_street:form.address_street||null,address_city:form.address_city||null,
-      address_province:form.address_province||null,address_postal:form.address_postal||null,
-      address_country:form.address_country||'CA',
-      show_address_on_page:form.show_address_on_page,
-      address_in_confirmations:form.address_in_confirmations,
-      email:form.email,phone:form.phone,instagram:form.instagram,tiktok:form.tiktok,
-      offers_domicile:form.offers_domicile,
-      domicile_fee:form.offers_domicile?Number(form.domicile_fee)||45:null,
-      domicile_radius_km:form.offers_domicile?Number(form.domicile_radius_km)||25:null,
-      domicile_notes:form.offers_domicile?(form.domicile_notes||null):null
-    }).eq('id',workspace.id)
+    const{error}=await updateBusinessProfile(workspace.id,form)
     if(error)toast(`Error: ${error.message}`);else{setSaved(true);toast('Business profile saved.');if(refetch) await refetch()}
     setLoading(false)
   }
@@ -298,6 +288,13 @@ function SettingsBusinessForm({ workspace, toast, refetch, lang='en' }) {
         <div style={{fontSize:'.68rem',fontWeight:600,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'.08em'}}>Social</div>
         <div className="field"><label>Instagram</label><input style={iS} value={form.instagram} onChange={e=>setForm(f=>({...f,instagram:e.target.value}))} onFocus={foc} onBlur={blu} placeholder="@yourstudio"/></div>
         <div className="field"><label>TikTok</label><input style={iS} value={form.tiktok} onChange={e=>setForm(f=>({...f,tiktok:e.target.value}))} onFocus={foc} onBlur={blu} placeholder="@yourstudio"/></div>
+        <div style={{height:1,background:'var(--border)',margin:'.15rem 0'}}/>
+        <div style={{fontSize:'.68rem',fontWeight:600,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'.08em'}}>Business Stats <span style={{fontWeight:400,textTransform:'none',letterSpacing:'normal',fontSize:'.72rem',color:'var(--ink-3)'}}>(optional — shown on your public page)</span></div>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'.65rem'}}>
+          <div className="field"><label>Clients served</label><input style={iS} value={form.stat_clients} onChange={e=>setForm(f=>({...f,stat_clients:e.target.value}))} onFocus={foc} onBlur={blu} placeholder="200+"/></div>
+          <div className="field"><label>Years of exp.</label><input style={iS} value={form.stat_years} onChange={e=>setForm(f=>({...f,stat_years:e.target.value}))} onFocus={foc} onBlur={blu} placeholder="10"/></div>
+          <div className="field"><label>Rating</label><input style={iS} value={form.stat_rating} onChange={e=>setForm(f=>({...f,stat_rating:e.target.value}))} onFocus={foc} onBlur={blu} placeholder="4.9"/></div>
+        </div>
         <div style={{height:1,background:'var(--border)',margin:'.15rem 0'}}/>
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
           <div>
