@@ -1169,7 +1169,7 @@ export default function Dashboard() {
       <main className="main-content" style={{paddingBottom:'96px'}}>
         {(()=>{
           const tabProps={workspace,toast,lang,session,ownerData,refetchWorkspace:fetchWorkspace,refetch:fetchWorkspace,theme,setTheme,setPage:navigateTo,subscription}
-          if(page==='settings') return renderPage()
+          if(page==='settings' || page==='payments') return renderPage()
           return <>
             {activeTab==='booking' && <BookingTab {...tabProps}/>}
             {activeTab==='shop'    && <ShopTab    {...tabProps}/>}
