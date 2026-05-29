@@ -28,8 +28,13 @@ export default function PaymentsSection({ workspace, toast, refetchWorkspace }) 
     setConnecting(true)
     const { data, error } = await createConnectAccount(workspace.id)
     setConnecting(false)
-    if (error || !data?.url) {
-      toast('Could not start Stripe connection. Please try again.')
+    if (error) {
+      console.error('Connect error:', error)
+      toast(error.message || JSON.stringify(error))
+      return
+    }
+    if (!data?.url) {
+      toast('No redirect URL returned: ' + JSON.stringify(data))
       return
     }
     window.location.href = data.url
