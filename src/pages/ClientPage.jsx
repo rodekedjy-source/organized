@@ -1566,12 +1566,12 @@ export default function ClientPage() {
                       : (
                           <div style={{display:'flex',alignItems:'center',gap:10,padding:'8px 0',borderBottom:'1px solid var(--dark-4)'}}>
                             <div style={{width:40,height:40,borderRadius:8,overflow:'hidden',flexShrink:0,background:'var(--dark-4)',display:'flex',alignItems:'center',justifyContent:'center'}}>
-                              {(checkoutItem.item.image_url||checkoutItem.item.images?.[0])
-                                ? <img src={checkoutItem.item.image_url||checkoutItem.item.images?.[0]} alt={checkoutItem.item.name} style={{width:'100%',height:'100%',objectFit:'cover'}}/>
-                                : <span style={{fontSize:16,color:'var(--text-muted)'}}>✦</span>}
+                              {(checkoutItem.item.cover_image||checkoutItem.item.image_url||checkoutItem.item.images?.[0])
+                                ? <img src={checkoutItem.item.cover_image||checkoutItem.item.image_url||checkoutItem.item.images?.[0]} alt={checkoutItem.item.title||checkoutItem.item.name} style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+                                : <span style={{fontSize:12,fontWeight:700,color:'var(--gold)',letterSpacing:'.02em'}}>{(checkoutItem.item.title||checkoutItem.item.name||'').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}</span>}
                             </div>
                             <div style={{flex:1}}>
-                              <div style={{fontSize:14,fontWeight:700,color:'var(--text)',lineHeight:1.3}}>{checkoutItem.item.name}</div>
+                              <div style={{fontSize:14,fontWeight:700,color:'var(--text)',lineHeight:1.3}}>{checkoutItem.item.title||checkoutItem.item.name}</div>
                               <div style={{fontSize:12,color:'var(--text-muted)',marginTop:2}}>× {checkoutItem.quantity||1}</div>
                             </div>
                             <div style={{fontSize:14,color:'var(--gold)',fontWeight:600}}>${(coPrice*(checkoutItem.quantity||1)).toFixed(2)}</div>
