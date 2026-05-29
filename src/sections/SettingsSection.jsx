@@ -209,6 +209,12 @@ function SettingsBusinessForm({ workspace, toast, refetch, lang='en' }) {
     address_in_confirmations:ws?.address_in_confirmations!==false,
     email:ws?.email||'',phone:ws?.phone||'',instagram:ws?.instagram||'',tiktok:ws?.tiktok||'',
     stat_clients:ws?.stat_clients||'',stat_years:ws?.stat_years||'',stat_rating:ws?.stat_rating||'',
+    shop_stat_1_value:ws?.shop_stat_1_value||'',shop_stat_1_label:ws?.shop_stat_1_label||'',
+    shop_stat_2_value:ws?.shop_stat_2_value||'',shop_stat_2_label:ws?.shop_stat_2_label||'',
+    shop_stat_3_value:ws?.shop_stat_3_value||'',shop_stat_3_label:ws?.shop_stat_3_label||'',
+    learn_stat_1_value:ws?.learn_stat_1_value||'',learn_stat_1_label:ws?.learn_stat_1_label||'',
+    learn_stat_2_value:ws?.learn_stat_2_value||'',learn_stat_2_label:ws?.learn_stat_2_label||'',
+    learn_stat_3_value:ws?.learn_stat_3_value||'',learn_stat_3_label:ws?.learn_stat_3_label||'',
     offers_domicile:ws?.offers_domicile||false,
     domicile_fee:ws?.domicile_fee||'45',
     domicile_radius_km:ws?.domicile_radius_km||25,
@@ -295,6 +301,20 @@ function SettingsBusinessForm({ workspace, toast, refetch, lang='en' }) {
           <div className="field"><label>Years of exp.</label><input style={iS} value={form.stat_years} onChange={e=>setForm(f=>({...f,stat_years:e.target.value}))} onFocus={foc} onBlur={blu} placeholder="10"/></div>
           <div className="field"><label>Rating</label><input style={iS} value={form.stat_rating} onChange={e=>setForm(f=>({...f,stat_rating:e.target.value}))} onFocus={foc} onBlur={blu} placeholder="4.9"/></div>
         </div>
+        <div style={{fontSize:'.68rem',fontWeight:600,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'.08em'}}>Shop Stats <span style={{fontWeight:400,textTransform:'none',letterSpacing:'normal',fontSize:'.72rem',color:'var(--ink-3)'}}>(optional — shown on Shop tab)</span></div>
+        {[1,2,3].map(n=>(
+          <div key={n} style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'.65rem'}}>
+            <div className="field"><label>Value {n}</label><input style={iS} value={form[`shop_stat_${n}_value`]} onChange={e=>setForm(f=>({...f,[`shop_stat_${n}_value`]:e.target.value}))} onFocus={foc} onBlur={blu} placeholder={n===1?String(0):n===2?'$29+':'Free'}/></div>
+            <div className="field"><label>Label {n}</label><input style={iS} value={form[`shop_stat_${n}_label`]} onChange={e=>setForm(f=>({...f,[`shop_stat_${n}_label`]:e.target.value}))} onFocus={foc} onBlur={blu} placeholder={n===1?'PRODUCTS':n===2?'STARTING':'ADVICE'}/></div>
+          </div>
+        ))}
+        <div style={{fontSize:'.68rem',fontWeight:600,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'.08em'}}>Learn Stats <span style={{fontWeight:400,textTransform:'none',letterSpacing:'normal',fontSize:'.72rem',color:'var(--ink-3)'}}>(optional — shown on Learn tab)</span></div>
+        {[1,2,3].map(n=>(
+          <div key={n} style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'.65rem'}}>
+            <div className="field"><label>Value {n}</label><input style={iS} value={form[`learn_stat_${n}_value`]} onChange={e=>setForm(f=>({...f,[`learn_stat_${n}_value`]:e.target.value}))} onFocus={foc} onBlur={blu} placeholder={n===1?'2':n===2?'120+':'4.8'}/></div>
+            <div className="field"><label>Label {n}</label><input style={iS} value={form[`learn_stat_${n}_label`]} onChange={e=>setForm(f=>({...f,[`learn_stat_${n}_label`]:e.target.value}))} onFocus={foc} onBlur={blu} placeholder={n===1?'PROGRAMS':n===2?'GRADUATES':'RATING'}/></div>
+          </div>
+        ))}
         <div style={{height:1,background:'var(--border)',margin:'.15rem 0'}}/>
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
           <div>
