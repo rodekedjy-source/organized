@@ -5,6 +5,7 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY')!, { apiVersion: '2024-06-20' });
 const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
 const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET')!;
+const connectWebhookSecret = Deno.env.get('STRIPE_CONNECT_WEBHOOK_SECRET')!;
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
@@ -15,7 +16,18 @@ Deno.serve(async (req: Request) => {
   let event: Stripe.Event;
   try {
     const body = await req.text();
-    event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret);
+    // Essayer d'abord avec le secret principal
+    try {
+      event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret);
+    } catch {
+      // Si ça échoue, essayer avec le secret Connect
+      try {
+        event = await stripe.webhooks.constructEventAsync(body, signature, connectWebhookSecret);
+      } catch (err) {
+        console.error('Webhook signature verification failed:', err);
+        return new Response('Webhook signature mismatch', { status: 400 });
+      }
+    }
   } catch (err) {
     console.error('Webhook signature failed:', err);
     return new Response('Invalid signature', { status: 400 });
