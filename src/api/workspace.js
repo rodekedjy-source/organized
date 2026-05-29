@@ -86,6 +86,13 @@ export async function updateBusinessProfile(workspaceId, fields) {
 /**
  * Sauvegarde les paramètres d'automatisation (demandes d'avis).
  */
+export async function updateFaqSettings(workspaceId, faqSettings) {
+  return supabase
+    .from('workspaces')
+    .update({ faq_settings: faqSettings })
+    .eq('id', workspaceId)
+}
+
 export async function updateAutomationSettings(workspaceId, { reviewRequestsEnabled, googleReviewUrl, reviewDelayHours }) {
   return supabase
     .from('workspaces')

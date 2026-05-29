@@ -109,16 +109,43 @@ const TEMPLATES = {
 // ─────────────────────────────────────────────────────────────────────────────
 // FAQ BUILDER
 // ─────────────────────────────────────────────────────────────────────────────
-function buildFAQ(workspace, services) {
+function generateFAQ(workspace) {
   if (!workspace) return []
-  const faq = workspace.faq_settings || {}, items = []
-  const depositSvcs = services.filter(s => Number(s.deposit_amount) > 0)
-  if (depositSvcs.length > 0) items.push({q:'Is a deposit required?',a:`Yes, a deposit of $${depositSvcs[0].deposit_amount} is required. It is collected at the studio and applied to your total. Non-refundable for cancellations under ${faq.cancellation_hours||48} hours.`})
-  items.push({q:'Can I cancel or reschedule?',a:`You can cancel or reschedule up to ${faq.cancellation_hours||48} hours before your appointment at no charge. Use the link in your confirmation email.`})
-  if (workspace.offers_domicile) items.push({q:'Do you offer home visits?',a:`Yes, within ${workspace.domicile_radius_km||25} km for an additional fee of $${workspace.domicile_fee||45}. Space requirements apply.`})
-  items.push({q:'Do you work with all hair types?',a: faq.hair_types?.length ? `Yes — ${faq.hair_types.join(', ')} textures are welcome. Every session begins with a consultation.` : 'Yes, all hair types and textures are welcome. Every session begins with a consultation.'})
-  items.push({q:'How should I prepare?',a: faq.prep_notes || 'Come with clean, dry hair. Bring reference photos if you have them. Avoid heavy styling products the day of your appointment.'})
-  return items.slice(0,5)
+  const faqs = []
+
+  faqs.push({ question: 'How do I book an appointment?', answer: 'Select your service, choose an available time slot, and confirm your booking directly on this page.' })
+
+  if (workspace.deposit_value > 0) {
+    faqs.push({ question: 'Do you require a deposit to book?', answer: `Yes, a $${workspace.deposit_value} deposit is required to confirm your appointment.` })
+  } else {
+    faqs.push({ question: 'Do you require a deposit to book?', answer: 'No deposit required. Your spot is confirmed upon booking.' })
+  }
+
+  if (workspace.policy_cancel_hours) {
+    faqs.push({ question: 'Can I cancel or reschedule?', answer: `You can cancel or reschedule free of charge up to ${workspace.policy_cancel_hours} hours before your appointment.` })
+  }
+
+  if (workspace.policy_no_show_fee) {
+    faqs.push({ question: 'What happens if I miss my appointment?', answer: 'In case of no-show, your deposit is non-refundable.' })
+  }
+
+  if (workspace.policy_late_fee) {
+    faqs.push({ question: 'What if I arrive late?', answer: 'A late arrival fee may apply. Please contact us if you are running behind.' })
+  }
+
+  if (workspace.offers_domicile) {
+    faqs.push({ question: 'Do you offer mobile services?', answer: `Yes! We travel to you${workspace.domicile_radius_km ? ` within ${workspace.domicile_radius_km} km` : ''}.${workspace.domicile_fee ? ` A travel fee of $${workspace.domicile_fee} applies.` : ''}` })
+  }
+
+  if (workspace.policy_custom?.trim()) {
+    faqs.push({ question: 'Are there any additional terms?', answer: workspace.policy_custom.trim() })
+  }
+
+  if (Array.isArray(workspace.faq_settings) && workspace.faq_settings.length > 0) {
+    return workspace.faq_settings
+  }
+
+  return faqs
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -821,7 +848,7 @@ export default function ClientPage() {
   const featuredProduct = workspace?.featured_product_id ? products.find(p=>p.id===workspace.featured_product_id)||products[0] : products[0]
   const otherProducts   = products.filter(p=>p.id!==featuredProduct?.id)
   const avgRating       = reviews.length ? (reviews.reduce((s,r)=>s+r.rating,0)/reviews.length).toFixed(1) : null
-  const faqItems        = buildFAQ(workspace, services)
+  const faqItems        = generateFAQ(workspace)
   const mapsUrl         = workspace ? `https://maps.google.com/?q=${encodeURIComponent([workspace.address_street,workspace.address_city,workspace.address_province].filter(Boolean).join(', '))}` : '#'
   const mapAddress      = [workspace?.address_street,workspace?.address_city,workspace?.address_province,workspace?.address_postal].filter(Boolean).join(', ') || workspace?.location || ''
 
@@ -1030,9 +1057,9 @@ export default function ClientPage() {
               {faqItems.map((item,i)=>(
                 <div key={i} className="cb-faq-item">
                   <button className="cb-faq-q" onClick={()=>setOpenFAQ(openFAQ===i?null:i)}>
-                    <span>{item.q}</span><span className={`cb-faq-icon${openFAQ===i?' open':''}`}>+</span>
+                    <span>{item.question}</span><span className={`cb-faq-icon${openFAQ===i?' open':''}`}>+</span>
                   </button>
-                  {openFAQ===i&&<p className="cb-faq-a">{item.a}</p>}
+                  {openFAQ===i&&<p className="cb-faq-a">{item.answer}</p>}
                 </div>
               ))}
             </div>

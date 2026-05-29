@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { updatePolicy } from '../api/policy'
+import { updatePolicy, } from '../api/policy'
+import { updateFaqSettings } from '../api/workspace'
 import { getWorkspaceSettings, upsertWorkspaceSettings } from '../api/workspaceSettings'
 
 // ── Toggle ────────────────────────────────────────────────────────────────────
@@ -301,6 +302,23 @@ export default function PolicySection({ workspace, toast, refetch, type = 'booki
   const [saving, setSaving] = useState(false)
   const [reminders, setReminders] = useState({ remind_7d: false, remind_3d: false, remind_24h: true })
   const [reminderSaving, setReminderSaving] = useState(false)
+  const [faqItems, setFaqItems] = useState(() => {
+    const s = workspace?.faq_settings
+    return Array.isArray(s) ? s : []
+  })
+  const [faqSaving, setFaqSaving] = useState(false)
+  function addFaqItem() { setFaqItems(f => [...f, { question: '', answer: '' }]) }
+  function removeFaqItem(i) { setFaqItems(f => f.filter((_, idx) => idx !== i)) }
+  function updateFaqItem(i, key, val) { setFaqItems(f => f.map((item, idx) => idx === i ? { ...item, [key]: val } : item)) }
+  async function saveFaq() {
+    setFaqSaving(true)
+    const payload = faqItems.filter(item => item.question.trim() || item.answer.trim())
+    const { error } = await updateFaqSettings(workspace.id, payload.length ? payload : null)
+    setFaqSaving(false)
+    if (error) { toast('Could not save FAQ.'); return }
+    toast('FAQ saved.')
+    if (refetch) await refetch()
+  }
 
   useEffect(() => {
     if (!workspace?.id) return
@@ -498,6 +516,35 @@ export default function PolicySection({ workspace, toast, refetch, type = 'booki
             />
           ))}
         </div>
+      </div>
+
+      {/* Custom FAQ */}
+      <div className="card" style={{ marginBottom: '1rem' }}>
+        <div className="card-head">
+          <div>
+            <div className="card-title">Custom FAQ</div>
+            <div style={{ fontSize: '.72rem', color: 'var(--ink-3)', marginTop: 2 }}>Leave empty to auto-generate from your policy settings</div>
+          </div>
+          <button className="btn btn-ghost" style={{ padding: '.4rem .85rem', fontSize: '.8rem' }} onClick={addFaqItem}>+ Add question</button>
+        </div>
+        {faqItems.length > 0 ? (
+          <div className="card-body" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            {faqItems.map((item, i) => (
+              <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '.5rem', background: 'var(--bg)', borderRadius: 8, padding: '.85rem', position: 'relative' }}>
+                <button onClick={() => removeFaqItem(i)} style={{ position: 'absolute', top: 8, right: 8, background: 'none', border: 'none', color: 'var(--ink-3)', cursor: 'pointer', fontSize: 16, lineHeight: 1 }}>✕</button>
+                <input style={iS} placeholder="Question" value={item.question} onChange={e => updateFaqItem(i, 'question', e.target.value)} onFocus={focus} onBlur={blur} />
+                <textarea style={{ ...iS, resize: 'vertical', minHeight: 64 }} rows={2} placeholder="Answer" value={item.answer} onChange={e => updateFaqItem(i, 'answer', e.target.value)} onFocus={focus} onBlur={blur} />
+              </div>
+            ))}
+            <button className="btn btn-primary" style={{ justifyContent: 'center', padding: '.65rem 1.5rem', alignSelf: 'flex-start' }} onClick={saveFaq} disabled={faqSaving}>
+              {faqSaving ? 'Saving…' : 'Save FAQ'}
+            </button>
+          </div>
+        ) : (
+          <div style={{ padding: '1.25rem 1.5rem', color: 'var(--ink-3)', fontSize: '.82rem', fontStyle: 'italic' }}>
+            No custom questions yet — auto-generated from your policy.
+          </div>
+        )}
       </div>
 
       {/* Save — always visible */}
