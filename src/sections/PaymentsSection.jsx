@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { createConnectAccount, verifyConnectAccount } from '../api/stripe'
+import { createConnectAccount } from '../api/stripe'
+import { supabase } from '../lib/supabase'
 
 const STEPS = [
   { n: 1, text: 'Connect your Stripe account' },
@@ -13,15 +14,14 @@ export default function PaymentsSection({ workspace, toast, refetchWorkspace }) 
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
-    if (params.get('stripe') !== 'success' || !workspace?.id) return
-    window.history.replaceState({}, '', '/dashboard')
-    verifyConnectAccount(workspace.id).then(({ data }) => {
-      if (data?.onboarded) {
-        toast('Stripe account connected.')
-        refetchWorkspace?.()
-      }
-    })
-  }, [workspace?.id])
+    if (params.get('stripe') === 'success') {
+      supabase.functions.invoke('verify-connect-account')
+        .then(() => {
+          refetchWorkspace?.()
+          window.history.replaceState({}, '', '/dashboard')
+        })
+    }
+  }, [])
 
   async function handleConnect() {
     if (!workspace?.id) return
