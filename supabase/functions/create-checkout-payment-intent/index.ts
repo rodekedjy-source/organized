@@ -17,21 +17,15 @@ Deno.serve(async (req: Request) => {
     const body = await req.json();
     const { workspace_id, amount, currency, client_name, client_email, order_type, item_id, item_name, quantity, shipping_address, cart_items } = body;
 
-    if (!workspace_id || !amount || amount <= 0) {
+    if (!workspace_id) {
       return new Response(
-        JSON.stringify({ error: 'workspace_id and amount are required' }),
+        JSON.stringify({ error: 'workspace_id is required' }),
         { status: 400, headers: { ...cors, 'Content-Type': 'application/json' } }
       );
     }
-    if (amount < 0.50) {
+    if (!order_type || !['product', 'enrollment', 'cart', 'booking'].includes(order_type)) {
       return new Response(
-        JSON.stringify({ error: 'Minimum amount is $0.50' }),
-        { status: 400, headers: { ...cors, 'Content-Type': 'application/json' } }
-      );
-    }
-    if (!order_type || !['product', 'enrollment', 'cart'].includes(order_type)) {
-      return new Response(
-        JSON.stringify({ error: 'order_type must be product, enrollment, or cart' }),
+        JSON.stringify({ error: 'order_type must be product, enrollment, cart, or booking' }),
         { status: 400, headers: { ...cors, 'Content-Type': 'application/json' } }
       );
     }
@@ -42,17 +36,40 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const { data: workspace, error: wsError } = await supabase
+    const { data: ws, error: wsError } = await supabase
       .from('workspaces')
-      .select('stripe_account_id, stripe_onboarded')
+      .select('deposit_value, deposit_required, stripe_account_id, stripe_onboarded')
       .eq('id', workspace_id)
-      .single();
+      .maybeSingle();
 
-    if (wsError || !workspace) {
+    if (wsError || !ws) {
       return new Response(
         JSON.stringify({ error: 'Workspace not found' }),
         { status: 404, headers: { ...cors, 'Content-Type': 'application/json' } }
       );
+    }
+
+    if (!ws.stripe_onboarded || !ws.stripe_account_id) {
+      return new Response(
+        JSON.stringify({ error: 'Payment not configured' }),
+        { status: 400, headers: { ...cors, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (order_type === 'booking') {
+      if (!ws.deposit_required || !ws.deposit_value || ws.deposit_value <= 0) {
+        return new Response(
+          JSON.stringify({ error: 'No deposit required' }),
+          { status: 400, headers: { ...cors, 'Content-Type': 'application/json' } }
+        );
+      }
+    } else {
+      if (!amount || amount <= 0) {
+        return new Response(
+          JSON.stringify({ error: 'amount is required' }),
+          { status: 400, headers: { ...cors, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     // Truncate cart_items to fit Stripe's 500-char metadata limit
@@ -71,7 +88,9 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    const amountInCents = Math.round(amount * 100);
+    const amountInCents = order_type === 'booking'
+      ? Math.round(Number(ws.deposit_value) * 100)
+      : Math.round(amount * 100);
     const idempotencyKey =
       `${workspace_id}-${order_type}-${item_id}-` +
       `${(client_email || 'anon').substring(0, 32)}-${Date.now()}`;
@@ -95,12 +114,10 @@ Deno.serve(async (req: Request) => {
       },
     };
 
-    if (workspace.stripe_onboarded && workspace.stripe_account_id) {
-      intentParams.transfer_data = {
-        destination: workspace.stripe_account_id,
-      };
-      intentParams.application_fee_amount = Math.round(amountInCents * 0.05);
-    }
+    intentParams.transfer_data = {
+      destination: ws.stripe_account_id,
+    };
+    intentParams.application_fee_amount = Math.round(amountInCents * 0.05);
 
     const paymentIntent = await stripe.paymentIntents.create(intentParams, {
       idempotencyKey,
