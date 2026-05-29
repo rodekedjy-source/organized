@@ -538,7 +538,7 @@ export default function ClientPage() {
           s.onload = res; s.onerror = rej; document.head.appendChild(s)
         })
       }
-      const pk = import.meta.env.VITE_STRIPE_PK
+      const pk = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY
       if (!pk) { setCheckoutError('Payment not configured. Contact the studio directly.'); return }
       checkoutStripeRef.current = window.Stripe(pk)
       const price = checkoutItem.type === 'product' && isDiscountActive(checkoutItem.item)
