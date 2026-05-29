@@ -240,7 +240,7 @@ Deno.serve(async (req: Request) => {
             if (!existing) {
               const amount_paid = pi.amount / 100;
 
-              await supabase.from('enrollments').insert({
+              const { data: newEnrollment } = await supabase.from('enrollments').insert({
                 workspace_id,
                 offering_id: item_id,
                 client_name,
@@ -250,7 +250,7 @@ Deno.serve(async (req: Request) => {
                 payment_status: 'paid',
                 status: 'confirmed',
                 stripe_payment_intent_id: pi.id,
-              });
+              }).select('enrollment_token').single();
 
               // Fetch offering for type + date
               const { data: offeringData } = await supabase
@@ -300,6 +300,7 @@ Deno.serve(async (req: Request) => {
                   workspace_name: wsWithUser?.name || '',
                   owner_email: ownerEmail,
                   booking_link: wsWithUser?.slug ? `https://beorganized.io/book/${wsWithUser.slug}` : 'https://beorganized.io',
+                  enrollment_token: newEnrollment?.enrollment_token || null,
                 }),
               });
               if (!emailRes.ok) {

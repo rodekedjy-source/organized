@@ -25,6 +25,7 @@ function buildClientEmail(opts: {
   currency: string
   workspace_name: string
   booking_link: string
+  enrollment_token: string | null
 }): { subject: string; html: string } {
   const isWorkshop = opts.offering_type === 'workshop'
   const subject = `Your enrollment is confirmed — ${opts.offering_title}`
@@ -43,8 +44,11 @@ function buildClientEmail(opts: {
   const ctaBtn = !isWorkshop
     ? `<table cellpadding="0" cellspacing="0" style="margin:20px 0 0;"><tr><td style="background:#C9A84C;border-radius:6px;"><a href="${opts.booking_link}" style="display:inline-block;padding:14px 28px;font-size:15px;font-weight:600;color:#fff;text-decoration:none;font-family:Georgia,serif;letter-spacing:0.03em;">Access Course →</a></td></tr></table>`
     : ''
+  const refundBlock = opts.enrollment_token
+    ? `<div style="margin:24px 0;padding:16px 20px;background:#F8F6F2;border-radius:8px;text-align:center;"><p style="margin:0 0 8px;font-size:13px;color:#888;">Need to cancel?</p><p style="margin:0 0 12px;font-size:12px;color:#AAA;line-height:1.5;">Please review the refund policy before submitting a request.</p><a href="https://beorganized.io/enrollment/${opts.enrollment_token}/refund" style="display:inline-block;padding:10px 24px;background:#1A0900;color:#C9A84C;text-decoration:none;border-radius:6px;font-size:13px;font-family:Georgia,serif;">Request a Refund →</a></div>`
+    : ''
 
-  const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head><body style="margin:0;padding:0;background:#F0EDE8;font-family:Georgia,serif;"><table width="100%" cellpadding="0" cellspacing="0" style="padding:32px 16px;"><tr><td align="center"><table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;"><tr><td style="background:#1A0900;padding:24px 32px;border-radius:12px 12px 0 0;"><p style="margin:0;font-family:Georgia,serif;font-size:22px;color:#C9A84C;letter-spacing:0.1em;">Organized.</p></td></tr><tr><td style="background:#FFFFFF;padding:36px 32px;"><p style="margin:0 0 8px;font-size:16px;color:#1A0900;font-family:Georgia,serif;">Hi ${opts.client_name},</p><p style="margin:0 0 24px;font-size:15px;color:#444;line-height:1.75;font-family:Georgia,serif;">Your enrollment is confirmed! ${accessMsg}</p><div style="background:#F8F6F2;border-radius:8px;padding:16px 20px;margin:0 0 24px;"><p style="margin:0 0 12px;font-size:13px;font-weight:700;color:#8B7355;text-transform:uppercase;letter-spacing:0.08em;font-family:Georgia,serif;">${isWorkshop ? 'Workshop' : 'Online Course'}</p><p style="margin:0 0 16px;font-size:17px;font-weight:600;color:#1A0900;font-family:Georgia,serif;">${opts.offering_title}</p><table width="100%" cellpadding="0" cellspacing="0">${dateRow}${locationRow}${amountRow}</table></div>${ctaBtn}<p style="margin:${ctaBtn ? '24' : '0'}px 0 0;font-size:13px;color:#888;font-family:Georgia,serif;">Questions? Reply to this email or contact ${opts.workspace_name} directly.</p></td></tr><tr><td style="background:#F8F6F2;padding:20px 32px;border-radius:0 0 12px 12px;border-top:1px solid #EDE9E3;"><p style="margin:0 0 4px;font-size:14px;color:#555;font-family:Georgia,serif;">— ${opts.workspace_name}</p><p style="margin:0;font-size:12px;color:#BBB;font-family:Georgia,serif;">Powered by Organized.</p></td></tr></table></td></tr></table></body></html>`
+  const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head><body style="margin:0;padding:0;background:#F0EDE8;font-family:Georgia,serif;"><table width="100%" cellpadding="0" cellspacing="0" style="padding:32px 16px;"><tr><td align="center"><table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;"><tr><td style="background:#1A0900;padding:24px 32px;border-radius:12px 12px 0 0;"><p style="margin:0;font-family:Georgia,serif;font-size:22px;color:#C9A84C;letter-spacing:0.1em;">Organized.</p></td></tr><tr><td style="background:#FFFFFF;padding:36px 32px;"><p style="margin:0 0 8px;font-size:16px;color:#1A0900;font-family:Georgia,serif;">Hi ${opts.client_name},</p><p style="margin:0 0 24px;font-size:15px;color:#444;line-height:1.75;font-family:Georgia,serif;">Your enrollment is confirmed! ${accessMsg}</p><div style="background:#F8F6F2;border-radius:8px;padding:16px 20px;margin:0 0 24px;"><p style="margin:0 0 12px;font-size:13px;font-weight:700;color:#8B7355;text-transform:uppercase;letter-spacing:0.08em;font-family:Georgia,serif;">${isWorkshop ? 'Workshop' : 'Online Course'}</p><p style="margin:0 0 16px;font-size:17px;font-weight:600;color:#1A0900;font-family:Georgia,serif;">${opts.offering_title}</p><table width="100%" cellpadding="0" cellspacing="0">${dateRow}${locationRow}${amountRow}</table></div>${ctaBtn}<p style="margin:${ctaBtn ? '24' : '0'}px 0 0;font-size:13px;color:#888;font-family:Georgia,serif;">Questions? Reply to this email or contact ${opts.workspace_name} directly.</p>${refundBlock}</td></tr><tr><td style="background:#F8F6F2;padding:20px 32px;border-radius:0 0 12px 12px;border-top:1px solid #EDE9E3;"><p style="margin:0 0 4px;font-size:14px;color:#555;font-family:Georgia,serif;">— ${opts.workspace_name}</p><p style="margin:0;font-size:12px;color:#BBB;font-family:Georgia,serif;">Powered by Organized.</p></td></tr></table></td></tr></table></body></html>`
   return { subject, html }
 }
 
@@ -110,6 +114,7 @@ Deno.serve(async (req: Request) => {
       owner_email = null,
       booking_link = 'https://beorganized.io',
       decline_reason = null,
+      enrollment_token = null,
     } = body
 
     if (!client_email || !offering_title) {
@@ -175,17 +180,14 @@ Deno.serve(async (req: Request) => {
 
     // ── REFUND DECLINED ─────────────────────────────────────────────────────
     if (type === 'refund_declined') {
-      const subject = `About your refund request — ${offering_title}`
-      const reasonBlock = decline_reason
-        ? `<div style="background:#F8F6F2;border-radius:8px;padding:14px 18px;margin:0 0 16px;font-size:14px;color:#555;line-height:1.6;font-style:italic;">"${decline_reason}"</div>`
-        : ''
-      const html = `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#F0EDE8;font-family:Georgia,serif;"><table width="100%" cellpadding="0" cellspacing="0" style="padding:32px 16px;"><tr><td align="center"><table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;"><tr><td style="background:#1A0900;padding:24px 32px;border-radius:12px 12px 0 0;"><p style="margin:0;font-size:22px;color:#C9A84C;font-family:Georgia,serif;">Organized.</p></td></tr><tr><td style="background:#fff;padding:36px 32px;"><p style="margin:0 0 16px;font-size:16px;color:#1A0900;">Hi ${client_name || 'there'},</p><p style="margin:0 0 16px;font-size:15px;color:#444;line-height:1.75;">We reviewed your refund request for <strong>${offering_title}</strong> and unfortunately we are unable to process it at this time.</p>${reasonBlock}<p style="margin:0;font-size:13px;color:#888;">If you have questions, please contact ${workspace_name} directly.</p></td></tr><tr><td style="background:#F8F6F2;padding:20px 32px;border-radius:0 0 12px 12px;"><p style="margin:0;font-size:12px;color:#BBB;">Powered by Organized.</p></td></tr></table></td></tr></table></body></html>`
+      const subject = `Refund request declined — ${offering_title}`
+      const html = `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#F0EDE8;font-family:Georgia,serif;"><table width="100%" cellpadding="0" cellspacing="0" style="padding:32px 16px;"><tr><td align="center"><table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;"><tr><td style="background:#1A0900;padding:24px 32px;border-radius:12px 12px 0 0;"><p style="margin:0;font-size:22px;color:#C9A84C;font-family:Georgia,serif;">Organized.</p></td></tr><tr><td style="background:#fff;padding:36px 32px;"><p style="margin:0 0 16px;font-size:16px;color:#1A0900;">Hi ${client_name || 'there'},</p><p style="margin:0 0 16px;font-size:15px;color:#444;line-height:1.75;">Your refund request for <strong>${offering_title}</strong> has been reviewed and unfortunately could not be approved.</p><div style="background:#F8F6F2;border-left:3px solid #C9A84C;padding:16px 20px;margin:16px 0;border-radius:0 8px 8px 0;"><p style="margin:0;font-size:13px;color:#666;font-weight:bold;text-transform:uppercase;letter-spacing:0.5px;">Reason</p><p style="margin:8px 0 0;font-size:14px;color:#333;line-height:1.6;">${decline_reason || 'Does not meet refund policy requirements.'}</p></div><p style="margin:0;font-size:13px;color:#888;line-height:1.6;">For further information, please contact <strong>${workspace_name}</strong> directly.</p></td></tr><tr><td style="background:#F8F6F2;padding:20px 32px;border-radius:0 0 12px 12px;"><p style="margin:0;font-size:12px;color:#BBB;">Powered by Organized.</p></td></tr></table></td></tr></table></body></html>`
       const res = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${RESEND_API_KEY}` },
         body: JSON.stringify({ from: FROM, to: [client_email], subject, html }),
       })
-      if (!res.ok) { const err = await res.text(); console.error('Decline email error:', err) }
+      if (!res.ok) { const err = await res.text(); console.error('Refund declined email error:', err) }
       return new Response(JSON.stringify({ success: true }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
@@ -232,6 +234,7 @@ Deno.serve(async (req: Request) => {
       currency,
       workspace_name: workspace_name || '',
       booking_link,
+      enrollment_token,
     })
 
     // Send client email
