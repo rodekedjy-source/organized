@@ -115,8 +115,8 @@ function generateFAQ(workspace) {
 
   faqs.push({ question: 'How do I book an appointment?', answer: 'Select your service, choose an available time slot, and confirm your booking directly on this page.' })
 
-  if (workspace.deposit_value > 0) {
-    faqs.push({ question: 'Do you require a deposit to book?', answer: `Yes, a $${workspace.deposit_value} deposit is required to confirm your appointment.` })
+  if (workspace.deposit_required === true && workspace.deposit_value > 0) {
+    faqs.push({ question: 'Do you require a deposit to book?', answer: `Yes, a $${workspace.deposit_value} deposit is required.` })
   } else {
     faqs.push({ question: 'Do you require a deposit to book?', answer: 'No deposit required. Your spot is confirmed upon booking.' })
   }
@@ -312,9 +312,10 @@ export default function ClientPage() {
     async function fetchAll() {
       setLoading(true); setNotFound(false)
       try {
-        const { data: ws } = await supabase.from('workspaces')
-          .select('id,name,slug,tagline,bio,avatar_url,instagram,tiktok,phone,email,location,timezone,currency,is_published,theme,accepts_bookings,accepts_orders,offers_domicile,domicile_fee,domicile_radius_km,domicile_notes,address_visibility,neighborhood,address_street,address_city,address_province,address_postal,share_address,show_address_on_page,faq_settings,featured_product_id,featured_product_note,working_hours,deposit_required,deposit_type,deposit_value,review_requests_enabled,payment_mode,policy_enabled,policy_deposit_pct,policy_cancel_hours,policy_late_fee,policy_no_show_fee,policy_custom,policy_shop,policy_learn')
+        const { data: ws, error: wsError } = await supabase.from('workspaces')
+          .select('id,name,slug,tagline,bio,avatar_url,instagram,tiktok,phone,email,location,timezone,currency,is_published,theme,accepts_bookings,accepts_orders,offers_domicile,domicile_fee,domicile_radius_km,domicile_notes,address_visibility,neighborhood,address_street,address_city,address_province,address_postal,share_address,show_address_on_page,faq_settings,featured_product_id,featured_product_note,working_hours,deposit_required,deposit_type,deposit_value,review_requests_enabled,payment_mode,policy_enabled,policy_deposit_pct,policy_cancel_hours,policy_late_fee,policy_no_show_fee,policy_custom,policy_shop,policy_learn,stat_clients,stat_years,stat_rating')
           .eq('slug', slug).eq('is_published', true).maybeSingle()
+        if (wsError) { console.error('Workspace fetch error:', wsError); if (!cancelled) { setNotFound(true); setLoading(false) }; return }
         if (!ws) { if (!cancelled) { setNotFound(true); setLoading(false) }; return }
         if (!cancelled) setWorkspace(ws)
         const today = new Date().toISOString().split('T')[0]
