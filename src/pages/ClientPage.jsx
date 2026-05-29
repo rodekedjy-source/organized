@@ -412,8 +412,8 @@ export default function ClientPage() {
       const pk = import.meta.env.VITE_STRIPE_PK
       if (!pk) { setBkPaymentErr('Payment not configured. Please contact the studio directly.'); setBkPaymentLoading(false); return }
       stripeRef.current = window.Stripe(pk)
-      const { data, error } = await supabase.functions.invoke('create-payment-intent', {
-        body: { workspace_id: workspace.id, amount: depositAmt, currency: workspace.currency?.toLowerCase()||'cad', client_name: `${bkForm.fname} ${bkForm.lname}`, client_email: bkForm.email, description: `Deposit — ${bkService.name}` }
+      const { data, error } = await supabase.functions.invoke('create-checkout-payment-intent', {
+        body: { workspace_id: workspace.id, order_type: 'booking', item_id: bkService.id, currency: workspace.currency?.toLowerCase() || 'cad', client_name: `${bkForm.fname} ${bkForm.lname}`, client_email: bkForm.email, item_name: bkService.name }
       })
       if (error || !data?.client_secret) { setBkPaymentErr(data?.error || 'Could not initialize payment. Please try again.'); setBkPaymentLoading(false); return }
       setBkDepositPi(data)
