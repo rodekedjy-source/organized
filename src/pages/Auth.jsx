@@ -147,7 +147,9 @@ export default function Auth({ onAuth }) {
             onAuth(session)
           } else {
             onAuth(session)
-            setStep(1)
+            setOauthFlow(true)
+            setMode('signup')
+            setStep(3)
           }
         }
       })
