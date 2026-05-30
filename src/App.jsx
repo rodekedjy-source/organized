@@ -17,8 +17,9 @@ import { WorkspaceProvider } from './contexts/WorkspaceContext'
 import { ToastProvider }     from './contexts/ToastContext'
 
 export default function App() {
-  const [session, setSession] = useState(null)
-  const [ready,   setReady]   = useState(false)
+  const [session,    setSession]    = useState(null)
+  const [ready,      setReady]      = useState(false)
+  const [onboarding, setOnboarding] = useState(false)
 
   useEffect(() => {
     supabase.auth.getSession()
@@ -50,7 +51,7 @@ export default function App() {
       {/* Auth */}
       <Route
         path="/auth"
-        element={session ? <Navigate to="/dashboard" replace /> : <Auth onAuth={setSession} />}
+        element={session && !onboarding ? <Navigate to="/dashboard" replace /> : <Auth onAuth={setSession} onOnboarding={setOnboarding} />}
       />
 
       {/* Dashboard — protected */}

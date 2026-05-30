@@ -98,7 +98,7 @@ function GoogleIcon(){
   )
 }
 
-export default function Auth({ onAuth }) {
+export default function Auth({ onAuth, onOnboarding }) {
   const [mode,       setMode]    = useState('signup')
   const [step,       setStep]    = useState(1)
   const [loading,    setLoading] = useState(false)
@@ -197,6 +197,7 @@ export default function Auth({ onAuth }) {
           full_name: meta.full_name || meta.name || '',
           email:     session.user.email || '',
         }))
+        onOnboarding(true)
         setOauthFlow(true)
         setMode('signup')
         setStep(3)
@@ -310,6 +311,7 @@ export default function Auth({ onAuth }) {
       if(wsError) throw wsError
 
       const{data:{session}}=await supabase.auth.getSession()
+      onOnboarding(false)
       onAuth(tempSession || session)
       // fire and forget — ne bloque pas le navigate
       supabase.functions.invoke('send-admin-notification', {
