@@ -318,6 +318,13 @@ export default function Auth({ onAuth, onOnboarding }) {
       }).select('id').single()
       if(wsError) throw wsError
 
+      // Si OAuth flow, s'assurer que la session est bien set dans le client
+      if (tempSession) {
+        await supabase.auth.setSession({
+          access_token: tempSession.access_token,
+          refresh_token: tempSession.refresh_token,
+        })
+      }
       const{data:{session}}=await supabase.auth.getSession()
       onOnboarding(false)
       onAuth(tempSession || session)
