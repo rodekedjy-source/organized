@@ -19,7 +19,7 @@ import { ToastProvider }     from './contexts/ToastContext'
 export default function App() {
   const [session,    setSession]    = useState(null)
   const [ready,      setReady]      = useState(false)
-  const [onboarding, setOnboarding] = useState(false)
+  const [needsOnboarding, setNeedsOnboarding] = useState(false)
 
   useEffect(() => {
     supabase.auth.getSession()
@@ -29,14 +29,16 @@ export default function App() {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        if (session && event === 'SIGNED_IN') {
+        if (session && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) {
           const { data: ws } = await supabase
             .from('workspaces')
             .select('id')
             .eq('user_id', session.user.id)
             .maybeSingle()
           if (!ws) {
-            setOnboarding(true)
+            setNeedsOnboarding(true)
+          } else {
+            setNeedsOnboarding(false)
           }
         }
         setSession(session ?? null)
@@ -63,7 +65,7 @@ export default function App() {
       {/* Auth */}
       <Route
         path="/auth"
-        element={session && !onboarding ? <Navigate to="/dashboard" replace /> : <Auth onAuth={setSession} onOnboarding={setOnboarding} />}
+        element={session && !needsOnboarding ? <Navigate to="/dashboard" replace /> : <Auth onAuth={setSession} onOnboarding={setNeedsOnboarding} />}
       />
 
       {/* Dashboard — protected */}
