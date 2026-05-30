@@ -7,6 +7,8 @@ import Dashboard         from './pages/Dashboard'
 import ClientPage        from './pages/ClientPage'
 import CancelAppointment from './pages/CancelAppointment'
 import ReviewPage        from './pages/ReviewPage'
+import Legal               from './pages/Legal'
+import AdminConsole        from './pages/AdminConsole'
 import { WorkspaceProvider } from './contexts/WorkspaceContext'
 import { ToastProvider }     from './contexts/ToastContext'
 
@@ -57,6 +59,15 @@ export default function App() {
             </WorkspaceProvider>
           </ToastProvider>
         ) : <Navigate to="/auth" replace />}
+      />
+
+      {/* Legal */}
+      <Route path="/legal" element={<Legal />} />
+
+      {/* Founder Console — secret, no link in UI */}
+      <Route
+        path="/x"
+        element={session ? <AdminConsole /> : <Navigate to="/auth" replace />}
       />
 
       {/* Client booking page — public, must be last */}

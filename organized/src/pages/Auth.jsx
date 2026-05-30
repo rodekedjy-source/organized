@@ -458,6 +458,12 @@ export default function Auth({ onAuth }) {
                 <button type="submit" className="btn-primary" disabled={loading}>
                   {loading?<><div className="spinner"/>Creating account...</>:'Continue'}
                 </button>
+                <div style={{fontSize:'.68rem',color:'#7a7672',textAlign:'center',lineHeight:1.6,marginTop:'.5rem'}}>
+                  By continuing, you agree to our{' '}
+                  <a href="/legal?tab=terms" target="_blank" rel="noopener noreferrer" style={{color:'#b5893a',textDecoration:'none'}}>Terms of Service</a>
+                  {' '}and{' '}
+                  <a href="/legal?tab=privacy" target="_blank" rel="noopener noreferrer" style={{color:'#b5893a',textDecoration:'none'}}>Privacy Policy</a>.
+                </div>
                 <div className="auth-note">Already have an account? <span onClick={()=>{setMode('login');setError('')}}>Sign in</span></div>
               </form>
             )}
