@@ -17,43 +17,42 @@ import { WorkspaceProvider } from './contexts/WorkspaceContext'
 import { ToastProvider }     from './contexts/ToastContext'
 
 export default function App() {
-  const [session,    setSession]    = useState(null)
-  const [ready,      setReady]      = useState(false)
+  const [session,         setSession]         = useState(null)
   const [needsOnboarding, setNeedsOnboarding] = useState(false)
+  const [sessionChecked,  setSessionChecked]  = useState(false)
 
   useEffect(() => {
-    supabase.auth.getSession()
-      .then(({ data }) => setSession(data?.session ?? null))
-      .catch(() => setSession(null))
-      .finally(() => setReady(true))
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session) {
+        const { data: ws } = await supabase
+          .from('workspaces').select('id')
+          .eq('user_id', session.user.id).maybeSingle()
+        if (!ws) setNeedsOnboarding(true)
+      }
+      setSession(session ?? null)
+      setSessionChecked(true)
+    })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        if (session && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) {
+        if (event === 'SIGNED_IN') {
           const { data: ws } = await supabase
-            .from('workspaces')
-            .select('id')
-            .eq('user_id', session.user.id)
-            .maybeSingle()
-          if (!ws) {
-            setNeedsOnboarding(true)
-          } else {
-            setNeedsOnboarding(false)
-          }
+            .from('workspaces').select('id')
+            .eq('user_id', session.user.id).maybeSingle()
+          if (!ws) setNeedsOnboarding(true)
+          else setNeedsOnboarding(false)
+          setSession(session)
         }
-        setSession(session ?? null)
+        if (event === 'SIGNED_OUT') {
+          setSession(null)
+          setNeedsOnboarding(false)
+        }
       }
     )
     return () => subscription.unsubscribe()
   }, [])
 
-  if (!ready) return (
-    <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', background:'#0a0908' }}>
-      <div style={{ fontFamily:"'Playfair Display', serif", fontSize:'1.5rem', color:'#C9A84C' }}>
-        Organized<span style={{ color:'#F0EAE0' }}>.</span>
-      </div>
-    </div>
-  )
+  if (!sessionChecked) return null
 
   return (
     <Routes>
