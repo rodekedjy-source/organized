@@ -136,8 +136,20 @@ export default function Auth({ onAuth }) {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     if (params.get('callback') === 'true') {
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        if (session) onAuth(session)
+      supabase.auth.getSession().then(async ({ data: { session } }) => {
+        if (session) {
+          const { data: ws } = await supabase
+            .from('workspaces')
+            .select('id')
+            .eq('user_id', session.user.id)
+            .maybeSingle()
+          if (ws) {
+            onAuth(session)
+          } else {
+            onAuth(session)
+            setStep(1)
+          }
+        }
       })
     }
   }, [])
