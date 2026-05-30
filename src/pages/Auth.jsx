@@ -132,6 +132,16 @@ export default function Auth({ onAuth }) {
     }
   }, [])
 
+  // OAuth callback handler — fires when redirected back from Google (?callback=true)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('callback') === 'true') {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session) onAuth(session)
+      })
+    }
+  }, [])
+
   function set(k,v){ setForm(f=>({...f,[k]:v})); setError('') }
 
   // ── Mount: check if a session already exists (OAuth callback) ──
@@ -198,7 +208,7 @@ export default function Auth({ onAuth }) {
     const{error}=await supabase.auth.signInWithOAuth({
       provider:'google',
       options:{
-        redirectTo:`${window.location.origin}/auth`,
+        redirectTo:`${window.location.origin}/auth?callback=true`,
         queryParams:{access_type:'offline',prompt:'consent'},
       },
     })
