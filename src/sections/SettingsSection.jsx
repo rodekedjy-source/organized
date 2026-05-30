@@ -128,15 +128,28 @@ function getDailyEntry(arr){
 }
 
 // ── CANCEL SUBSCRIPTION CARD ──────────────────────────────────────────────────
-function CancelSubscriptionCard({ toast, lang='en' }) {
+function CancelSubscriptionCard({ toast, lang='en', workspace, subscription }) {
   const [showConfirm,setShowConfirm]=useState(false)
   const [cancelling,setCancelling]=useState(false)
+
+  const rawEnd = subscription?.trial_end || subscription?.current_period_end
+  const endDateFmt = rawEnd
+    ? new Date(rawEnd).toLocaleDateString('en-CA',{year:'numeric',month:'long',day:'numeric'})
+    : null
+
   async function cancel(){
     setCancelling(true)
-    await new Promise(r=>setTimeout(r,1200))
+    const{error}=await supabase
+      .from('subscriptions')
+      .update({status:'cancelled',cancel_at_period_end:true})
+      .eq('workspace_id',workspace.id)
     setCancelling(false);setShowConfirm(false)
-    toast('A cancellation request has been sent. We will contact you shortly.')
+    if(error){toast('Something went wrong. Please try again.')}
+    else{toast(endDateFmt
+      ?`Subscription cancelled. Your access continues until ${endDateFmt}.`
+      :'Subscription cancelled.')}
   }
+
   return (
     <div className="card" style={{border:'1px solid rgba(192,57,43,.2)'}}>
       <div className="card-head">
@@ -152,7 +165,11 @@ function CancelSubscriptionCard({ toast, lang='en' }) {
           </button>
         ):(
           <div>
-            <div style={{fontSize:'.82rem',color:'var(--ink-2)',marginBottom:'1rem',lineHeight:1.6}}>Your account will remain active until the end of your current billing period.</div>
+            <div style={{fontSize:'.82rem',color:'var(--ink-2)',marginBottom:'1rem',lineHeight:1.6}}>
+              {endDateFmt
+                ?<>Your access continues until <strong>{endDateFmt}</strong>. After that, your account will be locked.</>
+                :'Your account will be locked at the end of the current period.'}
+            </div>
             <div style={{display:'flex',gap:'.6rem'}}>
               <button className="btn btn-secondary" style={{flex:1,justifyContent:'center'}} onClick={()=>setShowConfirm(false)}>{t(lang,'keep_plan')}</button>
               <button className="btn btn-sm" style={{flex:1,justifyContent:'center',color:'var(--red)',border:'1px solid rgba(192,57,43,.3)',background:'rgba(192,57,43,.06)',padding:'.5rem'}} onClick={cancel} disabled={cancelling}>
@@ -571,7 +588,7 @@ function SettingsPhoneNotifForm({ workspace, toast, refetch, lang='en' }) {
 }
 
 // ── SETTINGS ──────────────────────────────────────────────────────────────────
-export default function SettingsSection({ workspace, toast, refetch, theme, setTheme, session, ownerData, lang='en' }) {
+export default function SettingsSection({ workspace, toast, refetch, theme, setTheme, session, ownerData, lang='en', subscription }) {
   const [section,setSection]=useState(null)
   const uid=session?.user?.id||'guest'
   const [faithPref,setFaithPref]=useState(()=>localStorage.getItem(`org_faith_${uid}`)==='true')
@@ -611,7 +628,7 @@ export default function SettingsSection({ workspace, toast, refetch, theme, setT
       </div>
       <SettingsBusinessForm workspace={workspace} toast={toast} refetch={refetch} lang={lang}/>
       <div style={{height:1,background:'var(--border)',margin:'1.5rem 0'}}/>
-      <CancelSubscriptionCard toast={toast} lang={lang}/>
+      <CancelSubscriptionCard toast={toast} lang={lang} workspace={workspace} subscription={subscription}/>
     </div>
   )
   if(section==='appearance') return (
