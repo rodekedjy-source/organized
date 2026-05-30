@@ -1244,7 +1244,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .sb-active{color:var(--ink);font-weight:600;background:var(--gold-lt) !important}
 .sb-active .sb-icon{color:var(--gold)}
 .sb-icon{width:16px;height:16px;display:flex;flex-shrink:0}
-.sb-footer{padding:1rem 1.25rem;border-top:1px solid var(--border)}
+.sb-footer{padding:1rem 1.25rem;border-top:1px solid var(--border);position:sticky;bottom:0;background:var(--bg-card)}
 .sb-signout{width:100%;padding:.6rem;background:none;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-family:inherit;font-size:.82rem;color:var(--ink-3);transition:all .15s}
 .sb-signout:hover{background:var(--bg);color:var(--ink)}
 
