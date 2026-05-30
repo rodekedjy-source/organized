@@ -21,9 +21,9 @@ export function useWorkspace() {
     if (wsErr) { setError(wsErr.message); setLoading(false); return }
 
     if (!ws && !wsErr) {
-      if (retryCount.current < 3) {
+      if (retryCount.current < 2) {
         retryCount.current += 1
-        setTimeout(() => refresh(s ?? session), 1500)
+        setTimeout(() => refresh(s ?? session), 600)
       } else {
         retryCount.current = 0
         setWorkspace(null)
