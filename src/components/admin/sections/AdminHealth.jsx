@@ -47,7 +47,7 @@ export default function AdminHealth() {
     // Edge function count via admin-metrics
     let edgeFnCount = null
     try {
-      const { data: metricsData } = await supabase.functions.invoke('admin-metrics')
+      const { data: metricsData } = await supabase.functions.invoke('admin-metrics', { method: 'GET' })
       if (metricsData?.edge_function_count != null) {
         edgeFnCount = metricsData.edge_function_count
       } else if (metricsData?.functions != null) {
