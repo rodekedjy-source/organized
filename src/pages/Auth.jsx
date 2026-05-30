@@ -315,7 +315,7 @@ export default function Auth({ onAuth }) {
         }
       })
       // Laisser le temps au WorkspaceContext de fetch le workspace
-      await new Promise(r => setTimeout(r, 500))
+      await new Promise(r => setTimeout(r, 1200))
       const storedPlan = localStorage.getItem('plan_selected')
       if (storedPlan && wsInsert?.id) {
         await supabase.from('subscriptions').update({ plan: storedPlan }).eq('workspace_id', wsInsert.id)
