@@ -197,11 +197,19 @@ export default function Auth({ onAuth, onOnboarding }) {
           full_name: meta.full_name || meta.name || '',
           email:     session.user.email || '',
         }))
-        onOnboarding(true)
-        setOauthFlow(true)
-        setMode('signup')
-        setStep(3)
-        setTempSession(session)
+
+        const isOAuthCallback = window.location.search.includes('callback=true')
+          || session.user?.app_metadata?.provider !== 'email'
+
+        if (isOAuthCallback) {
+          onOnboarding(true)
+          setOauthFlow(true)
+          setMode('signup')
+          setStep(3)
+          setTempSession(session)
+        } else {
+          setChecking(false)
+        }
 
       } catch(err) {
         console.error('Auth init error:', err)
