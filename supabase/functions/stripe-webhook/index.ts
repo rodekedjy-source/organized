@@ -20,10 +20,12 @@ Deno.serve(async (req: Request) => {
     try {
       event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret);
     } catch {
+      console.log('Primary secret failed, trying connect secret...')
       // Si ça échoue, essayer avec le secret Connect
       try {
         event = await stripe.webhooks.constructEventAsync(body, signature, connectWebhookSecret);
       } catch (err) {
+        console.error('Both secrets failed. Signature:', signature?.substring(0, 50))
         console.error('Webhook signature verification failed:', err);
         return new Response('Webhook signature mismatch', { status: 400 });
       }
