@@ -23,7 +23,51 @@ Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
 
   try {
-    const { type, user_name, user_email, workspace_name, workspace_slug, created_at } = await req.json();
+    const { type, user_name, user_email, workspace_name, workspace_slug, created_at, access_until } = await req.json();
+
+    if (type === 'subscription_cancelled') {
+      const subject = `Your Organized. subscription has been cancelled`;
+      const html = `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#F0EDE8;font-family:Georgia,serif;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="padding:32px 16px;">
+    <tr><td align="center"><table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;">
+    <tr><td style="background:#1A0900;padding:24px 32px;border-radius:12px 12px 0 0;">
+    <p style="margin:0;font-size:22px;color:#C9A84C;font-family:Georgia,serif;">Organized.</p></td></tr>
+    <tr><td style="background:#fff;padding:36px 32px;">
+    <p style="margin:0 0 16px;font-size:16px;color:#1A0900;">Hi ${user_name || 'there'},</p>
+    <p style="margin:0 0 16px;font-size:15px;color:#444;line-height:1.75;">
+      Your Organized. subscription has been successfully cancelled.
+    </p>
+    <div style="background:#F8F6F2;border-radius:8px;padding:20px 24px;margin:16px 0;">
+      <p style="margin:0 0 8px;font-size:13px;color:#888;text-transform:uppercase;letter-spacing:0.5px;">What happens next</p>
+      <p style="margin:0;font-size:14px;color:#333;line-height:1.6;">
+        Your account remains fully active until <strong>${access_until}</strong>.<br/>
+        After that date, your account will be locked.
+      </p>
+    </div>
+    <p style="margin:16px 0 0;font-size:14px;color:#444;line-height:1.75;">
+      Changed your mind? You can reactivate your subscription at any time before your access ends.
+    </p>
+    <div style="margin:24px 0;text-align:center;">
+      <a href="https://beorganized.io/dashboard"
+         style="display:inline-block;padding:12px 28px;background:#1A0900;color:#C9A84C;
+                text-decoration:none;border-radius:8px;font-size:14px;font-family:Georgia,serif;">
+        Manage my account →
+      </a>
+    </div>
+    </td></tr>
+    <tr><td style="background:#F8F6F2;padding:20px 32px;border-radius:0 0 12px 12px;">
+    <p style="margin:0;font-size:12px;color:#BBB;">Powered by Organized.</p>
+    </td></tr></table></td></tr></table></body></html>`;
+
+      const res = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${RESEND_API_KEY}` },
+        body: JSON.stringify({ from: FROM, to: [user_email], subject, html }),
+      });
+      if (!res.ok) { const err = await res.text(); console.error('Cancel email error:', err); }
+      return new Response(JSON.stringify({ success: true }),
+        { headers: { ...cors, 'Content-Type': 'application/json' } });
+    }
 
     if (type !== 'new_user') {
       return new Response(JSON.stringify({ error: 'Unknown notification type' }), {

@@ -128,26 +128,38 @@ function getDailyEntry(arr){
 }
 
 // ── CANCEL SUBSCRIPTION CARD ──────────────────────────────────────────────────
-function CancelSubscriptionCard({ toast, lang='en', workspace, subscription }) {
-  const [showConfirm,setShowConfirm]=useState(false)
-  const [cancelling,setCancelling]=useState(false)
+function CancelSubscriptionCard({ toast, lang='en', workspace, subscription, ownerData, refetch }) {
+  const accessUntilDate = subscription?.trial_end || subscription?.current_period_end
+  const accessUntilFmt = accessUntilDate
+    ? new Date(accessUntilDate).toLocaleDateString('en-CA',{year:'numeric',month:'long',day:'numeric'})
+    : 'end of billing period'
 
-  const rawEnd = subscription?.trial_end || subscription?.current_period_end
-  const endDateFmt = rawEnd
-    ? new Date(rawEnd).toLocaleDateString('en-CA',{year:'numeric',month:'long',day:'numeric'})
-    : null
+  async function handleCancelSubscription() {
+    const confirmed = window.confirm(
+      `Your access continues until ${accessUntilFmt}. After that, your account will be locked. Cancel anyway?`
+    )
+    if (!confirmed) return
 
-  async function cancel(){
-    setCancelling(true)
     const{error}=await supabase
       .from('subscriptions')
       .update({status:'cancelled',cancel_at_period_end:true})
       .eq('workspace_id',workspace.id)
-    setCancelling(false);setShowConfirm(false)
-    if(error){toast('Something went wrong. Please try again.')}
-    else{toast(endDateFmt
-      ?`Subscription cancelled. Your access continues until ${endDateFmt}.`
-      :'Subscription cancelled.')}
+
+    if(error){toast('Could not cancel. Try again.');return}
+
+    supabase.functions.invoke('send-admin-notification',{
+      body:{
+        type:'subscription_cancelled',
+        user_name:ownerData?.full_name||workspace?.name,
+        user_email:ownerData?.email,
+        access_until:accessUntilFmt,
+      }
+    })
+
+    toast('Subscription cancelled. Your access continues until '+
+      (accessUntilDate?new Date(accessUntilDate).toLocaleDateString('en-CA'):'end of period'))
+
+    refetch()
   }
 
   return (
@@ -159,25 +171,9 @@ function CancelSubscriptionCard({ toast, lang='en', workspace, subscription }) {
         </div>
       </div>
       <div style={{padding:'1.25rem 1.4rem'}}>
-        {!showConfirm?(
-          <button className="btn btn-sm" style={{color:'var(--red)',border:'1px solid rgba(192,57,43,.3)',background:'rgba(192,57,43,.04)',justifyContent:'center',width:'100%',padding:'.7rem'}} onClick={()=>setShowConfirm(true)}>
-            {t(lang,'cancel_sub')}
-          </button>
-        ):(
-          <div>
-            <div style={{fontSize:'.82rem',color:'var(--ink-2)',marginBottom:'1rem',lineHeight:1.6}}>
-              {endDateFmt
-                ?<>Your access continues until <strong>{endDateFmt}</strong>. After that, your account will be locked.</>
-                :'Your account will be locked at the end of the current period.'}
-            </div>
-            <div style={{display:'flex',gap:'.6rem'}}>
-              <button className="btn btn-secondary" style={{flex:1,justifyContent:'center'}} onClick={()=>setShowConfirm(false)}>{t(lang,'keep_plan')}</button>
-              <button className="btn btn-sm" style={{flex:1,justifyContent:'center',color:'var(--red)',border:'1px solid rgba(192,57,43,.3)',background:'rgba(192,57,43,.06)',padding:'.5rem'}} onClick={cancel} disabled={cancelling}>
-                {cancelling?'Processing…':t(lang,'confirm_cancel')}
-              </button>
-            </div>
-          </div>
-        )}
+        <button className="btn btn-sm" style={{color:'var(--red)',border:'1px solid rgba(192,57,43,.3)',background:'rgba(192,57,43,.04)',justifyContent:'center',width:'100%',padding:'.7rem'}} onClick={handleCancelSubscription}>
+          {t(lang,'cancel_sub')}
+        </button>
       </div>
     </div>
   )
@@ -628,7 +624,7 @@ export default function SettingsSection({ workspace, toast, refetch, theme, setT
       </div>
       <SettingsBusinessForm workspace={workspace} toast={toast} refetch={refetch} lang={lang}/>
       <div style={{height:1,background:'var(--border)',margin:'1.5rem 0'}}/>
-      <CancelSubscriptionCard toast={toast} lang={lang} workspace={workspace} subscription={subscription}/>
+      <CancelSubscriptionCard toast={toast} lang={lang} workspace={workspace} subscription={subscription} ownerData={ownerData} refetch={refetch}/>
     </div>
   )
   if(section==='appearance') return (
