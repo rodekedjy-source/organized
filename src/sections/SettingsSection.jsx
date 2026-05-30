@@ -241,7 +241,13 @@ function SettingsBusinessForm({ workspace, toast, refetch, lang='en' }) {
     if(!workspace?.id){toast('Workspace not loaded.');return}
     setLoading(true);setSaved(false)
     const{error}=await updateBusinessProfile(workspace.id,form)
-    if(error)toast(`Error: ${error.message}`);else{setSaved(true);toast('Business profile saved.');if(refetch) await refetch()}
+    if(error){
+      console.error('Save error:',error)
+      toast('Error: '+error.message)
+      setLoading(false)
+      return
+    }
+    setSaved(true);toast('Saved');if(refetch) await refetch()
     setLoading(false)
   }
   const iS={border:'1px solid var(--border-2)',borderRadius:8,padding:'.55rem .85rem',fontSize:'.88rem',fontFamily:'inherit',color:'var(--ink)',background:'var(--surface)',outline:'none',transition:'border .15s',width:'100%'}
