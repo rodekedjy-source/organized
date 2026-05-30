@@ -236,7 +236,12 @@ function SettingsBusinessForm({ workspace, toast, refetch, lang='en' }) {
   const addrComplete=!hasAnyAddr||(form.address_street&&form.address_city&&form.address_postal)
   async function save(e){
     e.preventDefault()
-    if(!addrComplete){setAddrError('Please complete the address — street, city, and postal code are required.');return}
+    if(form.address_street || form.address_city || form.address_postal) {
+      if(!addrComplete){
+        setAddrError('Please complete the address — street, city, and postal code are required.')
+        return
+      }
+    }
     setAddrError('')
     if(!workspace?.id){toast('Workspace not loaded.');return}
     setLoading(true);setSaved(false)
