@@ -273,6 +273,17 @@ export default function Auth({ onAuth }) {
 
       const{data:{session}}=await supabase.auth.getSession()
       onAuth(session)
+      // fire and forget — ne bloque pas le navigate
+      supabase.functions.invoke('send-admin-notification', {
+        body: {
+          type: 'new_user',
+          user_name: form.full_name,
+          user_email: user.email,
+          workspace_name: form.business_name,
+          workspace_slug: slug,
+          created_at: new Date().toISOString(),
+        }
+      })
       // Laisser le temps au WorkspaceContext de fetch le workspace
       await new Promise(r => setTimeout(r, 500))
       navigate('/dashboard')
