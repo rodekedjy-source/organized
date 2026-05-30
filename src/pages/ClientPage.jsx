@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { cacheGet, cacheSet } from '../lib/cache'
 import { enrollFree } from '../api/offerings'
+import { fetchSubscription } from '../api/subscriptions'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONSTANTS
@@ -202,6 +203,7 @@ export default function ClientPage() {
   const [portfolio,    setPortfolio]    = useState([])
   const [loading,      setLoading]      = useState(true)
   const [notFound,     setNotFound]     = useState(false)
+  const [isPro,        setIsPro]        = useState(false)
 
   // ── Theme — driven by workspace.theme, no user override ──────────────────
   const [theme, setTheme] = useState('warm')   // default warm avoids dark flash on first paint
@@ -322,6 +324,9 @@ export default function ClientPage() {
         if (wsError) { console.error('Workspace fetch error:', wsError); if (!cancelled) { setNotFound(true); setLoading(false) }; return }
         if (!ws) { if (!cancelled) { setNotFound(true); setLoading(false) }; return }
         if (!cancelled) { setWorkspace(ws); cacheSet(cacheKey, ws, 60_000) }
+        const { data: sub } = await fetchSubscription(ws.id)
+        const proActive = sub?.plan === 'pro' && (sub?.status === 'active' || sub?.status === 'trialing') && (sub?.trial_end ? new Date(sub.trial_end) > new Date() : true)
+        if (!cancelled) setIsPro(proActive)
         const today = new Date().toISOString().split('T')[0]
         const cachedSvc  = cacheGet(`services:${ws.id}`)
         const cachedProd = cacheGet(`products:${ws.id}`)
@@ -970,7 +975,7 @@ export default function ClientPage() {
       {/* TAB BAR */}
       <div className="tab-bar-wrap">
         <div className="tab-bar">
-          {[{id:'book',label:'Book an Appointment'},{id:'shop',label:'Shop',hide:products.length===0},{id:'learn',label:'Learn',hide:offerings.length===0}].filter(t=>!t.hide).map(t=>(
+          {[{id:'book',label:'Book an Appointment'},{id:'shop',label:'Shop',hide:products.length===0||!isPro},{id:'learn',label:'Learn',hide:offerings.length===0||!isPro}].filter(t=>!t.hide).map(t=>(
             <button key={t.id} className={`tab-btn${activeTab===t.id?' active':''}`} onClick={()=>switchTab(t.id)}>
               {activeTab===t.id&&<span className="tab-dot"/>}{t.label}
             </button>

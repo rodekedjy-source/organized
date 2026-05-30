@@ -1168,7 +1168,8 @@ export default function Dashboard() {
       {/* MAIN */}
       <main className="main-content" style={{paddingBottom:'96px'}}>
         {(()=>{
-          const tabProps={workspace,toast,lang,session,ownerData,refetchWorkspace:fetchWorkspace,refetch:fetchWorkspace,theme,setTheme,setPage:navigateTo,subscription}
+          const isPro = subscription?.plan === 'pro' && (subscription?.status === 'active' || subscription?.status === 'trialing') && (subscription?.trial_end ? new Date(subscription.trial_end) > new Date() : true)
+          const tabProps={workspace,toast,lang,session,ownerData,refetchWorkspace:fetchWorkspace,refetch:fetchWorkspace,theme,setTheme,setPage:navigateTo,subscription,isPro}
           if(page==='settings' || page==='payments') return renderPage()
           return <>
             {activeTab==='booking' && <BookingTab {...tabProps}/>}

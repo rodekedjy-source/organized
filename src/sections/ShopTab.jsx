@@ -11,9 +11,20 @@ import BackBar              from './BackBar'
 export default function ShopTab(props) {
   const [subPage, setSubPage] = useState(null)
   const [refreshKey, setRefreshKey] = useState(0)
-  const { workspace, toast, refetch } = props
+  const { workspace, toast, refetch, isPro } = props
   const back    = () => { setRefreshKey(k => k + 1); setSubPage(null) }
   const goBack  = () => setRefreshKey(k => k + 1)
+
+  if (isPro === false) return (
+    <div style={{ textAlign: 'center', padding: '48px 24px' }}>
+      <p style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: 8 }}>Shop is a Pro feature</p>
+      <p style={{ color: '#888', marginBottom: 24, fontSize: '14px' }}>Upgrade to Pro to sell products and manage orders.</p>
+      <button style={{ background: '#1A0900', color: '#C9A84C', border: 'none', borderRadius: 8, padding: '12px 28px', fontSize: '14px', cursor: 'pointer' }}
+        onClick={() => window.location.href = '/dashboard?upgrade=true'}>
+        Upgrade to Pro →
+      </button>
+    </div>
+  )
 
   if (subPage === 'revenue')  return <><BackBar onBack={back} title="Revenue" /><div style={{paddingBottom:90}}><RevenuePageShop workspace={workspace} /></div></>
   if (subPage === 'orders')   return <><BackBar onBack={back} title="Orders" /><div style={{paddingBottom:90}}><OrderHistorySection key={refreshKey} workspace={workspace} toast={toast} onDetailBack={goBack} /></div></>
