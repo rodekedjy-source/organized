@@ -89,6 +89,8 @@ export async function updateBusinessProfile(workspaceId, fields) {
       learn_rating: fields.learn_rating || null,
     })
     .eq('id', workspaceId)
+    .select()
+    .single()
 }
 
 /**
