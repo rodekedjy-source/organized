@@ -135,14 +135,18 @@ export default function Auth({ onAuth }) {
   // OAuth callback handler — fires when redirected back from Google (?callback=true)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
+    console.log('[callback] params:', window.location.search)
     if (params.get('callback') === 'true') {
+      console.log('[callback] detected')
       supabase.auth.getSession().then(async ({ data: { session } }) => {
+        console.log('[callback] session:', session?.user?.email)
         if (session) {
           const { data: ws } = await supabase
             .from('workspaces')
             .select('id')
             .eq('user_id', session.user.id)
             .maybeSingle()
+          console.log('[callback] workspace:', ws)
           if (ws) {
             onAuth(session)
           } else {
