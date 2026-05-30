@@ -200,6 +200,7 @@ export default function Auth({ onAuth }) {
         setOauthFlow(true)
         setMode('signup')
         setStep(3)
+        setTempSession(session)
 
       } catch(err) {
         console.error('Auth init error:', err)
