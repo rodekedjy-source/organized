@@ -108,6 +108,7 @@ export default function Auth({ onAuth }) {
   const [forgotMode, setForgotMode] = useState(false)
   const [forgotSent, setForgotSent] = useState(false)
   const [oauthFlow,  setOauthFlow]  = useState(false)
+  const [tempSession, setTempSession] = useState(null)
   const [form, setForm] = useState({
     full_name:'', email:'', password:'', confirm_password:'',
     business_name:'', business_type:'',
@@ -150,7 +151,7 @@ export default function Auth({ onAuth }) {
           if (ws) {
             onAuth(session)
           } else {
-            onAuth(session)
+            setTempSession(session)
             setOauthFlow(true)
             setMode('signup')
             setStep(3)
@@ -308,7 +309,7 @@ export default function Auth({ onAuth }) {
       if(wsError) throw wsError
 
       const{data:{session}}=await supabase.auth.getSession()
-      onAuth(session)
+      onAuth(tempSession || session)
       // fire and forget — ne bloque pas le navigate
       supabase.functions.invoke('send-admin-notification', {
         body: {
