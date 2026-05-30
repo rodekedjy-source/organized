@@ -103,7 +103,7 @@ function DetailPanel({ ws, onAction, role }) {
     onAction(type, error)
   }
 
-  const isSuspended = ws.beta_suspended || !ws.is_published
+  const isSuspended = ws.beta_suspended
   const currentPlan = ws.plan || (ws.stripe_onboarded ? 'pro' : 'essential')
 
   return (
@@ -277,7 +277,8 @@ function DetailPanel({ ws, onAction, role }) {
 
 function StatusPill({ ws }) {
   if (ws.banned_permanently) return <span className="x-pill red">Banned</span>
-  if (ws.beta_suspended || !ws.is_published) return <span className="x-pill pnd">Suspended</span>
+  if (ws.beta_suspended) return <span className="x-pill pnd">Suspended</span>
+  if (!ws.is_published) return <span className="x-pill pnd">Unpublished</span>
   return <span className="x-pill act">Active</span>
 }
 
@@ -324,9 +325,10 @@ export default function AdminUsers({ onNavigate, role }) {
 
   if (loading) return <CenterSpinner />
 
-  const active    = workspaces.filter(w => w.is_published && !w.beta_suspended).length
-  const suspended = workspaces.filter(w => w.beta_suspended || !w.is_published).length
-  const banned    = workspaces.filter(w => w.banned_permanently).length
+  const active      = workspaces.filter(w => w.is_published && !w.beta_suspended && !w.banned_permanently).length
+  const unpublished = workspaces.filter(w => !w.is_published && !w.beta_suspended && !w.banned_permanently).length
+  const suspended   = workspaces.filter(w => w.beta_suspended && !w.banned_permanently).length
+  const banned      = workspaces.filter(w => w.banned_permanently).length
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -337,8 +339,11 @@ export default function AdminUsers({ onNavigate, role }) {
         <KpiCard label="Active" value={active}
           change={active > 0 ? `${Math.round(active / Math.max(workspaces.length, 1) * 100)}% of total` : '— None yet'}
           changeType={active > 0 ? 'up' : 'nn'} gold />
+        <KpiCard label="Unpublished" value={unpublished}
+          change={unpublished > 0 ? 'Not yet published' : '— None'}
+          changeType={unpublished > 0 ? 'wn' : 'nn'} />
         <KpiCard label="Suspended" value={suspended}
-          change={suspended > 0 ? 'Temp or beta suspended' : '— None'}
+          change={suspended > 0 ? 'Beta suspended' : '— None'}
           changeType={suspended > 0 ? 'wn' : 'nn'} />
         <KpiCard label="Banned" value={banned}
           change={banned > 0 ? 'Permanently banned' : '— None'}
