@@ -12,6 +12,7 @@ import AdminHealth   from '../components/admin/sections/AdminHealth'
 import AdminAudit    from '../components/admin/sections/AdminAudit'
 import AdminTheme    from '../components/admin/sections/AdminTheme'
 import AdminTeam     from '../components/admin/sections/AdminTeam'
+import AdminPlatform from '../components/admin/sections/AdminPlatform'
 import { useAdminAuth } from '../hooks/useAdminAuth'
 
 const SECTION_TITLES = {
@@ -23,6 +24,7 @@ const SECTION_TITLES = {
   audit:    'Audit Trail',
   theme:    'Theme',
   team:     'Team',
+  platform: 'Platform Settings',
 }
 
 function useClock() {
@@ -48,6 +50,7 @@ function ConsoleSections({ section, onNavigate, role }) {
     case 'audit':    return <AdminAudit />
     case 'theme':    return <AdminTheme />
     case 'team':     return <AdminTeam />
+    case 'platform': return <AdminPlatform />
     default:         return <AdminOverview onNavigate={onNavigate} />
   }
 }

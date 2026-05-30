@@ -124,6 +124,14 @@ export default function Auth({ onAuth }) {
     if (urlMode === 'login') { setMode('login'); setStep(1) }
   }, [])
 
+  // Store ?plan=pro or ?plan=essential in localStorage
+  useEffect(() => {
+    const plan = searchParams.get('plan')
+    if (plan === 'pro' || plan === 'essential') {
+      localStorage.setItem('plan_selected', plan)
+    }
+  }, [])
+
   function set(k,v){ setForm(f=>({...f,[k]:v})); setError('') }
 
   // ── Mount: check if a session already exists (OAuth callback) ──
@@ -259,7 +267,7 @@ export default function Auth({ onAuth }) {
         .replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'').slice(0,30)
         +'-'+Math.random().toString(36).slice(2,6)
 
-      const{error:wsError}=await supabase.from('workspaces').insert({
+      const{data:wsInsert,error:wsError}=await supabase.from('workspaces').insert({
         user_id:user.id, name:form.business_name,
         slug, workspace_type_id:wt?.id||null,
         address_street:  form.address_street||null,
@@ -268,7 +276,7 @@ export default function Auth({ onAuth }) {
         address_postal:  form.address_postal||null,
         address_country: form.address_country||'Canada',
         share_address:   form.share_address||false,
-      })
+      }).select('id').single()
       if(wsError) throw wsError
 
       const{data:{session}}=await supabase.auth.getSession()
@@ -286,6 +294,11 @@ export default function Auth({ onAuth }) {
       })
       // Laisser le temps au WorkspaceContext de fetch le workspace
       await new Promise(r => setTimeout(r, 500))
+      const storedPlan = localStorage.getItem('plan_selected')
+      if (storedPlan && wsInsert?.id) {
+        await supabase.from('subscriptions').update({ plan: storedPlan }).eq('workspace_id', wsInsert.id)
+        localStorage.removeItem('plan_selected')
+      }
       navigate('/dashboard')
     }catch(err){
       setError(err.message||'Something went wrong. Please try again.')

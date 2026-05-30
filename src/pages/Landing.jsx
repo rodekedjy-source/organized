@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { useEffect, useRef, useState } from 'react'
+import { supabase } from '../lib/supabase'
 
 function useReveal() {
   useEffect(() => {
@@ -733,9 +734,21 @@ export default function Landing() {
   const [sfTyping, setSfTyping] = useState(null)
   const [sfStarted, setSfStarted] = useState(false)
   const [activeVideo, setActiveVideo] = useState('booking')
+  const [onboardingOpen,   setOnboardingOpen]   = useState(true)
+  const [paymentsRequired, setPaymentsRequired] = useState(false)
+  const [waitlistEmail,    setWaitlistEmail]    = useState('')
+  const [waitlistSent,     setWaitlistSent]     = useState(false)
   const sfRef = useRef(null)
   const sfEndRef = useRef(null)
   useReveal()
+
+  useEffect(() => {
+    supabase.from('app_config').select('key, value').then(({ data: configs }) => {
+      if (!configs) return
+      setOnboardingOpen(configs.find(c => c.key === 'onboarding_open')?.value !== 'false')
+      setPaymentsRequired(configs.find(c => c.key === 'payments_required')?.value === 'true')
+    })
+  }, [])
 
   const t = COPY[lang]
   const activePlans = lang === 'en' ? plans : plans_fr
@@ -829,8 +842,24 @@ export default function Landing() {
             {t.hero_sub_end}
           </p>
           <div className="hero-actions">
-            <button className="btn-gold-lg" onClick={()=>navigate('/auth')}>{t.hero_cta}</button>
-            <button className="btn-ghost-lg" onClick={()=>document.getElementById('how')?.scrollIntoView({behavior:'smooth'})}>{t.hero_see}</button>
+            {!onboardingOpen ? (
+              waitlistSent ? (
+                <span className="btn-gold-lg" style={{cursor:'default',opacity:.8}}>✓ You're on the list</span>
+              ) : (
+                <form style={{display:'flex',gap:8}} onSubmit={e=>{e.preventDefault();if(waitlistEmail){supabase.from('waitlist').insert({email:waitlistEmail});setWaitlistSent(true)}}}>
+                  <input type="email" required value={waitlistEmail} onChange={e=>setWaitlistEmail(e.target.value)} placeholder="your@email.com" style={{padding:'0 16px',borderRadius:8,border:'1px solid rgba(201,168,76,.4)',background:'transparent',color:'#fff',fontSize:'0.95rem',width:220}}/>
+                  <button type="submit" className="btn-gold-lg" style={{whiteSpace:'nowrap'}}>Join waitlist</button>
+                </form>
+              )
+            ) : paymentsRequired ? (
+              <>
+                <button className="btn-gold-lg" onClick={()=>navigate('/auth?plan=essential')}>Essential $19/mo</button>
+                <button className="btn-ghost-lg" onClick={()=>navigate('/auth?plan=pro')}>Pro $39/mo</button>
+              </>
+            ) : (
+              <button className="btn-gold-lg" onClick={()=>navigate('/auth')}>Get started free</button>
+            )}
+            {onboardingOpen && <button className="btn-ghost-lg" onClick={()=>document.getElementById('how')?.scrollIntoView({behavior:'smooth'})}>{t.hero_see}</button>}
           </div>
           <p className="hero-note">{t.hero_note}</p>
         </div>
