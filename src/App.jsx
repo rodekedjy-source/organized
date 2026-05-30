@@ -28,7 +28,19 @@ export default function App() {
       .finally(() => setReady(true))
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => setSession(session ?? null)
+      async (event, session) => {
+        if (session && event === 'SIGNED_IN') {
+          const { data: ws } = await supabase
+            .from('workspaces')
+            .select('id')
+            .eq('user_id', session.user.id)
+            .maybeSingle()
+          if (!ws) {
+            setOnboarding(true)
+          }
+        }
+        setSession(session ?? null)
+      }
     )
     return () => subscription.unsubscribe()
   }, [])
