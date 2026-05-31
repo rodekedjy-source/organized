@@ -1,7 +1,7 @@
 {
   "redirects": [
     {
-      "source": "/:slug((?!book|track|enrollment|auth|x|legal|suspended|assets|favicon)[a-z0-9-]+)",
+      "source": "/:slug((?!book|track|enrollment|auth|x|dashboard|api|legal|suspended|assets|favicon)[a-z0-9-]+)",
       "destination": "/book/:slug",
       "permanent": false
     }
