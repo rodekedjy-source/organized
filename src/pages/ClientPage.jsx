@@ -351,7 +351,7 @@ export default function ClientPage() {
           if (!cachedProd && prod) cacheSet(`products:${ws.id}`,  prod, 120_000)
           if (!cachedOff  && offer) cacheSet(`offerings:${ws.id}`, offer, 120_000)
         }
-      } catch(e) { console.error(e) } finally { if (!cancelled) setLoading(false) }
+      } catch(e) { console.error(e) } finally { setLoading(false) }
     }
     fetchAll()
     return () => { cancelled = true }
