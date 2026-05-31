@@ -312,7 +312,7 @@ export default function ClientPage() {
   useEffect(() => {
     if (!slug) return
     let cancelled = false
-    const safetyTimeout = setTimeout(() => { setLoading(false) }, 5000)
+    const safetyTimeout = setTimeout(() => { setNotFound(true); setLoading(false) }, 5000)
     async function fetchAll() {
       setLoading(true); setNotFound(false)
       try {
