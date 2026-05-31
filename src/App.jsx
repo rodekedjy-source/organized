@@ -52,14 +52,12 @@ export default function App() {
     return () => subscription.unsubscribe()
   }, [])
 
-  if (!sessionChecked) return (
-    <div style={{
-      display:'flex', alignItems:'center', justifyContent:'center',
-      height:'100vh', background:'#F5F0E8',
-      fontFamily:'Georgia, serif', flexDirection:'column', gap:'12px'
-    }}>
-      <p style={{fontSize:'1.5rem', color:'#1A0900'}}>Organized.</p>
-      <p style={{fontSize:'0.85rem', color:'#999'}}>Loading your workspace...</p>
+  const isPublicRoute = ['/book/', '/track/', '/enrollment/', '/cancel/', '/review/', '/legal', '/suspended'].some(p => window.location.pathname.startsWith(p))
+
+  if (!sessionChecked && !isPublicRoute) return (
+    <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh',background:'#F5F0E8',fontFamily:'Georgia, serif',flexDirection:'column',gap:'12px'}}>
+      <p style={{fontSize:'1.5rem',color:'#1A0900'}}>Organized.</p>
+      <p style={{fontSize:'0.85rem',color:'#999'}}>Loading...</p>
     </div>
   )
 
