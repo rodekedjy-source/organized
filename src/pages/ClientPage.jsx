@@ -312,6 +312,7 @@ export default function ClientPage() {
   useEffect(() => {
     if (!slug) return
     let cancelled = false
+    const safetyTimeout = setTimeout(() => { setLoading(false) }, 5000)
     async function fetchAll() {
       setLoading(true); setNotFound(false)
       try {
@@ -354,7 +355,7 @@ if (wsError) { console.error('Workspace fetch error:', wsError); if (!cancelled)
       } catch(e) { console.error(e) } finally { setLoading(false) }
     }
     fetchAll()
-    return () => { cancelled = true }
+    return () => { clearTimeout(safetyTimeout); cancelled = true }
   }, [slug])
 
   // ── Realtime — live sync for workspace, services, products ────────────────
