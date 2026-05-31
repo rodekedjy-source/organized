@@ -321,6 +321,7 @@ export default function ClientPage() {
         const { data: ws, error: wsError } = await supabase.from('workspaces')
           .select('id,name,slug,tagline,bio,avatar_url,instagram,tiktok,phone,email,location,timezone,currency,is_published,theme,accepts_bookings,accepts_orders,offers_domicile,domicile_fee,domicile_radius_km,domicile_notes,address_visibility,neighborhood,address_street,address_city,address_province,address_postal,share_address,show_address_on_page,faq_settings,featured_product_id,featured_product_note,working_hours,deposit_required,deposit_type,deposit_value,review_requests_enabled,payment_mode,policy_enabled,policy_deposit_pct,policy_cancel_hours,policy_late_fee,policy_no_show_fee,policy_custom,policy_shop,policy_learn,stat_clients,stat_years,stat_rating,shop_advice,learn_graduates,learn_rating')
           .eq('slug', slug).eq('is_published', true).maybeSingle()
+        console.log('[ClientPage] fetch result:', { ws, wsError, slug })
         if (wsError) { console.error('Workspace fetch error:', wsError); if (!cancelled) { setNotFound(true); setLoading(false) }; return }
         if (!ws) { if (!cancelled) { setNotFound(true); setLoading(false) }; return }
         if (!cancelled) { setWorkspace(ws); cacheSet(cacheKey, ws, 60_000) }
@@ -351,7 +352,7 @@ export default function ClientPage() {
           if (!cachedProd && prod) cacheSet(`products:${ws.id}`,  prod, 120_000)
           if (!cachedOff  && offer) cacheSet(`offerings:${ws.id}`, offer, 120_000)
         }
-      } catch(e) { console.error(e) } finally { setLoading(false) }
+      } catch(e) { console.error(e) } finally { setLoading(false); console.log('[ClientPage] loading done, workspace:', ws?.name, 'notFound:', notFound) }
     }
     fetchAll()
     return () => { cancelled = true }
