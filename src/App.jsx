@@ -22,7 +22,10 @@ export default function App() {
   const [sessionChecked,  setSessionChecked]  = useState(false)
 
   useEffect(() => {
+    const timeout = setTimeout(() => setSessionChecked(true), 3000)
+
     supabase.auth.getSession().then(async ({ data: { session } }) => {
+      clearTimeout(timeout)
       if (session) {
         const { data: ws } = await supabase
           .from('workspaces').select('id')
@@ -57,7 +60,6 @@ export default function App() {
   if (!sessionChecked && !isPublicRoute) return (
     <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh',background:'#F5F0E8',fontFamily:'Georgia, serif',flexDirection:'column',gap:'12px'}}>
       <p style={{fontSize:'1.5rem',color:'#1A0900'}}>Organized.</p>
-      <p style={{fontSize:'0.85rem',color:'#999'}}>Loading...</p>
     </div>
   )
 
