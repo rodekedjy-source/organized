@@ -1143,7 +1143,7 @@ export default function Dashboard() {
         <div className="sb-footer">
           {workspace?.slug&&(
             <a
-              href={`${window.location.origin}/${workspace.slug}`}
+              href={`https://beorganized.io/book/${workspace.slug}`}
               target="_blank"
               rel="noopener noreferrer"
               style={{display:'block',marginBottom:'.65rem',padding:'.75rem .9rem',background:'var(--gold-lt)',border:'1px solid var(--gold-dim)',borderRadius:12,cursor:'pointer',textDecoration:'none'}}
@@ -1154,7 +1154,7 @@ export default function Dashboard() {
                 </div>
                 <svg viewBox="0 0 12 12" fill="none" stroke="var(--gold)" strokeWidth="1.5" width="10" height="10"><path d="M2 10L10 2M10 2H5M10 2v5"/></svg>
               </div>
-              <div style={{fontSize:'.8rem',color:'var(--ink)',fontWeight:600,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>beorganized.io/{workspace.slug}</div>
+              <div style={{fontSize:'.8rem',color:'var(--ink)',fontWeight:600,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>beorganized.io/book/{workspace.slug}</div>
               <div style={{marginTop:6,height:3,background:'rgba(0,0,0,.08)',borderRadius:10,overflow:'hidden'}}>
                 <div style={{height:'100%',width:subscription?.plan?'100%':'35%',background:'linear-gradient(90deg,#a8863d,var(--gold))',borderRadius:10,transition:'width .6s ease'}}/>
               </div>
