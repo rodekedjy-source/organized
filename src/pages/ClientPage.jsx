@@ -2,6 +2,7 @@ import { useRef, useState, useEffect, useLayoutEffect, useCallback } from 'react
 import { useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { enrollFree } from '../api/offerings'
+import { fetchSubscription } from '../api/subscriptions'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONSTANTS
@@ -109,16 +110,43 @@ const TEMPLATES = {
 // ─────────────────────────────────────────────────────────────────────────────
 // FAQ BUILDER
 // ─────────────────────────────────────────────────────────────────────────────
-function buildFAQ(workspace, services) {
+function generateFAQ(workspace) {
   if (!workspace) return []
-  const faq = workspace.faq_settings || {}, items = []
-  const depositSvcs = services.filter(s => Number(s.deposit_amount) > 0)
-  if (depositSvcs.length > 0) items.push({q:'Is a deposit required?',a:`Yes, a deposit of $${depositSvcs[0].deposit_amount} is required. It is collected at the studio and applied to your total. Non-refundable for cancellations under ${faq.cancellation_hours||48} hours.`})
-  items.push({q:'Can I cancel or reschedule?',a:`You can cancel or reschedule up to ${faq.cancellation_hours||48} hours before your appointment at no charge. Use the link in your confirmation email.`})
-  if (workspace.offers_domicile) items.push({q:'Do you offer home visits?',a:`Yes, within ${workspace.domicile_radius_km||25} km for an additional fee of $${workspace.domicile_fee||45}. Space requirements apply.`})
-  items.push({q:'Do you work with all hair types?',a: faq.hair_types?.length ? `Yes — ${faq.hair_types.join(', ')} textures are welcome. Every session begins with a consultation.` : 'Yes, all hair types and textures are welcome. Every session begins with a consultation.'})
-  items.push({q:'How should I prepare?',a: faq.prep_notes || 'Come with clean, dry hair. Bring reference photos if you have them. Avoid heavy styling products the day of your appointment.'})
-  return items.slice(0,5)
+  const faqs = []
+
+  faqs.push({ question: 'How do I book an appointment?', answer: 'Select your service, choose an available time slot, and confirm your booking directly on this page.' })
+
+  if (workspace.deposit_required === true && workspace.deposit_value > 0) {
+    faqs.push({ question: 'Do you require a deposit to book?', answer: `Yes, a $${workspace.deposit_value} deposit is required.` })
+  } else {
+    faqs.push({ question: 'Do you require a deposit to book?', answer: 'No deposit required. Your spot is confirmed upon booking.' })
+  }
+
+  if (workspace.policy_cancel_hours) {
+    faqs.push({ question: 'Can I cancel or reschedule?', answer: `You can cancel or reschedule free of charge up to ${workspace.policy_cancel_hours} hours before your appointment.` })
+  }
+
+  if (workspace.policy_no_show_fee) {
+    faqs.push({ question: 'What happens if I miss my appointment?', answer: 'In case of no-show, your deposit is non-refundable.' })
+  }
+
+  if (workspace.policy_late_fee) {
+    faqs.push({ question: 'What if I arrive late?', answer: 'A late arrival fee may apply. Please contact us if you are running behind.' })
+  }
+
+  if (workspace.offers_domicile) {
+    faqs.push({ question: 'Do you offer mobile services?', answer: `Yes! We travel to you${workspace.domicile_radius_km ? ` within ${workspace.domicile_radius_km} km` : ''}.${workspace.domicile_fee ? ` A travel fee of $${workspace.domicile_fee} applies.` : ''}` })
+  }
+
+  if (workspace.policy_custom?.trim()) {
+    faqs.push({ question: 'Are there any additional terms?', answer: workspace.policy_custom.trim() })
+  }
+
+  if (Array.isArray(workspace.faq_settings) && workspace.faq_settings.length > 0) {
+    return workspace.faq_settings
+  }
+
+  return faqs
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -174,6 +202,7 @@ export default function ClientPage() {
   const [portfolio,    setPortfolio]    = useState([])
   const [loading,      setLoading]      = useState(true)
   const [notFound,     setNotFound]     = useState(false)
+  const [isPro,        setIsPro]        = useState(false)
 
   // ── Theme — driven by workspace.theme, no user override ──────────────────
   const [theme, setTheme] = useState('warm')   // default warm avoids dark flash on first paint
@@ -213,6 +242,7 @@ export default function ClientPage() {
   const [shopFilter,     setShopFilter]     = useState('all')
   const [learnFilter,    setLearnFilter]    = useState('all')
 
+
   // ── Enrollment state ──────────────────────────────────────────────────────
   const [enrollOpen,      setEnrollOpen]      = useState(false)
   const [enrollOffering,  setEnrollOffering]  = useState(null)
@@ -243,6 +273,8 @@ export default function ClientPage() {
   const [checkoutPhone,      setCheckoutPhone]      = useState('')
   const [checkoutAgreed,     setCheckoutAgreed]     = useState(false)
   const [postalError,        setPostalError]        = useState('')
+  const [shopPolicyOpen,     setShopPolicyOpen]     = useState(false)
+  const [learnPolicyOpen,    setLearnPolicyOpen]    = useState(false)
   const [cardholderName,     setCardholderName]     = useState('')
   const checkoutStripeRef   = useRef(null)
   const checkoutElementsRef = useRef(null)
@@ -282,11 +314,15 @@ export default function ClientPage() {
     async function fetchAll() {
       setLoading(true); setNotFound(false)
       try {
-        const { data: ws } = await supabase.from('workspaces')
-          .select('id,name,slug,tagline,bio,avatar_url,instagram,tiktok,phone,email,location,timezone,currency,is_published,theme,accepts_bookings,accepts_orders,offers_domicile,domicile_fee,domicile_radius_km,domicile_notes,address_visibility,neighborhood,address_street,address_city,address_province,address_postal,share_address,show_address_on_page,faq_settings,featured_product_id,featured_product_note,working_hours,deposit_required,deposit_type,deposit_value,review_requests_enabled,payment_mode,policy_enabled,policy_deposit_pct,policy_cancel_hours,policy_late_fee,policy_no_show_fee,policy_custom')
+        const { data: ws, error: wsError } = await supabase.from('workspaces')
+          .select('id,name,slug,tagline,bio,avatar_url,instagram,tiktok,phone,email,location,timezone,currency,is_published,theme,accepts_bookings,accepts_orders,offers_domicile,domicile_fee,domicile_radius_km,domicile_notes,address_visibility,neighborhood,address_street,address_city,address_province,address_postal,share_address,show_address_on_page,faq_settings,featured_product_id,featured_product_note,working_hours,deposit_required,deposit_type,deposit_value,review_requests_enabled,payment_mode,policy_enabled,policy_deposit_pct,policy_cancel_hours,policy_late_fee,policy_no_show_fee,policy_custom,policy_shop,policy_learn,stat_clients,stat_years,stat_rating,shop_advice,learn_graduates,learn_rating')
           .eq('slug', slug).eq('is_published', true).maybeSingle()
+        if (wsError) { console.error('Workspace fetch error:', wsError); if (!cancelled) { setNotFound(true); setLoading(false) }; return }
         if (!ws) { if (!cancelled) { setNotFound(true); setLoading(false) }; return }
         if (!cancelled) setWorkspace(ws)
+        const { data: sub } = await fetchSubscription(ws.id)
+        const proActive = sub?.plan === 'pro' && (sub?.status === 'active' || sub?.status === 'trialing') && (sub?.trial_end ? new Date(sub.trial_end) > new Date() : true)
+        if (!cancelled) setIsPro(proActive)
         const today = new Date().toISOString().split('T')[0]
         const [
           {data:svc},{data:avail},{data:blk},{data:prod},{data:offer},{data:rev},{data:port}
@@ -295,7 +331,7 @@ export default function ClientPage() {
           supabase.from('availability').select('day_of_week,is_open,open_time,close_time').eq('workspace_id',ws.id).order('day_of_week',{ascending:true}),
           supabase.from('blocked_dates').select('blocked_date').eq('workspace_id',ws.id).gte('blocked_date',today),
           supabase.from('products').select('id,name,description,price,currency,stock,image_url,images,discount_price,discount_ends_at').eq('workspace_id',ws.id).eq('is_active',true).is('deleted_at',null).order('created_at',{ascending:false}),
-          supabase.from('offerings').select('id,title,description,price,currency,duration_label,format,max_students,is_active,type,content_url,content_type,files,workshop_date,workshop_location,spots_total,spots_taken').eq('workspace_id',ws.id).eq('is_active',true).is('deleted_at',null).order('created_at',{ascending:false}),
+          supabase.from('offerings').select('id,title,description,price,currency,duration_label,format,max_students,is_active,type,content_url,content_type,files,workshop_date,workshop_location,spots_total,spots_taken,waitlist_enabled').eq('workspace_id',ws.id).eq('is_active',true).is('deleted_at',null).order('created_at',{ascending:false}),
           supabase.from('reviews').select('reviewer_name,rating,body,service_label,service_name,created_at').eq('workspace_id',ws.id).eq('is_visible',true).eq('is_approved',true).order('created_at',{ascending:false}).limit(12),
           supabase.from('portfolio_photos').select('id,url,caption,display_order').eq('workspace_id',ws.id).order('display_order',{ascending:true}),
         ])
@@ -305,7 +341,7 @@ export default function ClientPage() {
           setProducts(prod||[]); setOfferings(offer||[])
           setReviews(rev||[]); setPortfolio(port||[])
         }
-      } catch(e) { console.error(e); if (!cancelled) setNotFound(true) } finally { if (!cancelled) setLoading(false) }
+      } catch(e) { console.error(e) } finally { setLoading(false) }
     }
     fetchAll()
     return () => { cancelled = true }
@@ -378,11 +414,11 @@ export default function ClientPage() {
           s.onload = res; s.onerror = rej; document.head.appendChild(s)
         })
       }
-      const pk = import.meta.env.VITE_STRIPE_PK
+      const pk = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY
       if (!pk) { setBkPaymentErr('Payment not configured. Please contact the studio directly.'); setBkPaymentLoading(false); return }
       stripeRef.current = window.Stripe(pk)
-      const { data, error } = await supabase.functions.invoke('create-payment-intent', {
-        body: { workspace_id: workspace.id, amount: depositAmt, currency: workspace.currency?.toLowerCase()||'cad', client_name: `${bkForm.fname} ${bkForm.lname}`, client_email: bkForm.email, description: `Deposit — ${bkService.name}` }
+      const { data, error } = await supabase.functions.invoke('create-checkout-payment-intent', {
+        body: { workspace_id: workspace.id, order_type: 'booking', item_id: bkService.id, currency: workspace.currency?.toLowerCase() || 'cad', client_name: `${bkForm.fname} ${bkForm.lname}`, client_email: bkForm.email, item_name: bkService.name }
       })
       if (error || !data?.client_secret) { setBkPaymentErr(data?.error || 'Could not initialize payment. Please try again.'); setBkPaymentLoading(false); return }
       setBkDepositPi(data)
@@ -472,6 +508,7 @@ export default function ClientPage() {
     }
   }
 
+  // ── Waitlist handler ──────────────────────────────────────────────────────
   // ── isEnrolled helper ─────────────────────────────────────────────────────
   function isEnrolled(offeringId) {
     try {
@@ -506,7 +543,7 @@ export default function ClientPage() {
           s.onload = res; s.onerror = rej; document.head.appendChild(s)
         })
       }
-      const pk = import.meta.env.VITE_STRIPE_PK
+      const pk = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY
       if (!pk) { setCheckoutError('Payment not configured. Contact the studio directly.'); return }
       checkoutStripeRef.current = window.Stripe(pk)
       const price = checkoutItem.type === 'product' && isDiscountActive(checkoutItem.item)
@@ -817,20 +854,37 @@ export default function ClientPage() {
   const featuredProduct = workspace?.featured_product_id ? products.find(p=>p.id===workspace.featured_product_id)||products[0] : products[0]
   const otherProducts   = products.filter(p=>p.id!==featuredProduct?.id)
   const avgRating       = reviews.length ? (reviews.reduce((s,r)=>s+r.rating,0)/reviews.length).toFixed(1) : null
-  const faqItems        = buildFAQ(workspace, services)
+  const faqItems        = generateFAQ(workspace)
   const mapsUrl         = workspace ? `https://maps.google.com/?q=${encodeURIComponent([workspace.address_street,workspace.address_city,workspace.address_province].filter(Boolean).join(', '))}` : '#'
   const mapAddress      = [workspace?.address_street,workspace?.address_city,workspace?.address_province,workspace?.address_postal].filter(Boolean).join(', ') || workspace?.location || ''
 
   // ─────────────────────────────────────────────────────────────────────────
   if (loading) return <div style={{minHeight:'100vh',background:'#080706',display:'flex',alignItems:'center',justifyContent:'center'}}><div style={{fontFamily:'Playfair Display,serif',fontSize:24,color:'#C9A84C'}}>Organized.</div></div>
   if (notFound) return <div style={{minHeight:'100vh',background:'#080706',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',color:'#F0EAE0',textAlign:'center',padding:32}}><div style={{fontFamily:'Playfair Display,serif',fontSize:64,color:'#C9A84C',lineHeight:1}}>404</div><div style={{fontFamily:'Playfair Display,serif',fontSize:24,marginTop:16}}>Profile not found</div><div style={{fontSize:14,color:'#9A8E7E',marginTop:8}}>This page does not exist or has not been published yet.</div></div>
-  if (!workspace) return <div style={{minHeight:'100vh',background:'#080706',display:'flex',alignItems:'center',justifyContent:'center'}}><div style={{fontFamily:'Playfair Display,serif',fontSize:24,color:'#C9A84C'}}>Organized.</div></div>
 
   // ── Hero content per tab ─────────────────────────────────────────────────
+  const wsStats = [
+    workspace.stat_clients ? [workspace.stat_clients, 'Clients'] : null,
+    workspace.stat_years   ? [workspace.stat_years,   'Years']   : null,
+    workspace.stat_rating  ? [workspace.stat_rating,  'Rating']  : null,
+  ].filter(Boolean)
+  const shopMinPrice = products.length > 0
+    ? Math.min(...products.map(p => Number(p.discount_price || p.price)).filter(n => !isNaN(n) && n > 0))
+    : null
+  const shopStats = [
+    [String(products.length), 'PRODUCTS'],
+    shopMinPrice ? [`$${shopMinPrice}+`, 'STARTING'] : null,
+    [workspace.shop_advice || 'Free', 'ADVICE'],
+  ].filter(Boolean)
+  const learnStats = [
+    [String(offerings.length), 'PROGRAMS'],
+    workspace.learn_graduates ? [workspace.learn_graduates, 'GRADUATES'] : null,
+    workspace.learn_rating    ? [workspace.learn_rating,    'RATING']    : null,
+  ].filter(Boolean)
   const HERO_CONTENT = {
-    book:  { tag:'Accepting New Clients', eyebrow:workspace.tagline||workspace.location||'Beauty Professional', bio:workspace.bio||'Expert beauty services — crafting confidence one appointment at a time.', stats:[['200+','Clients'],['10','Years'],['4.9','Rating']], ctas:['Book your Service','View our portfolio'], pills:['Color & Highlights','Precision Cut','Keratin Treatment'], edLabel:'Portfolio · Studio' },
-    shop:  { tag:'Studio Curated Products', eyebrow:`${workspace.name} · Hair & Beauty Edit`, bio:'Products personally tested and used in the studio. Every item on this shelf is a recommendation.', stats:[[String(products.length),'Products'],['$29+','Starting'],['Free','Advice']], ctas:['Browse Products','Open my Bag'], pills:['Hair Care','Styling','Treatment'], edLabel:'The Edit · Shop' },
-    learn: { tag:'Workshops & Online Courses', eyebrow:'Education · All Levels Welcome', bio:'From intensive in-person workshops to self-paced online programs — grow on your terms.', stats:[[String(offerings.length),'Programs'],['120+','Graduates'],['4.8','Rating']], ctas:['View Workshops','Browse Online'], pills:['In-Person','Online Courses','All Levels'], edLabel:'Knowledge · Learn' }
+    book:  { tag:'Accepting New Clients', eyebrow:workspace.tagline||workspace.location||'Beauty Professional', bio:workspace.bio||'Expert beauty services — crafting confidence one appointment at a time.', stats:wsStats, ctas:['Book your Service','View our portfolio'], pills:['Color & Highlights','Precision Cut','Keratin Treatment'], edLabel:'Portfolio · Studio' },
+    shop:  { tag:'Studio Curated Products', eyebrow:`${workspace.name} · Hair & Beauty Edit`, bio:'Products personally tested and used in the studio. Every item on this shelf is a recommendation.', stats:shopStats, ctas:['Browse Products','Open my Bag'], pills:['Hair Care','Styling','Treatment'], edLabel:'The Edit · Shop' },
+    learn: { tag:'Workshops & Online Courses', eyebrow:'Education · All Levels Welcome', bio:'From intensive in-person workshops to self-paced online programs — grow on your terms.', stats:learnStats, ctas:['View Workshops','Browse Online'], pills:['In-Person','Online Courses','All Levels'], edLabel:'Knowledge · Learn' }
   }
   const hc = HERO_CONTENT[activeTab] || HERO_CONTENT.book
   function switchTab(tab) {
@@ -868,14 +922,14 @@ export default function ClientPage() {
           })()}</h1>
           <div className={`hero-eyebrow${heroFading?' hero-fading':''}`}>{hc.eyebrow}</div>
           <p className={`hero-bio${heroFading?' hero-fading':''}`}>{hc.bio}</p>
-          <div className={`hero-stats${heroFading?' hero-fading':''}`}>
+          {hc.stats.length>0&&<div className={`hero-stats${heroFading?' hero-fading':''}`}>
             {hc.stats.map(([num,lbl],i)=>(
               <div key={i} className="stat-item">
                 <span className="stat-num">{num}</span>
                 <span className="stat-label">{lbl}</span>
               </div>
             ))}
-          </div>
+          </div>}
           <div className={`hero-cta-row${heroFading?' hero-fading':''}`}>
             <button className="cb-btn-primary" onClick={()=>document.querySelector('.tab-bar-wrap')?.scrollIntoView({behavior:'smooth'})}>{hc.ctas[0]}</button>
             <button className="cb-btn-ghost" onClick={()=>setPortfolioOpen(true)}>{hc.ctas[1]}</button>
@@ -911,7 +965,7 @@ export default function ClientPage() {
       {/* TAB BAR */}
       <div className="tab-bar-wrap">
         <div className="tab-bar">
-          {[{id:'book',label:'Book an Appointment'},{id:'shop',label:'Shop',hide:products.length===0},{id:'learn',label:'Learn',hide:offerings.length===0}].filter(t=>!t.hide).map(t=>(
+          {[{id:'book',label:'Book an Appointment'},{id:'shop',label:'Shop',hide:products.length===0||!isPro},{id:'learn',label:'Learn',hide:offerings.length===0||!isPro}].filter(t=>!t.hide).map(t=>(
             <button key={t.id} className={`tab-btn${activeTab===t.id?' active':''}`} onClick={()=>switchTab(t.id)}>
               {activeTab===t.id&&<span className="tab-dot"/>}{t.label}
             </button>
@@ -1022,9 +1076,9 @@ export default function ClientPage() {
               {faqItems.map((item,i)=>(
                 <div key={i} className="cb-faq-item">
                   <button className="cb-faq-q" onClick={()=>setOpenFAQ(openFAQ===i?null:i)}>
-                    <span>{item.q}</span><span className={`cb-faq-icon${openFAQ===i?' open':''}`}>+</span>
+                    <span>{item.question}</span><span className={`cb-faq-icon${openFAQ===i?' open':''}`}>+</span>
                   </button>
-                  {openFAQ===i&&<p className="cb-faq-a">{item.a}</p>}
+                  {openFAQ===i&&<p className="cb-faq-a">{item.answer}</p>}
                 </div>
               ))}
             </div>
@@ -1142,9 +1196,15 @@ export default function ClientPage() {
                   </div>
                   <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,paddingTop:12,borderTop:'1px solid var(--dark-4)'}}>
                     <div className="cb-offering-price" style={{fontSize:18}}>{isFree?'Free':`$${Number(o.price).toFixed(0)}`}</div>
-                    <button className="cb-enroll-btn" disabled={isFull} style={isFull?{opacity:.5,cursor:'default'}:{}} onClick={openEnroll}>
-                      {isFull?'Sold Out':'Reserve a Spot →'}
-                    </button>
+                    {isFull && o.waitlist_enabled ? (
+                      <button className="cb-enroll-btn" onClick={() => { window.location.href = `/book/${workspace.slug}/learn/${o.id}` }}>
+                        Join Waitlist →
+                      </button>
+                    ) : (
+                      <button className="cb-enroll-btn" disabled={isFull} style={isFull?{opacity:.5,cursor:'default'}:{}} onClick={openEnroll}>
+                        {isFull?'Sold Out':'Reserve a Spot →'}
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
@@ -1234,6 +1294,7 @@ export default function ClientPage() {
         const hasContent=pdfs.length>0||vids.length>0||!!od.content_url
         const enrolled=isEnrolled(od.id)
         const openEnroll=()=>{setOfferingDetail(null);setEnrollOffering(od);setEnrollForm({name:'',email:'',phone:''});setEnrollDone(false);setEnrollError('');setEnrollOpen(true)}
+        const openWaitlist=()=>{ window.location.href=`/book/${workspace.slug}/learn/${od.id}` }
         return(
           <div className="cb-overlay open" style={{overflowY:'auto',overflowX:'hidden'}}>
             {odLightboxImg&&<div className="od-img-lightbox" onClick={()=>setOdLightboxImg(null)}><img src={odLightboxImg} alt=""/></div>}
@@ -1264,8 +1325,10 @@ export default function ClientPage() {
               {/* b. CTA row */}
               <div className="od-cta-row">
                 <div className="od-price-large">{isFr?<em>Free</em>:`$${Number(od.price).toFixed(0)}`}</div>
-                <button className="od-enroll-btn" disabled={isFu} onClick={openEnroll}>
-                  {isFu?'Sold Out':isW?'Reserve a Spot →':isFr?'Get Access →':`Enroll — $${Number(od.price).toFixed(0)} →`}
+                <button className="od-enroll-btn"
+                  disabled={isFu && !od.waitlist_enabled}
+                  onClick={isFu && od.waitlist_enabled ? openWaitlist : openEnroll}>
+                  {isFu && od.waitlist_enabled ? 'Join Waitlist →' : isFu ? 'Sold Out' : isW ? 'Reserve a Spot →' : isFr ? 'Get Access →' : `Enroll — $${Number(od.price).toFixed(0)} →`}
                 </button>
               </div>
               {/* c. Type + spots row */}
@@ -1292,12 +1355,34 @@ export default function ClientPage() {
               <div style={{height:1,background:'var(--dark-4)',marginBottom:20}}/>
               {/* f. Description */}
               {od.description&&<><div className="od-section-label">About</div><p className="od-description">{od.description}</p></>}
-              {/* g. Policy */}
-              {workspace?.policy_enabled&&policyLines.length>0&&<>
-                <div className="od-section-label" style={{marginTop:8}}>Booking Policy</div>
-                {policyLines.map((line,i)=><div key={i} className="cb-policy-line">{line}</div>)}
-                <div style={{marginBottom:20}}/>
-              </>}
+              {/* g. Learn Policy */}
+              {(()=>{
+                const pl=workspace?.policy_learn
+                if(!pl&&!workspace?.policy_enabled) return null
+                const lines=[]
+                if(pl){
+                  if(pl.refund_type==='full_refund')    lines.push(`✓ Full refund available${pl.refund_days?` within ${pl.refund_days} days`:''}`)
+                  if(pl.refund_type==='store_credit')   lines.push(`✓ Store credit offered${pl.refund_days?` within ${pl.refund_days} days`:''}`)
+                  if(pl.refund_type==='no_refund')      lines.push('✗ All sales final — no refunds')
+                  if(pl.content_access==='lifetime')    lines.push('Lifetime access to course content')
+                  if(pl.content_access==='one_year')    lines.push('Access valid for 1 year')
+                  if(pl.content_access==='six_months')  lines.push('Access valid for 6 months')
+                  if(pl.content_access==='course_duration') lines.push('Access valid for the duration of the course')
+                  if(pl.prerequisites?.trim())          lines.push(`Prerequisites: ${pl.prerequisites.trim()}`)
+                  if(pl.issue_certificate)              lines.push('🎓 Certificate of completion included')
+                  if(pl.custom_notes?.trim())           pl.custom_notes.trim().split('\n').filter(Boolean).forEach(l=>lines.push(l))
+                }
+                return(
+                  <>
+                    <div className="od-section-label" style={{marginTop:8}}>Enrollment Policy</div>
+                    {lines.length>0
+                      ? lines.map((line,i)=><div key={i} className="cb-policy-line">{line}</div>)
+                      : <div className="cb-policy-line" style={{color:'var(--text-muted)',fontStyle:'italic'}}>Please contact the instructor for policy details.</div>
+                    }
+                    <div style={{marginBottom:20}}/>
+                  </>
+                )
+              })()}
               {/* h. Content gate */}
               {hasContent&&(enrolled?(
                 <div style={{marginBottom:20}}>
@@ -1422,7 +1507,8 @@ export default function ClientPage() {
         const coPrice = checkoutItem.type==='product'&&isDiscountActive(checkoutItem.item)
           ? Number(checkoutItem.item.discount_price) : Number(checkoutItem.item.price)
         const coName  = (checkoutItem.type==='product'||checkoutItem.type==='cart') ? checkoutItem.item.name : checkoutItem.item.title
-        const step1Valid = checkoutForm.name.trim()&&checkoutForm.email.trim()&&checkoutAddress.street.trim()&&checkoutAddress.city.trim()&&checkoutAddress.province.trim()&&checkoutAddress.postal.trim()&&checkoutAddress.country.trim()
+        const isEnrollment = checkoutItem.type === 'enrollment'
+        const step1Valid = checkoutForm.name.trim()&&checkoutForm.email.trim()&&(isEnrollment||(checkoutAddress.street.trim()&&checkoutAddress.city.trim()&&checkoutAddress.province.trim()&&checkoutAddress.postal.trim()&&checkoutAddress.country.trim()))
         return(
           <div className="cb-overlay open" style={{zIndex:950,background:'var(--body-bg,#FAF5EE)',overflowY:'auto',overflowX:'hidden'}}>
             {/* Header */}
@@ -1444,6 +1530,7 @@ export default function ClientPage() {
                   <input type="email" className="co-field" placeholder="Email address" required autoComplete="email" value={checkoutForm.email} onChange={e=>setCheckoutForm(f=>({...f,email:e.target.value}))}/>
                   <input type="tel" className="co-field" placeholder="Phone (optional)" autoComplete="tel" value={checkoutPhone} onChange={e=>setCheckoutPhone(e.target.value)}/>
 
+                  {!isEnrollment&&(<>
                   <div className="co-section-label">Shipping Address</div>
                   {/* Country selector */}
                   <div style={{display:'flex',gap:'.5rem',marginBottom:'.75rem'}}>
@@ -1497,6 +1584,7 @@ export default function ClientPage() {
                     }}
                   />
                   {postalError&&<div style={{color:'#E53E3E',fontSize:12,marginTop:4}}>⚠ {postalError}</div>}
+                  </>)}
 
                   {checkoutError&&<p style={{fontSize:12,color:'#e05c5c',margin:'4px 0 12px',lineHeight:1.5}}>{checkoutError}</p>}
                   <button className="co-pay-btn" style={{marginTop:8,opacity:(!step1Valid||checkoutSubmitting)?0.4:1}} disabled={!step1Valid||checkoutSubmitting} onClick={initCheckoutStripe}>
@@ -1508,25 +1596,44 @@ export default function ClientPage() {
                 {checkoutStep===2&&(<>
                   {/* Order summary */}
                   <div className="co-summary-card">
-                    <div className="co-summary-row">
-                      <span>{coName}</span>
-                      {checkoutItem.type==='product'&&<span>× {checkoutItem.quantity||1}</span>}
-                    </div>
-                    <div className="co-summary-row">
-                      <span>Unit price</span>
-                      <span>${coPrice.toFixed(2)}</span>
-                    </div>
-                    <div className="co-summary-row">
-                      <span>Subtotal</span>
-                      <span>${(coPrice*(checkoutItem.quantity||1)).toFixed(2)}</span>
-                    </div>
-                    <div className="co-summary-row">
-                      <span>Shipping</span>
-                      <span style={{color:'var(--text-muted)',fontStyle:'italic'}}>Calculated by studio</span>
-                    </div>
-                    <div className="co-summary-row co-summary-total">
-                      <span>Total</span>
-                      <span>${(coPrice*(checkoutItem.quantity||1)).toFixed(2)}</span>
+                    {checkoutItem.type==='cart'
+                      ? checkoutItem.items.map(item=>{
+                          const itemPrice = isDiscountActive(item) ? Number(item.discount_price) : Number(item.price)
+                          return (
+                            <div key={item.id} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 0',borderBottom:'1px solid var(--dark-4)'}}>
+                              <div style={{width:40,height:40,borderRadius:8,overflow:'hidden',flexShrink:0,background:'var(--dark-4)',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                                {(item.image_url||item.images?.[0])
+                                  ? <img src={item.image_url||item.images?.[0]} alt={item.name} style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+                                  : <span style={{fontSize:16,color:'var(--text-muted)'}}>✦</span>}
+                              </div>
+                              <div style={{flex:1}}>
+                                <div style={{fontSize:14,fontWeight:700,color:'var(--text)',lineHeight:1.3}}>{item.name}</div>
+                                <div style={{fontSize:12,color:'var(--text-muted)',marginTop:2}}>× {item.qty}</div>
+                              </div>
+                              <div style={{fontSize:14,color:'var(--gold)',fontWeight:600}}>${(itemPrice*item.qty).toFixed(2)}</div>
+                            </div>
+                          )
+                        })
+                      : (
+                          <div style={{display:'flex',alignItems:'center',gap:10,padding:'8px 0',borderBottom:'1px solid var(--dark-4)'}}>
+                            <div style={{width:40,height:40,borderRadius:8,overflow:'hidden',flexShrink:0,background:'var(--dark-4)',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                              {(checkoutItem.item.cover_image||checkoutItem.item.image_url||checkoutItem.item.images?.[0])
+                                ? <img src={checkoutItem.item.cover_image||checkoutItem.item.image_url||checkoutItem.item.images?.[0]} alt={checkoutItem.item.title||checkoutItem.item.name} style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+                                : <span style={{fontSize:12,fontWeight:700,color:'var(--gold)',letterSpacing:'.02em'}}>{(checkoutItem.item.title||checkoutItem.item.name||'').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}</span>}
+                            </div>
+                            <div style={{flex:1}}>
+                              <div style={{fontSize:14,fontWeight:700,color:'var(--text)',lineHeight:1.3}}>{checkoutItem.item.title||checkoutItem.item.name}</div>
+                              <div style={{fontSize:12,color:'var(--text-muted)',marginTop:2}}>× {checkoutItem.quantity||1}</div>
+                            </div>
+                            <div style={{fontSize:14,color:'var(--gold)',fontWeight:600}}>${(coPrice*(checkoutItem.quantity||1)).toFixed(2)}</div>
+                          </div>
+                        )
+                    }
+                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',paddingTop:10,marginTop:2}}>
+                      <span style={{fontWeight:700,fontSize:'.85rem',color:'var(--text)'}}>Total</span>
+                      <span style={{fontWeight:700,fontSize:'1rem',color:'var(--gold)'}}>
+                        ${checkoutItem.type==='cart' ? coPrice.toFixed(2) : (coPrice*(checkoutItem.quantity||1)).toFixed(2)}
+                      </span>
                     </div>
                   </div>
 
@@ -1538,7 +1645,10 @@ export default function ClientPage() {
                   {/* Policy checkbox */}
                   <label className="cb-policy-agree" style={{marginBottom:20}}>
                     <input type="checkbox" onChange={e=>setCheckoutAgreed(e.target.checked)} checked={checkoutAgreed}/>
-                    <span>I agree to the{' '}<span style={{color:'var(--accent)'}}>shop policy</span>{' '}and understand all sales are final unless otherwise stated.</span>
+                    {checkoutItem?.type==='enrollment'
+                      ? <span>I agree to the{' '}<button type="button" style={{background:'none',border:'none',color:'var(--accent)',cursor:'pointer',padding:0,fontFamily:'inherit',fontSize:'inherit',textDecoration:'underline',textDecorationColor:'rgba(var(--accent-rgb,.3))'}} onClick={e=>{e.preventDefault();setLearnPolicyOpen(true)}}>enrollment policy</button>{' '}and understand the refund terms.</span>
+                      : <span>I agree to the{' '}<button type="button" style={{background:'none',border:'none',color:'var(--accent)',cursor:'pointer',padding:0,fontFamily:'inherit',fontSize:'inherit',textDecoration:'underline',textDecorationColor:'rgba(var(--accent-rgb,.3))'}} onClick={e=>{e.preventDefault();setShopPolicyOpen(true)}}>shop policy</button>{' '}and understand all sales are final unless otherwise stated.</span>
+                    }
                   </label>
 
                   {checkoutError&&<p style={{fontSize:12,color:'#e05c5c',marginBottom:12,lineHeight:1.5}}>{checkoutError}</p>}
@@ -1564,6 +1674,96 @@ export default function ClientPage() {
           </div>
         )
       })()}
+
+      {/* ═══════════ SHOP POLICY MODAL ═══════════ */}
+      {shopPolicyOpen&&(
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.75)',zIndex:1000,display:'flex',alignItems:'flex-end',justifyContent:'center'}} onClick={()=>setShopPolicyOpen(false)}>
+          <div style={{background:'var(--body-bg,#FAF5EE)',borderRadius:'20px 20px 0 0',width:'100%',maxWidth:520,padding:'1.5rem 1.5rem 3rem',boxSizing:'border-box',maxHeight:'80vh',overflowY:'auto'}} onClick={e=>e.stopPropagation()}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1.25rem'}}>
+              <div style={{fontFamily:'Playfair Display,serif',fontSize:20,color:'var(--text)'}}>Shop Policy</div>
+              <button onClick={()=>setShopPolicyOpen(false)} style={{background:'none',border:'none',color:'var(--text-muted)',fontSize:22,cursor:'pointer',padding:0,lineHeight:1}}>✕</button>
+            </div>
+            {(()=>{
+              const policy=workspace?.policy_shop
+              if(!policy){
+                return <p style={{fontSize:14,color:'var(--text-muted)',margin:0}}>Please contact the seller for policy details.</p>
+              }
+              const lines=[]
+              if(policy.returns){
+                lines.push(`✓ Returns accepted within ${policy.return_days||14} days of delivery`)
+                lines.push(`Condition required: ${policy.return_condition==='unused_only'?'Unused/unopened items only':'Any condition'}`)
+              } else {
+                lines.push('✗ All sales final — no returns accepted')
+              }
+              if(policy.refund_type&&policy.refund_type!=='none'){
+                const refundLabel=policy.refund_type==='full'?'Full refund':policy.refund_type==='store_credit'?'Store credit':policy.refund_type
+                lines.push(`Refund: ${refundLabel} within ${policy.refund_days||5} business days`)
+              }
+              if(policy.processing_days){
+                lines.push(`Orders processed within ${policy.processing_days} business days before shipping`)
+              }
+              if(policy.shipping_fee==='free'){
+                lines.push('Free shipping on all orders')
+              } else if(policy.shipping_fee==='flat'){
+                lines.push(`Flat rate shipping: $${policy.flat_rate||0}`)
+              } else if(policy.shipping_fee==='calculated'){
+                lines.push('Shipping calculated at checkout')
+              }
+              if(policy.custom){
+                lines.push(policy.custom)
+              }
+              return(
+                <div>
+                  {lines.map((line,i)=>(
+                    <div key={i} style={{display:'flex',gap:8,padding:'8px 0',borderBottom:'1px solid #f0ebe3'}}>
+                      <span style={{color:'var(--accent-gold)'}}>—</span>
+                      <span style={{fontSize:14,color:'var(--text-primary)',lineHeight:1.5}}>{line}</span>
+                    </div>
+                  ))}
+                </div>
+              )
+            })()}
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════ LEARN POLICY MODAL ═══════════ */}
+      {learnPolicyOpen&&(
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.75)',zIndex:1000,display:'flex',alignItems:'flex-end',justifyContent:'center'}} onClick={()=>setLearnPolicyOpen(false)}>
+          <div style={{background:'var(--body-bg,#FAF5EE)',borderRadius:'20px 20px 0 0',width:'100%',maxWidth:520,padding:'1.5rem 1.5rem 3rem',boxSizing:'border-box',maxHeight:'80vh',overflowY:'auto'}} onClick={e=>e.stopPropagation()}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1.25rem'}}>
+              <div style={{fontFamily:'Playfair Display,serif',fontSize:20,color:'var(--text)'}}>Enrollment Policy</div>
+              <button onClick={()=>setLearnPolicyOpen(false)} style={{background:'none',border:'none',color:'var(--text-muted)',fontSize:22,cursor:'pointer',padding:0,lineHeight:1}}>✕</button>
+            </div>
+            {(()=>{
+              const pl=workspace?.policy_learn
+              if(!pl) return <p style={{fontSize:14,color:'var(--text-muted)',margin:0}}>Please contact the instructor for policy details.</p>
+              const lines=[]
+              if(pl.refund_type==='full_refund')   lines.push('✓ Full refund available'+(pl.refund_days?` within ${pl.refund_days} days`:''))
+              if(pl.refund_type==='store_credit')  lines.push('✓ Store credit offered'+(pl.refund_days?` within ${pl.refund_days} days`:''))
+              if(pl.refund_type==='no_refund')     lines.push('✗ All sales final — no refunds')
+              if(pl.content_access==='lifetime')   lines.push('Lifetime access to course content')
+              if(pl.content_access==='one_year')   lines.push('Access valid for 1 year')
+              if(pl.content_access==='six_months') lines.push('Access valid for 6 months')
+              if(pl.content_access==='course_duration') lines.push('Access for the duration of the course')
+              if(pl.prerequisites?.trim())         lines.push(`Prerequisites: ${pl.prerequisites.trim()}`)
+              if(pl.issue_certificate)             lines.push('🎓 Certificate of completion included')
+              if(pl.custom_notes?.trim())          pl.custom_notes.trim().split('\n').filter(Boolean).forEach(l=>lines.push(l))
+              if(lines.length===0) return <p style={{fontSize:14,color:'var(--text-muted)',margin:0}}>Please contact the instructor for policy details.</p>
+              return(
+                <div>
+                  {lines.map((line,i)=>(
+                    <div key={i} style={{display:'flex',gap:8,padding:'8px 0',borderBottom:'1px solid #f0ebe3'}}>
+                      <span style={{color:'var(--accent-gold)'}}>—</span>
+                      <span style={{fontSize:14,color:'var(--text-primary)',lineHeight:1.5}}>{line}</span>
+                    </div>
+                  ))}
+                </div>
+              )
+            })()}
+          </div>
+        </div>
+      )}
 
       {/* ═══════════ BOOKING OVERLAY ═══════════ */}
       <div className={`cb-overlay${bkOpen?' open':''}`}>
