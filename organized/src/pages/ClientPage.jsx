@@ -305,7 +305,7 @@ export default function ClientPage() {
           setProducts(prod||[]); setOfferings(offer||[])
           setReviews(rev||[]); setPortfolio(port||[])
         }
-      } catch(e) { console.error(e); if (!cancelled) setNotFound(true) } finally { if (!cancelled) setLoading(false) }
+      } catch(e) { console.error(e); if (!cancelled) setNotFound(true) } finally { setLoading(false) }
     }
     fetchAll()
     return () => { cancelled = true }
