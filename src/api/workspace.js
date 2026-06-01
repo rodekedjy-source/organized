@@ -1,5 +1,4 @@
 import { supabase } from '../lib/supabase'
-import { cacheInvalidatePrefix } from '../lib/cache'
 
 /**
  * Récupère le workspace et l'utilisateur associés à une session.
@@ -26,7 +25,6 @@ export async function fetchSubscription(workspaceId) {
  * Met à jour l'objectif de revenus mensuels.
  */
 export async function updateRevenueGoal(workspaceId, goal) {
-  cacheInvalidatePrefix('workspace:')
   return supabase
     .from('workspaces')
     .update({ monthly_revenue_goal: goal })
@@ -37,7 +35,6 @@ export async function updateRevenueGoal(workspaceId, goal) {
  * Publie ou dépublie la page publique du workspace.
  */
 export async function updatePublishedStatus(workspaceId, isPublished) {
-  cacheInvalidatePrefix('workspace:')
   return supabase
     .from('workspaces')
     .update({ is_published: isPublished })
@@ -48,7 +45,6 @@ export async function updatePublishedStatus(workspaceId, isPublished) {
  * Met à jour le thème de la page publique (light / dark).
  */
 export async function updateWorkspaceTheme(workspaceId, theme) {
-  cacheInvalidatePrefix('workspace:')
   return supabase
     .from('workspaces')
     .update({ theme })
@@ -59,7 +55,6 @@ export async function updateWorkspaceTheme(workspaceId, theme) {
  * Sauvegarde le profil business (nom, adresse, contact, réseaux sociaux, visites à domicile).
  */
 export async function updateBusinessProfile(workspaceId, fields) {
-  cacheInvalidatePrefix('workspace:')
   return supabase
     .from('workspaces')
     .update({
@@ -112,7 +107,6 @@ export async function updateLearnStats(workspaceId, fields) {
 }
 
 export async function updateFaqSettings(workspaceId, faqSettings) {
-  cacheInvalidatePrefix('workspace:')
   return supabase
     .from('workspaces')
     .update({ faq_settings: faqSettings })
@@ -120,7 +114,6 @@ export async function updateFaqSettings(workspaceId, faqSettings) {
 }
 
 export async function updateAutomationSettings(workspaceId, { reviewRequestsEnabled, googleReviewUrl, reviewDelayHours }) {
-  cacheInvalidatePrefix('workspace:')
   return supabase
     .from('workspaces')
     .update({
