@@ -241,8 +241,20 @@ export default function Auth({ onAuth }) {
     e.preventDefault();setError('')
     setLoading(true)
     try{
-      const{data:{user}}=await supabase.auth.getUser()
-      if(!user){setError('Session expired. Please sign in again.');setLoading(false);return}
+      // ÉTAPE A — Session en premier
+      const{data:{session}}=await supabase.auth.getSession()
+
+      // ÉTAPE B — Guard session manquante
+      if(!session){setError('Session expirée. Veuillez vous reconnecter.');setLoading(false);return}
+
+      // ÉTAPE C — Injecter le JWT dans le client local (force auth.uid() dispo pour RLS)
+      await supabase.auth.setSession({
+        access_token:session.access_token,
+        refresh_token:session.refresh_token,
+      })
+
+      // ÉTAPE D — User depuis la session
+      const user=session.user
 
       await supabase.from('users').upsert({
         id:user.id,
@@ -271,7 +283,6 @@ export default function Auth({ onAuth }) {
       })
       if(wsError) throw wsError
 
-      const{data:{session}}=await supabase.auth.getSession()
       onAuth(session)
       navigate('/dashboard')
     }catch(err){
