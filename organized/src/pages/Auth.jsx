@@ -284,7 +284,7 @@ export default function Auth({ onAuth }) {
       if(wsError) throw wsError
 
       onAuth(session)
-      navigate('/dashboard')
+      // navigate géré par onAuthStateChange dans App.jsx
     }catch(err){
       setError(err.message||'Something went wrong. Please try again.')
     }
