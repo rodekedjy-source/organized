@@ -28,7 +28,7 @@ export default function App() {
     return () => subscription.unsubscribe()
   }, [])
 
-  const isPublicRoute = ['/book/', '/track/', '/cancel/', '/review/', '/legal', '/enrollment/'].some(p =>
+  const isPublicRoute = ['/book/', '/track/', '/cancel/', '/review/', '/legal', '/enrollment/', '/auth'].some(p =>
     window.location.pathname.startsWith(p)
   )
   if (!ready && !isPublicRoute) return (
