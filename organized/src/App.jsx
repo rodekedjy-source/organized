@@ -28,7 +28,10 @@ export default function App() {
     return () => subscription.unsubscribe()
   }, [])
 
-  if (!ready) return (
+  const isPublicRoute = ['/book/', '/track/', '/cancel/', '/review/', '/legal', '/enrollment/'].some(p =>
+    window.location.pathname.startsWith(p)
+  )
+  if (!ready && !isPublicRoute) return (
     <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', background:'#0a0908' }}>
       <div style={{ fontFamily:"'Playfair Display', serif", fontSize:'1.5rem', color:'#C9A84C' }}>
         Organized<span style={{ color:'#F0EAE0' }}>.</span>
