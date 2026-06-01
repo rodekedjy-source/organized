@@ -1,5 +1,4 @@
 import { supabase } from '../lib/supabase'
-import { cacheInvalidate, cacheInvalidatePrefix } from '../lib/cache'
 
 /**
  * Récupère tous les produits d'un workspace, du plus récent au plus ancien.
@@ -26,7 +25,6 @@ export async function fetchProductIds(workspaceId) {
  * Crée un nouveau produit.
  */
 export async function insertProduct({ workspaceId, name, price, stock, description, images, discount_price, discount_ends_at }) {
-  cacheInvalidate(`products:${workspaceId}`)
   return supabase.from('products').insert({
     workspace_id: workspaceId,
     name,
@@ -44,7 +42,6 @@ export async function insertProduct({ workspaceId, name, price, stock, descripti
  * Met à jour un produit existant.
  */
 export async function updateProduct(id, { name, price, stock, description, images, discount_price, discount_ends_at }) {
-  cacheInvalidatePrefix('products:')
   return supabase
     .from('products')
     .update({
@@ -75,7 +72,6 @@ export async function setFeaturedProduct(workspaceId, productId) {
  * Supprime un produit.
  */
 export async function deleteProduct(id) {
-  cacheInvalidatePrefix('products:')
   return supabase
     .from('products')
     .delete()

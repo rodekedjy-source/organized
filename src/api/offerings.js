@@ -1,5 +1,4 @@
 import { supabase } from '../lib/supabase'
-import { cacheInvalidate, cacheInvalidatePrefix } from '../lib/cache'
 
 export async function getOfferingById(offeringId, workspaceId) {
   const query = supabase.from('offerings').select('*').eq('id', offeringId)
@@ -19,7 +18,6 @@ export async function fetchOfferings(workspaceId) {
 }
 
 export async function insertOffering(data) {
-  if (data?.workspace_id) cacheInvalidate(`offerings:${data.workspace_id}`)
   const { data: row, error } = await supabase
     .from('offerings')
     .insert({ ...data, is_active: true })
@@ -29,7 +27,6 @@ export async function insertOffering(data) {
 }
 
 export async function updateOffering(id, data) {
-  cacheInvalidatePrefix('offerings:')
   const { error } = await supabase
     .from('offerings')
     .update(data)
@@ -38,7 +35,6 @@ export async function updateOffering(id, data) {
 }
 
 export async function deleteOffering(id) {
-  cacheInvalidatePrefix('offerings:')
   const { error } = await supabase
     .from('offerings')
     .update({ deleted_at: new Date().toISOString(), is_active: false })
