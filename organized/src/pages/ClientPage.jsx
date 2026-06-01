@@ -220,7 +220,7 @@ export default function ClientPage() {
           setProducts(prod||[]); setOfferings(offer||[])
           setReviews(rev||[]); setPortfolio(port||[])
         }
-      } catch(e) { console.error(e) } finally { if (!cancelled) setLoading(false) }
+      } catch(e) { console.error(e); if (!cancelled) setNotFound(true) } finally { if (!cancelled) setLoading(false) }
     }
     fetchAll()
     return () => { cancelled = true }
@@ -352,6 +352,7 @@ export default function ClientPage() {
   // ─────────────────────────────────────────────────────────────────────────
   if (loading) return <div style={{minHeight:'100vh',background:'#080706',display:'flex',alignItems:'center',justifyContent:'center'}}><div style={{fontFamily:'Playfair Display,serif',fontSize:24,color:'#C9A84C'}}>Organized.</div></div>
   if (notFound) return <div style={{minHeight:'100vh',background:'#080706',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',color:'#F0EAE0',textAlign:'center',padding:32}}><div style={{fontFamily:'Playfair Display,serif',fontSize:64,color:'#C9A84C',lineHeight:1}}>404</div><div style={{fontFamily:'Playfair Display,serif',fontSize:24,marginTop:16}}>Profile not found</div><div style={{fontSize:14,color:'#9A8E7E',marginTop:8}}>This page does not exist or has not been published yet.</div></div>
+  if (!workspace) return <div style={{minHeight:'100vh',background:'#080706',display:'flex',alignItems:'center',justifyContent:'center'}}><div style={{fontFamily:'Playfair Display,serif',fontSize:24,color:'#C9A84C'}}>Organized.</div></div>
 
   // ── Hero content per tab ─────────────────────────────────────────────────
   const HERO_CONTENT = {
