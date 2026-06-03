@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useNavigate } from 'react-router-dom'
+import UpgradeModal from '../components/UpgradeModal'
+import { isSubscriptionActive } from '../api/subscriptions'
 import AppointmentsSection from '../sections/AppointmentsSection'
 import AvailabilitySection  from '../sections/AvailabilitySection'
 import ClientsSection       from '../sections/ClientsSection'
@@ -794,6 +796,7 @@ export default function Dashboard() {
   const [toastMsg,setToastMsg]=useState(null)
   const [theme,setThemeState]=useState(()=>localStorage.getItem('org-theme')||'light')
   const [subscription,setSubscription]=useState(null)
+  const [showPaywall,setShowPaywall]=useState(false)
   const [lang,setLang]=useState('en')
   const [pendingReviews,setPendingReviews]=useState(0)
   const [avatarExpanded,setAvatarExpanded]=useState(false)
@@ -829,6 +832,7 @@ export default function Dashboard() {
     if(ws?.id){
       const{data:sub}=await supabase.from('subscriptions').select('*').eq('workspace_id',ws.id).maybeSingle()
       setSubscription(sub)
+      if(!isSubscriptionActive(sub)) setShowPaywall(true)
     }
     setLoading(false)
     // Pending reviews badge
@@ -885,6 +889,8 @@ export default function Dashboard() {
   )
 
   const initials=(()=>{const n=ownerData?.full_name||firstName(workspace,session)||'';const parts=n.trim().split(' ');return parts.length>1?parts[0][0]+parts[1][0]:parts[0]?.[0]||'?'})()
+
+  if(showPaywall && workspace) return <UpgradeModal workspaceId={workspace.id} currentPlan={subscription?.plan} onSuccess={()=>setShowPaywall(false)}/>
 
   function renderPage(){
     const props={workspace,toast,lang,session,ownerData,refetchWorkspace:fetchWorkspace,refetch:fetchWorkspace,theme,setTheme,setPage:navigateTo,subscription}
