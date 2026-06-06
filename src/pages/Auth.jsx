@@ -166,6 +166,7 @@ export default function Auth({ onAuth, onOnboarding }) {
   // This is the RELIABLE way — getSession() works even if the SIGNED_IN
   // event fired before this component mounted (race condition).
   useEffect(() => {
+    const timeout = setTimeout(() => setChecking(false), 3000)
     const init = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession()
@@ -213,6 +214,7 @@ export default function Auth({ onAuth, onOnboarding }) {
       } catch(err) {
         console.error('Auth init error:', err)
       } finally {
+        clearTimeout(timeout)
         setChecking(false)
       }
     }
@@ -287,8 +289,20 @@ export default function Auth({ onAuth, onOnboarding }) {
     e.preventDefault();setError('')
     setLoading(true)
     try{
-      const{data:{user}}=await supabase.auth.getUser()
-      if(!user){setError('Session expired. Please sign in again.');setLoading(false);return}
+      // ÉTAPE A — Session en premier
+      const{data:{session}}=await supabase.auth.getSession()
+
+      // ÉTAPE B — Guard session manquante
+      if(!session){setError('Session expirée. Veuillez vous reconnecter.');setLoading(false);return}
+
+      // ÉTAPE C — Injecter le JWT dans le client local (force auth.uid() dispo pour RLS)
+      await supabase.auth.setSession({
+        access_token:session.access_token,
+        refresh_token:session.refresh_token,
+      })
+
+      // ÉTAPE D — User depuis la session
+      const user=session.user
 
       await supabase.from('users').upsert({
         id:user.id,
@@ -324,9 +338,9 @@ export default function Auth({ onAuth, onOnboarding }) {
           refresh_token: tempSession.refresh_token,
         })
       }
-      const{data:{session}}=await supabase.auth.getSession()
+      const{data:{session:freshSession}}=await supabase.auth.getSession()
       onOnboarding(false)
-      onAuth(tempSession || session)
+      onAuth(tempSession || freshSession)
       // fire and forget — ne bloque pas le navigate
       supabase.functions.invoke('send-admin-notification', {
         body: {
