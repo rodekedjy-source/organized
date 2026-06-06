@@ -24,7 +24,7 @@ export async function fetchProductIds(workspaceId) {
 /**
  * Crée un nouveau produit.
  */
-export async function insertProduct({ workspaceId, name, price, stock, description, images }) {
+export async function insertProduct({ workspaceId, name, price, stock, description, images, discount_price, discount_ends_at }) {
   return supabase.from('products').insert({
     workspace_id: workspaceId,
     name,
@@ -32,13 +32,16 @@ export async function insertProduct({ workspaceId, name, price, stock, descripti
     stock: parseInt(stock) || 0,
     description,
     images,
+    image_url: images?.[0] || null,
+    discount_price: discount_price || null,
+    discount_ends_at: discount_ends_at || null,
   })
 }
 
 /**
  * Met à jour un produit existant.
  */
-export async function updateProduct(id, { name, price, stock, description, images }) {
+export async function updateProduct(id, { name, price, stock, description, images, discount_price, discount_ends_at }) {
   return supabase
     .from('products')
     .update({
@@ -47,8 +50,22 @@ export async function updateProduct(id, { name, price, stock, description, image
       stock: parseInt(stock) || 0,
       description,
       images,
+      image_url: images?.[0] || null,
+      discount_price: discount_price || null,
+      discount_ends_at: discount_ends_at || null,
     })
     .eq('id', id)
+}
+
+/**
+ * Sets (or clears) the featured product on a workspace.
+ * Pass null as productId to unfeature.
+ */
+export async function setFeaturedProduct(workspaceId, productId) {
+  return supabase
+    .from('workspaces')
+    .update({ featured_product_id: productId })
+    .eq('id', workspaceId)
 }
 
 /**

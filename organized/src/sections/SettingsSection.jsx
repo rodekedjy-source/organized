@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { getWorkspaceSettings, upsertWorkspaceSettings } from '../api/workspaceSettings'
+import { updateBusinessProfile } from '../api/workspace'
 
 // ── I18N ──────────────────────────────────────────────────────────────────────
 const LANG = {
@@ -126,15 +128,40 @@ function getDailyEntry(arr){
 }
 
 // ── CANCEL SUBSCRIPTION CARD ──────────────────────────────────────────────────
-function CancelSubscriptionCard({ toast, lang='en' }) {
-  const [showConfirm,setShowConfirm]=useState(false)
-  const [cancelling,setCancelling]=useState(false)
-  async function cancel(){
-    setCancelling(true)
-    await new Promise(r=>setTimeout(r,1200))
-    setCancelling(false);setShowConfirm(false)
-    toast('A cancellation request has been sent. We will contact you shortly.')
+function CancelSubscriptionCard({ toast, lang='en', workspace, subscription, ownerData, refetch }) {
+  const accessUntilDate = subscription?.trial_end || subscription?.current_period_end
+  const accessUntilFmt = accessUntilDate
+    ? new Date(accessUntilDate).toLocaleDateString('en-CA',{year:'numeric',month:'long',day:'numeric'})
+    : 'end of billing period'
+
+  async function handleCancelSubscription() {
+    const confirmed = window.confirm(
+      `Your access continues until ${accessUntilFmt}. After that, your account will be locked. Cancel anyway?`
+    )
+    if (!confirmed) return
+
+    const{error}=await supabase
+      .from('subscriptions')
+      .update({status:'cancelled',cancel_at_period_end:true})
+      .eq('workspace_id',workspace.id)
+
+    if(error){toast('Could not cancel. Try again.');return}
+
+    supabase.functions.invoke('send-admin-notification',{
+      body:{
+        type:'subscription_cancelled',
+        user_name:ownerData?.full_name||workspace?.name,
+        user_email:ownerData?.email,
+        access_until:accessUntilFmt,
+      }
+    })
+
+    toast('Subscription cancelled. Your access continues until '+
+      (accessUntilDate?new Date(accessUntilDate).toLocaleDateString('en-CA'):'end of period'))
+
+    refetch()
   }
+
   return (
     <div className="card" style={{border:'1px solid rgba(192,57,43,.2)'}}>
       <div className="card-head">
@@ -144,21 +171,9 @@ function CancelSubscriptionCard({ toast, lang='en' }) {
         </div>
       </div>
       <div style={{padding:'1.25rem 1.4rem'}}>
-        {!showConfirm?(
-          <button className="btn btn-sm" style={{color:'var(--red)',border:'1px solid rgba(192,57,43,.3)',background:'rgba(192,57,43,.04)',justifyContent:'center',width:'100%',padding:'.7rem'}} onClick={()=>setShowConfirm(true)}>
-            {t(lang,'cancel_sub')}
-          </button>
-        ):(
-          <div>
-            <div style={{fontSize:'.82rem',color:'var(--ink-2)',marginBottom:'1rem',lineHeight:1.6}}>Your account will remain active until the end of your current billing period.</div>
-            <div style={{display:'flex',gap:'.6rem'}}>
-              <button className="btn btn-secondary" style={{flex:1,justifyContent:'center'}} onClick={()=>setShowConfirm(false)}>{t(lang,'keep_plan')}</button>
-              <button className="btn btn-sm" style={{flex:1,justifyContent:'center',color:'var(--red)',border:'1px solid rgba(192,57,43,.3)',background:'rgba(192,57,43,.06)',padding:'.5rem'}} onClick={cancel} disabled={cancelling}>
-                {cancelling?'Processing…':t(lang,'confirm_cancel')}
-              </button>
-            </div>
-          </div>
-        )}
+        <button className="btn btn-sm" style={{color:'var(--red)',border:'1px solid rgba(192,57,43,.3)',background:'rgba(192,57,43,.04)',justifyContent:'center',width:'100%',padding:'.7rem'}} onClick={handleCancelSubscription}>
+          {t(lang,'cancel_sub')}
+        </button>
       </div>
     </div>
   )
@@ -186,11 +201,11 @@ function SettingsProfileForm({ session, ownerData, toast, refetch, lang='en' }) 
 }
 
 function SettingsPasswordForm({ session, toast, lang='en' }) {
-  const [pw,setPw]=useState(''),[loading,setLoading]=useState(false)
+  const [pw,setPw]=useState(''),[loading,setLoading]=useState(false),[showPw,setShowPw]=useState(false)
   async function save(e){e.preventDefault();setLoading(true);const{error}=await supabase.auth.updateUser({password:pw});if(error)toast(`Error: ${error.message}`);else{toast('Confirmation link sent to your email.');setPw('')};setLoading(false)}
   return (
     <form onSubmit={save} className="card-body" style={{display:'flex',flexDirection:'column',gap:'1rem'}}>
-      <div className="field"><label>New password</label><input type="password" value={pw} onChange={e=>setPw(e.target.value)} placeholder="Minimum 8 characters" minLength={8} required/></div>
+      <div className="field"><label>New password</label><div style={{position:'relative'}}><input type={showPw?'text':'password'} value={pw} onChange={e=>setPw(e.target.value)} placeholder="Minimum 8 characters" minLength={8} required style={{paddingRight:'2.5rem'}}/><button type="button" onClick={()=>setShowPw(v=>!v)} style={{position:'absolute',right:'.6rem',top:'50%',transform:'translateY(-50%)',background:'none',border:'none',cursor:'pointer',fontSize:'1rem',lineHeight:1,color:'var(--ink-3)',padding:0}}>{showPw?'🙈':'👁'}</button></div></div>
       <div style={{fontSize:'.76rem',color:'var(--ink-3)',lineHeight:1.55,padding:'.6rem .85rem',background:'var(--bg)',borderRadius:8}}>A confirmation link will be sent to your email before the change takes effect.</div>
       <button type="submit" className="btn btn-primary" style={{justifyContent:'center',padding:'.75rem'}} disabled={loading}>{loading?t(lang,'saving'):t(lang,'update_pw')}</button>
     </form>
@@ -206,6 +221,9 @@ function SettingsBusinessForm({ workspace, toast, refetch, lang='en' }) {
     show_address_on_page:ws?.show_address_on_page||false,
     address_in_confirmations:ws?.address_in_confirmations!==false,
     email:ws?.email||'',phone:ws?.phone||'',instagram:ws?.instagram||'',tiktok:ws?.tiktok||'',
+    stat_clients:ws?.stat_clients||'',stat_years:ws?.stat_years||'',stat_rating:ws?.stat_rating||'',
+    shop_advice:ws?.shop_advice||'',
+    learn_graduates:ws?.learn_graduates||'',learn_rating:ws?.learn_rating||'',
     offers_domicile:ws?.offers_domicile||false,
     domicile_fee:ws?.domicile_fee||'45',
     domicile_radius_km:ws?.domicile_radius_km||25,
@@ -218,24 +236,23 @@ function SettingsBusinessForm({ workspace, toast, refetch, lang='en' }) {
   const addrComplete=!hasAnyAddr||(form.address_street&&form.address_city&&form.address_postal)
   async function save(e){
     e.preventDefault()
-    if(!addrComplete){setAddrError('Please complete the address — street, city, and postal code are required.');return}
+    if(form.address_street || form.address_city || form.address_postal) {
+      if(!addrComplete){
+        setAddrError('Please complete the address — street, city, and postal code are required.')
+        return
+      }
+    }
     setAddrError('')
     if(!workspace?.id){toast('Workspace not loaded.');return}
     setLoading(true);setSaved(false)
-    const{error}=await supabase.from('workspaces').update({
-      name:form.name,tagline:form.tagline,bio:form.bio,
-      address_street:form.address_street||null,address_city:form.address_city||null,
-      address_province:form.address_province||null,address_postal:form.address_postal||null,
-      address_country:form.address_country||'CA',
-      show_address_on_page:form.show_address_on_page,
-      address_in_confirmations:form.address_in_confirmations,
-      email:form.email,phone:form.phone,instagram:form.instagram,tiktok:form.tiktok,
-      offers_domicile:form.offers_domicile,
-      domicile_fee:form.offers_domicile?Number(form.domicile_fee)||45:null,
-      domicile_radius_km:form.offers_domicile?Number(form.domicile_radius_km)||25:null,
-      domicile_notes:form.offers_domicile?(form.domicile_notes||null):null
-    }).eq('id',workspace.id)
-    if(error)toast(`Error: ${error.message}`);else{setSaved(true);toast('Business profile saved.');if(refetch) await refetch()}
+    const{error}=await updateBusinessProfile(workspace.id,form)
+    if(error){
+      console.error('Save error:',error)
+      toast('Error: '+error.message)
+      setLoading(false)
+      return
+    }
+    setSaved(true);toast('Saved');if(refetch) await refetch()
     setLoading(false)
   }
   const iS={border:'1px solid var(--border-2)',borderRadius:8,padding:'.55rem .85rem',fontSize:'.88rem',fontFamily:'inherit',color:'var(--ink)',background:'var(--surface)',outline:'none',transition:'border .15s',width:'100%'}
@@ -297,6 +314,26 @@ function SettingsBusinessForm({ workspace, toast, refetch, lang='en' }) {
         <div style={{fontSize:'.68rem',fontWeight:600,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'.08em'}}>Social</div>
         <div className="field"><label>Instagram</label><input style={iS} value={form.instagram} onChange={e=>setForm(f=>({...f,instagram:e.target.value}))} onFocus={foc} onBlur={blu} placeholder="@yourstudio"/></div>
         <div className="field"><label>TikTok</label><input style={iS} value={form.tiktok} onChange={e=>setForm(f=>({...f,tiktok:e.target.value}))} onFocus={foc} onBlur={blu} placeholder="@yourstudio"/></div>
+        <div style={{height:1,background:'var(--border)',margin:'.15rem 0'}}/>
+        <div style={{fontSize:'.68rem',fontWeight:600,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'.08em'}}>Business Stats <span style={{fontWeight:400,textTransform:'none',letterSpacing:'normal',fontSize:'.72rem',color:'var(--ink-3)'}}>(optional — shown on your public page)</span></div>
+        <div style={{fontSize:'.65rem',color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'-.25rem'}}>Booking</div>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'.65rem'}}>
+          <div className="field"><label>Clients served</label><input style={iS} value={form.stat_clients} onChange={e=>setForm(f=>({...f,stat_clients:e.target.value}))} onFocus={foc} onBlur={blu} placeholder="200+"/></div>
+          <div className="field"><label>Years of exp.</label><input style={iS} value={form.stat_years} onChange={e=>setForm(f=>({...f,stat_years:e.target.value}))} onFocus={foc} onBlur={blu} placeholder="10"/></div>
+          <div className="field"><label>Rating</label><input style={iS} value={form.stat_rating} onChange={e=>setForm(f=>({...f,stat_rating:e.target.value}))} onFocus={foc} onBlur={blu} placeholder="4.9"/></div>
+        </div>
+        <div style={{fontSize:'.65rem',color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'-.25rem'}}>Shop</div>
+        <div className="field">
+          <label>Advice stat</label>
+          <input style={iS} value={form.shop_advice} onChange={e=>setForm(f=>({...f,shop_advice:e.target.value}))} onFocus={foc} onBlur={blu} placeholder="Free"/>
+          <div style={{fontSize:'.69rem',color:'var(--ink-3)',marginTop:'.2rem'}}>Products and starting price are tracked automatically</div>
+        </div>
+        <div style={{fontSize:'.65rem',color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'-.25rem'}}>Learn</div>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'.65rem'}}>
+          <div className="field"><label>Graduates</label><input style={iS} value={form.learn_graduates} onChange={e=>setForm(f=>({...f,learn_graduates:e.target.value}))} onFocus={foc} onBlur={blu} placeholder="120+"/></div>
+          <div className="field"><label>Rating</label><input style={iS} value={form.learn_rating} onChange={e=>setForm(f=>({...f,learn_rating:e.target.value}))} onFocus={foc} onBlur={blu} placeholder="4.9"/></div>
+        </div>
+        <div style={{fontSize:'.69rem',color:'var(--ink-3)',marginTop:'-.4rem'}}>Program count is tracked automatically</div>
         <div style={{height:1,background:'var(--border)',margin:'.15rem 0'}}/>
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
           <div>
@@ -411,6 +448,82 @@ function SettingsAutomationsForm({ workspace, toast, refetch, lang='en' }) {
   )
 }
 
+function SettingsNotificationsForm({ workspace, toast, refetch }) {
+  const [form, setForm] = useState({
+    sms_notifications_phone: workspace?.sms_notifications_phone || '',
+    sms_on_new_booking:      workspace?.sms_on_new_booking      ?? false,
+    sms_on_cancel:           workspace?.sms_on_cancel           ?? false,
+    sms_reminder_24h:        workspace?.sms_reminder_24h        ?? false,
+  })
+  useEffect(() => {
+    if (workspace) setForm({
+      sms_notifications_phone: workspace.sms_notifications_phone || '',
+      sms_on_new_booking:      workspace.sms_on_new_booking      ?? false,
+      sms_on_cancel:           workspace.sms_on_cancel           ?? false,
+      sms_reminder_24h:        workspace.sms_reminder_24h        ?? false,
+    })
+  }, [workspace?.id])
+  const [loading, setLoading] = useState(false), [saved, setSaved] = useState(false)
+  const iS = {border:'1px solid var(--border-2)',borderRadius:8,padding:'.55rem .85rem',fontSize:'.88rem',fontFamily:'inherit',color:'var(--ink)',background:'var(--surface)',outline:'none',transition:'border .15s',width:'100%'}
+  const foc = e => e.target.style.borderColor='var(--gold)'
+  const blu = e => e.target.style.borderColor='var(--border-2)'
+
+  async function save() {
+    if (!workspace?.id) return
+    setLoading(true); setSaved(false)
+    const { error } = await supabase.from('workspaces').update({
+      sms_notifications_phone: form.sms_notifications_phone.trim() || null,
+      sms_on_new_booking:      form.sms_on_new_booking,
+      sms_on_cancel:           form.sms_on_cancel,
+      sms_reminder_24h:        form.sms_reminder_24h,
+    }).eq('id', workspace.id)
+    if (error) toast(`Error: ${error.message}`)
+    else { setSaved(true); toast('Notification preferences saved.'); if (refetch) await refetch() }
+    setLoading(false)
+  }
+
+  const Toggle = ({ field, label, sub }) => (
+    <div className="settings-row">
+      <div>
+        <div className="settings-row-label">{label}</div>
+        {sub && <div style={{fontSize:'.73rem',color:'var(--ink-3)',marginTop:2}}>{sub}</div>}
+      </div>
+      <label className="toggle-wrap">
+        <input type="checkbox" checked={form[field]} onChange={e => setForm(f => ({...f, [field]: e.target.checked}))}/>
+        <div className="toggle-track"/><div className="toggle-thumb"/>
+      </label>
+    </div>
+  )
+
+  return (
+    <div className="card">
+      <div className="card-body" style={{display:'flex',flexDirection:'column',gap:'1.1rem'}}>
+        <div className="field">
+          <label style={{fontSize:'.72rem',fontWeight:600,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'.08em',display:'block',marginBottom:'.4rem'}}>SMS Phone Number</label>
+          <input style={iS} type="tel" value={form.sms_notifications_phone}
+            onChange={e => setForm(f => ({...f, sms_notifications_phone: e.target.value}))}
+            onFocus={foc} onBlur={blu} placeholder="+1 (514) 000-0000"/>
+          <div style={{fontSize:'.72rem',color:'var(--ink-3)',marginTop:'.35rem'}}>Receive text alerts at this number. Leave empty to disable SMS.</div>
+        </div>
+        <div style={{height:1,background:'var(--border)'}}/>
+        <Toggle field="sms_on_new_booking" label="SMS on new booking received"   sub="Get a text when a client books an appointment"/>
+        <div style={{height:1,background:'var(--border)'}}/>
+        <Toggle field="sms_on_cancel"      label="SMS on booking cancelled"       sub="Get a text when a client cancels"/>
+        <div style={{height:1,background:'var(--border)'}}/>
+        <Toggle field="sms_reminder_24h"   label="SMS reminder 24h before"        sub="Daily digest of tomorrow's appointments"/>
+        <div style={{height:1,background:'var(--border)'}}/>
+        <div style={{background:'var(--bg)',borderRadius:10,border:'1px solid var(--border)',padding:'1rem'}}>
+          <div style={{fontSize:'.62rem',fontWeight:700,textTransform:'uppercase',letterSpacing:'.12em',color:'var(--gold)',marginBottom:'.5rem'}}>Email notifications</div>
+          <div style={{fontSize:'.78rem',color:'var(--ink-2)',lineHeight:1.55}}>Email confirmations are sent automatically for every new booking. Configure review request emails in <strong>Automations</strong>.</div>
+        </div>
+        <button className="btn btn-primary" style={{justifyContent:'center',padding:'.75rem'}} onClick={save} disabled={loading}>
+          {loading ? 'Saving…' : saved ? 'Saved ✓' : 'Save notifications'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function SettingsLanguageForm({ ownerData, toast, refetch, lang='en' }) {
   const [selectedLang,setSelectedLang]=useState(ownerData?.language||'en')
   const [saved,setSaved]=useState(false),[loading,setLoading]=useState(false)
@@ -432,8 +545,57 @@ function SettingsLanguageForm({ ownerData, toast, refetch, lang='en' }) {
   )
 }
 
+// ── PHONE + NOTIFICATION CHANNEL FORM ────────────────────────────────────────
+function SettingsPhoneNotifForm({ workspace, toast, refetch, lang='en' }) {
+  const [phone,setPhone]=useState(workspace?.phone||'')
+  const [channel,setChannel]=useState(workspace?.notification_channel||'email')
+  const [phoneErr,setPhoneErr]=useState(false)
+  const [loading,setLoading]=useState(false),[saved,setSaved]=useState(false)
+  const iS={border:'1px solid var(--border-2)',borderRadius:8,padding:'.55rem .85rem',fontSize:'.88rem',fontFamily:'inherit',color:'var(--ink)',background:'var(--surface)',outline:'none',transition:'border .15s',width:'100%'}
+  useEffect(()=>{if(workspace){setPhone(workspace.phone||'');setChannel(workspace.notification_channel||'email')}},[workspace?.id])
+  async function save(){
+    if(!phone.trim()){setPhoneErr(true);return}
+    setPhoneErr(false)
+    if(!workspace?.id)return
+    setLoading(true);setSaved(false)
+    const{error}=await supabase.from('workspaces').update({phone:phone.trim(),notification_channel:channel}).eq('id',workspace.id)
+    if(error)toast(`Error: ${error.message}`)
+    else{setSaved(true);toast('Contact & notifications saved.');if(refetch)await refetch()}
+    setLoading(false)
+  }
+  return (
+    <div className="card" style={{marginBottom:'1.25rem'}}>
+      <div className="card-head"><div className="card-title">Phone & Notifications</div></div>
+      <div className="card-body" style={{display:'flex',flexDirection:'column',gap:'1rem'}}>
+        <div className="field">
+          <label>Phone number <span style={{color:'var(--red)'}}>*</span></label>
+          <input style={{...iS,borderColor:phoneErr?'var(--red)':'var(--border-2)'}} type="tel" value={phone}
+            onChange={e=>{setPhone(e.target.value);setPhoneErr(false)}} placeholder="+1 (514) 000-0000"
+            onFocus={e=>e.target.style.borderColor='var(--gold)'}
+            onBlur={e=>e.target.style.borderColor=phoneErr?'var(--red)':'var(--border-2)'}/>
+          {phoneErr&&<div style={{fontSize:'.75rem',color:'var(--red)',marginTop:'.25rem'}}>Phone number is required.</div>}
+        </div>
+        <div>
+          <div style={{fontSize:'.72rem',fontWeight:600,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'.6rem'}}>Booking notification preference</div>
+          <div style={{display:'flex',flexDirection:'column',gap:'.45rem'}}>
+            {[{v:'email',label:'Email only'},{v:'sms',label:'SMS only'},{v:'both',label:'Email & SMS'}].map(opt=>(
+              <label key={opt.v} style={{display:'flex',alignItems:'center',gap:'.65rem',cursor:'pointer',padding:'.5rem .75rem',borderRadius:8,border:`1.5px solid ${channel===opt.v?'var(--gold)':'var(--border)'}`,background:channel===opt.v?'rgba(197,169,106,.06)':'var(--surface)',transition:'all .15s'}}>
+                <input type="radio" name="notif_channel" value={opt.v} checked={channel===opt.v} onChange={()=>setChannel(opt.v)} style={{accentColor:'var(--gold)',flexShrink:0}}/>
+                <span style={{fontSize:'.85rem',color:'var(--ink)',fontWeight:channel===opt.v?600:400}}>{opt.label}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+        <button className="btn btn-primary" style={{justifyContent:'center',padding:'.75rem'}} onClick={save} disabled={loading}>
+          {loading?t(lang,'saving'):saved?t(lang,'saved'):t(lang,'save')}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // ── SETTINGS ──────────────────────────────────────────────────────────────────
-export default function SettingsSection({ workspace, toast, refetch, theme, setTheme, session, ownerData, lang='en' }) {
+export default function SettingsSection({ workspace, toast, refetch, theme, setTheme, session, ownerData, lang='en', subscription }) {
   const [section,setSection]=useState(null)
   const uid=session?.user?.id||'guest'
   const [faithPref,setFaithPref]=useState(()=>localStorage.getItem(`org_faith_${uid}`)==='true')
@@ -462,7 +624,7 @@ export default function SettingsSection({ workspace, toast, refetch, theme, setT
         <div className="card-head"><div className="card-title">Password</div></div>
         <SettingsPasswordForm session={session} toast={toast} lang={lang}/>
       </div>
-      <CancelSubscriptionCard toast={toast} lang={lang}/>
+      <SettingsPhoneNotifForm workspace={workspace} toast={toast} refetch={refetch} lang={lang}/>
     </div>
   )
   if(section==='business') return (
@@ -472,6 +634,8 @@ export default function SettingsSection({ workspace, toast, refetch, theme, setT
         <button className="btn btn-secondary btn-sm" onClick={async()=>{await supabase.from('workspaces').update({is_published:!workspace.is_published}).eq('id',workspace.id);toast(workspace.is_published?'Profile unpublished.':'Profile is now live!');refetch()}}>{workspace?.is_published?t(lang,'unpublish'):t(lang,'publish')}</button>
       </div>
       <SettingsBusinessForm workspace={workspace} toast={toast} refetch={refetch} lang={lang}/>
+      <div style={{height:1,background:'var(--border)',margin:'1.5rem 0'}}/>
+      <CancelSubscriptionCard toast={toast} lang={lang} workspace={workspace} subscription={subscription} ownerData={ownerData} refetch={refetch}/>
     </div>
   )
   if(section==='appearance') return (
@@ -480,7 +644,7 @@ export default function SettingsSection({ workspace, toast, refetch, theme, setT
       <div style={{fontSize:'.68rem',fontWeight:700,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'.1em',marginBottom:'.65rem'}}>Dashboard Theme</div>
       <div className="card" style={{marginBottom:'1.75rem'}}>
         <div className="card-body">
-          <div style={{fontSize:'.8rem',color:'var(--ink-3)',marginBottom:'1rem',lineHeight:1.55}}>Controls how <strong style={{color:'var(--ink)'}}>your dashboard</strong> looks. Only you see this.</div>
+          <div style={{fontSize:'.8rem',color:'var(--ink-3)',marginBottom:'1rem',lineHeight:1.55}}>Controls how <strong style={{color:'var(--ink)'}}>your dashboard</strong> looks. Only you see this. Light or Dark.</div>
           <div className="theme-options">
             <div className={`theme-option${theme!=='dark'?' selected':''}`} onClick={()=>setTheme('light')}>
               <div className="theme-preview"><div className="tp-ls"/><div className="tp-lm"><div className="tp-lb"/><div className="tp-lb"/></div></div>
@@ -501,14 +665,48 @@ export default function SettingsSection({ workspace, toast, refetch, theme, setT
       <div className="card">
         <div className="card-body">
           <div style={{fontSize:'.8rem',color:'var(--ink-3)',marginBottom:'1rem',lineHeight:1.55}}>Controls how <strong style={{color:'var(--ink)'}}>your public client page</strong> looks. Clients see this when they book.</div>
-          <div className="theme-options">
-            <div className={`theme-option${workspace?.theme!=='dark'?' selected':''}`} onClick={async()=>{await supabase.from('workspaces').update({theme:'light'}).eq('id',workspace.id);if(refetch)await refetch();toast('Business page set to Light.')}}>
-              <div className="theme-preview"><div className="tp-ls"/><div className="tp-lm"><div className="tp-lb"/><div className="tp-lb"/></div></div>
-              <div className="theme-label">Light {workspace?.theme!=='dark'&&<div className="theme-check">{I.check}</div>}</div>
+          <div className="theme-options" style={{gridTemplateColumns:'repeat(3,1fr)'}}>
+            <div className={`theme-option${workspace?.theme==='warm'?' selected':''}`} onClick={async()=>{
+              const{error}=await supabase.from('workspaces').update({theme:'warm'}).eq('id',workspace.id)
+              if(!error){if(refetch)await refetch();toast('Business page set to Warm Beige.')}else{toast('Error saving theme: '+error.message)}
+            }}>
+              <div className="theme-preview" style={{background:'#F0E6D3',gap:3}}>
+                <div style={{width:'100%',height:10,borderRadius:2,background:'#1A1208'}}/>
+                <div style={{display:'flex',gap:3,marginTop:2}}>
+                  <div style={{flex:1,height:28,borderRadius:2,background:'#FFFFFF',border:'1px solid #E8D5B5'}}/>
+                  <div style={{flex:1,height:28,borderRadius:2,background:'#FFFFFF',border:'1px solid #E8D5B5'}}/>
+                </div>
+                <div style={{width:48,height:8,borderRadius:2,background:'#C9A84C',marginTop:3,alignSelf:'flex-start'}}/>
+              </div>
+              <div className="theme-label">Warm Beige {workspace?.theme==='warm'&&<div className="theme-check">{I.check}</div>}</div>
             </div>
-            <div className={`theme-option${workspace?.theme==='dark'?' selected':''}`} onClick={async()=>{await supabase.from('workspaces').update({theme:'dark'}).eq('id',workspace.id);if(refetch)await refetch();toast('Business page set to Dark.')}}>
-              <div className="theme-preview"><div className="tp-ds"/><div className="tp-dm"><div className="tp-db"/><div className="tp-db"/></div></div>
-              <div className="theme-label">Dark {workspace?.theme==='dark'&&<div className="theme-check">{I.check}</div>}</div>
+            <div className={`theme-option${workspace?.theme==='dark'?' selected':''}`} onClick={async()=>{
+              const{error}=await supabase.from('workspaces').update({theme:'dark'}).eq('id',workspace.id)
+              if(!error){if(refetch)await refetch();toast('Business page set to Midnight Luxe.')}else{toast('Error saving theme: '+error.message)}
+            }}>
+              <div className="theme-preview" style={{background:'#080808',gap:3}}>
+                <div style={{width:'100%',height:10,borderRadius:2,background:'#050505'}}/>
+                <div style={{display:'flex',gap:3,marginTop:2}}>
+                  <div style={{flex:1,height:28,borderRadius:2,background:'#161616',border:'1px solid #2A2A2A'}}/>
+                  <div style={{flex:1,height:28,borderRadius:2,background:'#161616',border:'1px solid #2A2A2A'}}/>
+                </div>
+                <div style={{width:48,height:8,borderRadius:2,background:'#C9A84C',marginTop:3,alignSelf:'flex-start'}}/>
+              </div>
+              <div className="theme-label">Midnight Luxe {workspace?.theme==='dark'&&<div className="theme-check">{I.check}</div>}</div>
+            </div>
+            <div className={`theme-option${workspace?.theme==='rose'?' selected':''}`} onClick={async()=>{
+              const{error}=await supabase.from('workspaces').update({theme:'rose'}).eq('id',workspace.id)
+              if(!error){if(refetch)await refetch();toast('Business page set to Rose Blossom.')}else{toast('Error saving theme: '+error.message)}
+            }}>
+              <div className="theme-preview" style={{background:'#F8E8EC',gap:3}}>
+                <div style={{width:'100%',height:10,borderRadius:2,background:'#1A0A0D'}}/>
+                <div style={{display:'flex',gap:3,marginTop:2}}>
+                  <div style={{flex:1,height:28,borderRadius:2,background:'#FFFFFF',border:'1px solid #F0D5DC'}}/>
+                  <div style={{flex:1,height:28,borderRadius:2,background:'#FFFFFF',border:'1px solid #F0D5DC'}}/>
+                </div>
+                <div style={{width:48,height:8,borderRadius:2,background:'#C4547A',marginTop:3,alignSelf:'flex-start'}}/>
+              </div>
+              <div className="theme-label">Rose Blossom 🌸 {workspace?.theme==='rose'&&<div className="theme-check">{I.check}</div>}</div>
             </div>
           </div>
           <div style={{fontSize:'.73rem',color:'var(--ink-3)',marginTop:'1rem',lineHeight:1.55}}>

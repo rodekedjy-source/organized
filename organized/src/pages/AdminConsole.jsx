@@ -12,6 +12,7 @@ import AdminHealth   from '../components/admin/sections/AdminHealth'
 import AdminAudit    from '../components/admin/sections/AdminAudit'
 import AdminTheme    from '../components/admin/sections/AdminTheme'
 import AdminTeam     from '../components/admin/sections/AdminTeam'
+import AdminPlatform from '../components/admin/sections/AdminPlatform'
 import { useAdminAuth } from '../hooks/useAdminAuth'
 
 const SECTION_TITLES = {
@@ -23,6 +24,7 @@ const SECTION_TITLES = {
   audit:    'Audit Trail',
   theme:    'Theme',
   team:     'Team',
+  platform: 'Platform Settings',
 }
 
 function useClock() {
@@ -38,16 +40,17 @@ function useClock() {
   return `${days[time.getDay()]} ${time.getDate()} ${months[time.getMonth()]} ${time.getFullYear()} · ${h}:${m}`
 }
 
-function ConsoleSections({ section, onNavigate }) {
+function ConsoleSections({ section, onNavigate, role }) {
   switch (section) {
     case 'overview': return <AdminOverview onNavigate={onNavigate} />
-    case 'users':    return <AdminUsers    onNavigate={onNavigate} />
+    case 'users':    return <AdminUsers    onNavigate={onNavigate} role={role} />
     case 'revenue':  return <AdminRevenue />
     case 'beta':     return <AdminBeta />
     case 'health':   return <AdminHealth  onNavigate={onNavigate} />
     case 'audit':    return <AdminAudit />
     case 'theme':    return <AdminTheme />
     case 'team':     return <AdminTeam />
+    case 'platform': return <AdminPlatform />
     default:         return <AdminOverview onNavigate={onNavigate} />
   }
 }
@@ -120,7 +123,7 @@ function ConsoleShell() {
           </header>
 
           <div className="x-content">
-            <ConsoleSections section={section} onNavigate={setSection} />
+            <ConsoleSections section={section} onNavigate={setSection} role={role} />
           </div>
         </div>
       </div>

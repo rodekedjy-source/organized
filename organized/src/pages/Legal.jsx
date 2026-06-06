@@ -224,9 +224,9 @@ const css = `
   }
 `
 
-const EFFECTIVE_DATE = 'May 8, 2026'
+const EFFECTIVE_DATE = 'May 19, 2026'
 const COMPANY = 'Organized.'
-const CONTACT_EMAIL = 'legal@beorganized.io'
+const CONTACT_EMAIL = 'hello@beorganized.io'
 const WEBSITE = 'beorganized.io'
 
 function Divider() {
@@ -364,6 +364,22 @@ function TermsContent() {
       <Divider/>
 
       <div className="legal-section">
+        <div className="legal-section-num">Section 12</div>
+        <h2>Vendor Responsibility &amp; Shipping</h2>
+        <p>{COMPANY} is a technology platform that enables independent professionals to manage their business. Products, services and formations listed on professional pages are sold BY those professionals, not by {COMPANY}.</p>
+        <p>{COMPANY} is not a party to commercial transactions between professionals and their clients. Therefore:</p>
+        <ul>
+          <li>Shipping, delivery timelines and shipping fees are the sole responsibility of the selling professional.</li>
+          <li>Return and refund policies are defined by each professional independently.</li>
+          <li>{COMPANY} cannot be held liable for delays, losses, damages or disputes related to physical product orders.</li>
+          <li>In case of dispute, clients must contact the professional directly.</li>
+        </ul>
+        <p>{COMPANY} only provides the technical infrastructure allowing professionals to manage their payments via Stripe. Funds are transferred directly to the selling professional.</p>
+      </div>
+
+      <Divider/>
+
+      <div className="legal-section">
         <div className="legal-section-num">Contact</div>
         <h2>Questions</h2>
         <div className="legal-contact-box">
@@ -448,7 +464,6 @@ function PrivacyContent() {
           <li><strong>Stripe</strong> — Payment processing and payouts. Stripe's privacy policy governs payment data handling.</li>
           <li><strong>Resend</strong> — Transactional email delivery (booking confirmations, reminders)</li>
           <li><strong>Vercel</strong> — Hosting and content delivery network</li>
-          <li><strong>fal.ai</strong> — AI-powered product photo enhancement (Pro feature; images are processed transiently and not retained)</li>
         </ul>
         <p>Each provider is contractually obligated to protect your information and may not use it for any purpose other than providing services to us.</p>
         <div className="legal-highlight">

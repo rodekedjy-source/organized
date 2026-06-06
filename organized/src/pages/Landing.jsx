@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { useEffect, useRef, useState } from 'react'
+import { supabase } from '../lib/supabase'
 
 function useReveal() {
   useEffect(() => {
@@ -409,6 +410,18 @@ footer { background:#090907; padding:2.5rem 3rem; border-top:1px solid rgba(255,
 .dash-chip-gold { border-color:rgba(181,137,58,.25); box-shadow:0 10px 36px rgba(181,137,58,.14); }
 @media(max-width:900px){ .dash-chip{display:none;} }
 
+/* ─── VIDEO PHONE MOCKUP ─── */
+.vid-phone-wrap { animation:dashPhoneFloat 6s ease-in-out infinite; width:238px; height:500px; border-radius:48px; background:linear-gradient(145deg,#3d3d3f 0%,#1c1c1e 40%,#2c2c2e 100%); padding:9px; box-shadow:inset 0 0 0 1px rgba(255,255,255,.09),0 2px 0 0 #4a4a4c,-14px 20px 48px rgba(0,0,0,.28),-28px 40px 80px rgba(0,0,0,.18); position:relative; z-index:2; flex-shrink:0; }
+.vid-phone-inner { position:relative; width:100%; height:100%; background:#fff; border-radius:44px; overflow:hidden; }
+.vid-dynamic-island { position:absolute; top:14px; left:50%; transform:translateX(-50%); width:90px; height:26px; background:#000; border-radius:20px; z-index:20; }
+.vid-status-bar { position:absolute; top:14px; left:0; right:0; padding:0 20px; display:flex; justify-content:space-between; align-items:center; z-index:19; pointer-events:none; }
+.vid-status-time { font-size:11px; font-weight:600; color:#fff; margin-left:4px; }
+.vid-status-icons { display:flex; align-items:center; gap:4px; }
+.vid-browser-bar { position:absolute; top:50px; left:12px; right:12px; height:20px; background:transparent; border-radius:0; display:flex; align-items:center; justify-content:center; z-index:18; }
+.vid-browser-bar span { font-size:10px; font-weight:500; color:#333; letter-spacing:0.1px; }
+.vid-screen-area { position:absolute; top:76px; left:4px; right:4px; bottom:4px; border-radius:10px; overflow:hidden; background:#fff; }
+.vid-screen { position:absolute; top:0; left:0; width:100%; height:100%; object-fit:contain; object-position:top center; background:#fff; }
+
 /* LILAS QUOTE — scroll-triggered gold highlight */
 .lilas-quote { transition: background .9s ease, border-color .9s ease, box-shadow .9s ease; }
 .lilas-quote p { transition: color .9s ease; }
@@ -423,25 +436,24 @@ footer { background:#090907; padding:2.5rem 3rem; border-top:1px solid rgba(255,
 `
 
 const plans = [
-  { tier:'Essential', amt:19, desc:'Everything you need to take bookings and grow your client base.', hot:false,
+  { tier:'Essential', amt:19, desc:'Everything you need to take bookings, sell products, and start teaching.', hot:false,
     feats:[
-      {y:true,  t:'Public profile & booking page'},
-      {y:true,  t:'Dashboard & calendar'},
-      {y:true,  t:'Appointments & scheduling'},
-      {y:true,  t:'Automated reminders — no more no-shows'},
-      {y:true,  t:'Up to 50 active clients'},
-      {y:false, t:'Product shop & formations'},
-      {y:false, t:'AI Product Photo Enhancement'},
-      {y:false, t:'Full analytics & custom branding'},
+      {y:true,  t:'Public booking page'},
+      {y:true,  t:'Accept deposits & payments'},
+      {y:true,  t:'0% commission on bookings'},
+      {y:true,  t:'Automatic booking confirmations'},
+      {y:true,  t:'Client management'},
+      {y:true,  t:'Email notifications'},
     ]},
   { tier:'Pro', amt:39, desc:'For professionals who want to stand out, sell more, and build a brand.', hot:true,
     feats:[
       {y:true, t:'Everything in Essential'},
-      {y:true, t:'Unlimited clients'},
-      {y:true, t:'Product shop & formations'},
-      {y:true, t:'AI Product Photo Enhancement ✦'},
-      {y:true, t:'Full analytics & custom branding'},
+      {y:true, t:'Shop — unlimited products'},
+      {y:true, t:'Formations & Workshops — unlimited'},
+      {y:true, t:'Order tracking system'},
+      {y:true, t:'Discount & promotional pricing'},
       {y:true, t:'Priority support'},
+      {y:true, t:'Early access to new features'},
     ]},
 ]
 
@@ -463,14 +475,19 @@ const faqs = [
 const COPY = {
   en: {
     nav_how:'How it works', nav_pricing:'Pricing', nav_faq:'FAQ', nav_signin:'Sign in', nav_cta:'Get started free',
-    hero_label:'Built for service professionals',
-    hero_sub_start:"Let your clients book you directly —",
-    hero_sub_strong:"no more back-and-forth\u00A0DMs,",
-    hero_sub_end:"no more confusion, no more missed opportunity.",
+    hero_label:'Built for beauty professionals',
+    hero_sub_start:"Book clients. Sell products. Teach what you know. Everything your beauty business needs — in one place.",
+    hero_sub_strong:"",
+    hero_sub_end:"",
     hero_cta:'Claim Your Spot — Free', hero_see:'See how it works',
-    hero_note:'Early access is open — limited spots · Free during beta · No credit card',
+    hero_note:'Free during beta · No credit card · Limited spots',
     sf_tag:'Sound familiar?', sf_h2_s:'This is how every booking', sf_h2_em:'starts.',
     sf_sub:'Back-and-forth. Every single time. Meanwhile the client loses patience — and you lose money.',
+    sf_pains:[
+      'You sell products but clients pay via e-transfer or cash — no system',
+      'You have skills to teach but no way to sell a course or workshop',
+      'Your revenue is capped at your appointment hours',
+    ],
     sf_quote:'"And that\'s just to confirm one appointment."',
     sf_hint:'Stop managing bookings.', sf_hint_s:'Start taking them.',
     lilas_tag:'The professional we built this for', lilas_h2_s:'This is', lilas_h2_em:'your week.',
@@ -482,9 +499,24 @@ const COPY = {
     after_b:['Zero unanswered messages — clients book themselves','4 hrs/day freed — spent doing what she loves','Never missed a booking again'],
     lilas_q:'"This is the week thousands of service professionals are living right now. We built\u00A0Organized to end it."',
     lilas_attr:'— The Organized. team',
-    phone_tag:'Your public profile', phone_h2_s:'One link.', phone_h2_em:'Everything they need.',
+    phone_tag:'Your public page — three businesses in one', phone_h2_s:'One link.', phone_h2_em:'Everything they need.',
     phone_tab_book:'Book', phone_tab_shop:'Shop', phone_tab_form:'Formations', phone_stitle:'Services', phone_book_btn:'Book',
-    phone_desc:"Drop it in your bio. Your clients book appointments, shop your products, and enroll in your courses — without ever DMing you. You focus on the craft. Organized handles everything else.",
+    phone_desc:"One link your clients can book from, shop from, and learn from.",
+    phone_pills:['Booking','Shop','Formations'],
+    shop_tag:'Your shop', shop_h2_s:'Sell products', shop_h2_em:'while you sleep.',
+    shop_desc:'Add your products once. Your clients browse, buy, and track their orders — automatically.',
+    shop_pts:[
+      {icon:'💳',title:'Stripe payments built in',desc:'Funds go directly to your account — no middleman, no delays.'},
+      {icon:'📦',title:'Order tracking by email',desc:'Clients receive automatic updates from purchase to delivery.'},
+      {icon:'⚙️',title:'Full inventory control',desc:'Manage products, discounts, and orders from your dashboard.'},
+    ],
+    learn_tag:'Your academy', learn_h2_s:'Monetize', learn_h2_em:'what you know.',
+    learn_desc:'Create online courses or in-person workshops. Your students enroll, pay, and receive access — all automated.',
+    learn_pts:[
+      {icon:'🎓',title:'Online courses',desc:'Students get instant access after payment — no manual steps.'},
+      {icon:'🗓️',title:'Workshops & in-person',desc:'Manage spots, waitlists, and automatic reminders.'},
+      {icon:'🎯',title:'Free or paid',desc:'You set the price. Offer free resources or monetize your expertise.'},
+    ],
     phone_pts:[
       {icon:'📅',title:'Appointments booked 24/7',desc:'Real-time availability. Automated confirmations. Zero back-and-forth.'},
       {icon:'🛍️',title:'Products sold directly',desc:'Your shop lives on your profile. Clients discover and order instantly.'},
@@ -524,21 +556,26 @@ const COPY = {
     pricing_banner:'Currently free during beta — paid plans coming soon',
     pricing_per:'/month · after beta', pricing_join:"Join beta — it's free", pricing_start:'Start free',
     faq_tag:'Questions', faq_h2_s:"The answers you're", faq_h2_em:'looking for.',
-    cta_label:'The decision', cta_h2_1:'Your craft is', cta_h2_em:'exceptional.', cta_h2_2:'Your system should be too.',
-    cta_sub:"Stop running your business from a DM inbox. Fifteen beta spots. Free access. Honest feedback in return. That's the deal.",
+    cta_label:'The decision', cta_h2_1:'Your craft is', cta_h2_em:'exceptional.', cta_h2_2:'Now build the business around it.',
+    cta_sub:'Bookings, shop, and formations — all from one link.',
     cta_btn:'Claim your beta spot — free', cta_ghost:'Read the FAQ',
     footer_links:['Privacy','Terms','Contact'],
   },
   fr: {
     nav_how:'Comment ça marche', nav_pricing:'Tarifs', nav_faq:'FAQ', nav_signin:'Connexion', nav_cta:'Commencer gratuitement',
-    hero_label:'Conçu pour les professionnelles du service',
-    hero_sub_start:"Laissez vos clients vous réserver directement —",
-    hero_sub_strong:"fini les allers-retours,",
-    hero_sub_end:"la confusion et les occasions manquées.",
+    hero_label:'Conçu pour les pros de la beauté',
+    hero_sub_start:"Prenez des rendez-vous. Vendez vos produits. Monétisez vos compétences. Tout ce dont votre business a besoin — au même endroit.",
+    hero_sub_strong:"",
+    hero_sub_end:"",
     hero_cta:'Réserver ma place — Gratuit', hero_see:'Voir comment ça marche',
-    hero_note:'Accès anticipé ouvert — places limitées · Gratuit en bêta · Sans carte de crédit',
+    hero_note:'Gratuit en beta · Sans carte de crédit · Places limitées',
     sf_tag:'Ça vous parle ?', sf_h2_s:"C'est comme ça que chaque réservation", sf_h2_em:'commence.',
     sf_sub:"Aller-retour. À chaque fois. Pendant ce temps, la cliente perd patience — et vous perdez de l'argent.",
+    sf_pains:[
+      'Vous vendez des produits mais sans système de paiement en ligne',
+      'Vous avez des compétences à enseigner mais aucun moyen de vendre une formation',
+      'Votre revenu est limité à vos heures de rendez-vous',
+    ],
     sf_quote:"\"Et c'est juste pour confirmer un seul rendez-vous.\"",
     sf_hint:'Arrêtez de gérer vos réservations.', sf_hint_s:'Commencez à les prendre.',
     lilas_tag:'La professionnelle pour qui on a tout bâti', lilas_h2_s:"C'est", lilas_h2_em:'votre semaine.',
@@ -550,9 +587,24 @@ const COPY = {
     after_b:["Zéro message sans réponse — les clients réservent eux-mêmes","4h/jour libérées — consacrées à ce qu'elle aime","Plus jamais de réservation manquée"],
     lilas_q:"\"C'est la semaine que vivent des milliers de professionnelles en ce moment. On a bâti\u00A0Organized pour y mettre fin.\"",
     lilas_attr:"— L'équipe Organized.",
-    phone_tag:'Votre profil public', phone_h2_s:'Un seul lien.', phone_h2_em:'Tout ce dont elles ont besoin.',
+    phone_tag:'Votre page publique — trois activités en une', phone_h2_s:'Un seul lien.', phone_h2_em:'Tout ce dont elles ont besoin.',
     phone_tab_book:'Réserver', phone_tab_shop:'Boutique', phone_tab_form:'Formations', phone_stitle:'Services', phone_book_btn:'Réserver',
-    phone_desc:"Mettez-le dans votre bio. Vos clients réservent, magasinent vos produits et s'inscrivent à vos formations — sans jamais vous écrire. Vous vous concentrez sur votre art. Organized gère tout le reste.",
+    phone_desc:"Un seul lien pour prendre rendez-vous, acheter vos produits et accéder à vos formations.",
+    phone_pills:['Réservation','Boutique','Formations'],
+    shop_tag:'Votre boutique', shop_h2_s:'Vendez vos produits', shop_h2_em:'pendant que vous dormez.',
+    shop_desc:'Ajoutez vos produits une fois. Vos clients achètent et suivent leurs commandes — automatiquement.',
+    shop_pts:[
+      {icon:'💳',title:'Paiements Stripe intégrés',desc:'Les fonds arrivent directement sur votre compte — sans intermédiaire.'},
+      {icon:'📦',title:'Suivi de commande par email',desc:'Vos clientes reçoivent des mises à jour automatiques de l\'achat à la livraison.'},
+      {icon:'⚙️',title:'Gestion complète des stocks',desc:'Gérez produits, rabais et commandes depuis votre tableau de bord.'},
+    ],
+    learn_tag:'Votre académie', learn_h2_s:'Monétisez', learn_h2_em:'votre expertise.',
+    learn_desc:'Créez des cours en ligne ou des ateliers en personne. Vos étudiants s\'inscrivent, paient et reçoivent l\'accès — automatiquement.',
+    learn_pts:[
+      {icon:'🎓',title:'Cours en ligne',desc:'Accès immédiat après paiement — aucune étape manuelle.'},
+      {icon:'🗓️',title:'Ateliers & en personne',desc:'Gérez les places, listes d\'attente et rappels automatiques.'},
+      {icon:'🎯',title:'Gratuit ou payant',desc:'Vous fixez le prix. Offrez des ressources gratuites ou monétisez votre expertise.'},
+    ],
     phone_pts:[
       {icon:'📅',title:'Rendez-vous 24h/24',desc:'Disponibilités en temps réel. Confirmations automatiques. Zéro aller-retour.'},
       {icon:'🛍️',title:'Produits vendus directement',desc:'Votre boutique est sur votre profil. Les clients découvrent et commandent instantanément.'},
@@ -592,33 +644,32 @@ const COPY = {
     pricing_banner:'Actuellement gratuit en bêta — forfaits payants bientôt',
     pricing_per:'/mois · après la bêta', pricing_join:"Rejoindre la bêta — gratuit", pricing_start:'Commencer gratuitement',
     faq_tag:'Questions', faq_h2_s:"Les réponses que vous", faq_h2_em:'cherchez.',
-    cta_label:'La décision', cta_h2_1:'Votre art est', cta_h2_em:'exceptionnel.', cta_h2_2:"Votre système devrait l'être aussi.",
-    cta_sub:"Arrêtez de gérer votre business depuis une boîte de réception. Quinze places bêta. Accès gratuit. Retours honnêtes en échange. C'est l'accord.",
+    cta_label:'La décision', cta_h2_1:'Votre talent est', cta_h2_em:'exceptionnel.', cta_h2_2:'Construisez maintenant le business autour.',
+    cta_sub:'Rendez-vous, boutique et formations — depuis un seul lien.',
     cta_btn:'Réserver votre place bêta — gratuit', cta_ghost:'Lire la FAQ',
     footer_links:['Confidentialité','Conditions','Contact'],
   }
 }
 
 const plans_fr = [
-  { tier:'Essential', amt:19, desc:'Tout ce dont vous avez besoin pour prendre des réservations et faire grandir votre clientèle.', hot:false,
+  { tier:'Essential', amt:19, desc:'Tout ce dont vous avez besoin pour prendre des réservations, vendre des produits et enseigner.', hot:false,
     feats:[
-      {y:true,  t:'Profil public & page de réservation'},
-      {y:true,  t:'Tableau de bord & calendrier'},
-      {y:true,  t:'Rendez-vous & planification'},
-      {y:true,  t:'Rappels automatiques — fini les no-shows'},
-      {y:true,  t:"Jusqu'à 50 clientes actives"},
-      {y:false, t:'Boutique produits & formations'},
-      {y:false, t:'Amélioration IA des photos produits'},
-      {y:false, t:'Analytiques complètes & branding personnalisé'},
+      {y:true,  t:'Page de réservation publique'},
+      {y:true,  t:'Accepter dépôts & paiements'},
+      {y:true,  t:'0% de commission sur les réservations'},
+      {y:true,  t:'Confirmations de réservation automatiques'},
+      {y:true,  t:'Gestion des clientes'},
+      {y:true,  t:'Notifications par email'},
     ]},
   { tier:'Pro', amt:39, desc:'Pour les professionnelles qui veulent se démarquer, vendre plus et bâtir une marque.', hot:true,
     feats:[
       {y:true, t:'Tout ce qui est dans Essential'},
-      {y:true, t:'Clientes illimitées'},
-      {y:true, t:'Boutique produits & formations'},
-      {y:true, t:'Amélioration IA des photos produits ✦'},
-      {y:true, t:'Analytiques complètes & branding personnalisé'},
+      {y:true, t:'Boutique — produits illimités'},
+      {y:true, t:'Formations & Ateliers — illimités'},
+      {y:true, t:'Système de suivi des commandes'},
+      {y:true, t:'Rabais & prix promotionnels'},
       {y:true, t:'Support prioritaire'},
+      {y:true, t:'Accès anticipé aux nouvelles fonctionnalités'},
     ]},
 ]
 
@@ -667,6 +718,13 @@ const SF_MSGS_FR = [
 ]
 const SF_TYPING = [2, 4, 6, 7, 9, 11]
 
+
+const VIDEOS = {
+  booking: 'https://bwfpioxvfqwnwzkvtebg.supabase.co/storage/v1/object/public/landing-videos/booking.mp4',
+  shop: 'https://bwfpioxvfqwnwzkvtebg.supabase.co/storage/v1/object/public/landing-videos/shop.mp4',
+  learn: 'https://bwfpioxvfqwnwzkvtebg.supabase.co/storage/v1/object/public/landing-videos/learn.mp4',
+}
+
 export default function Landing() {
   const navigate = useNavigate()
   const [scrolled, setScrolled] = useState(false)
@@ -675,9 +733,22 @@ export default function Landing() {
   const [sfVisible, setSfVisible] = useState([])
   const [sfTyping, setSfTyping] = useState(null)
   const [sfStarted, setSfStarted] = useState(false)
+  const [activeVideo, setActiveVideo] = useState('booking')
+  const [onboardingOpen,   setOnboardingOpen]   = useState(true)
+  const [paymentsRequired, setPaymentsRequired] = useState(false)
+  const [waitlistEmail,    setWaitlistEmail]    = useState('')
+  const [waitlistSent,     setWaitlistSent]     = useState(false)
   const sfRef = useRef(null)
   const sfEndRef = useRef(null)
   useReveal()
+
+  useEffect(() => {
+    supabase.from('app_config').select('key, value').then(({ data: configs }) => {
+      if (!configs) return
+      setOnboardingOpen(configs.find(c => c.key === 'onboarding_open')?.value !== 'false')
+      setPaymentsRequired(configs.find(c => c.key === 'payments_required')?.value === 'true')
+    })
+  }, [])
 
   const t = COPY[lang]
   const activePlans = lang === 'en' ? plans : plans_fr
@@ -725,6 +796,7 @@ export default function Landing() {
     }
   }, [sfVisible, sfTyping])
 
+
   return (
     <div>
       <style>{css}</style>
@@ -758,9 +830,9 @@ export default function Landing() {
           </div>
           <h1 className="hero-h1">
             {lang==='en' ? (
-              <>Every unanswered{'\u00A0'}<span translate="no">DM</span>{'\u00A0'}is<br/>a booking <em>you lost.</em><br/>You're leaving money<br/>on the <em>table.</em></>
+              <>One link.<br/>Three revenue <em>streams.</em></>
             ) : (
-              <>Chaque <span translate="no">DM</span> sans réponse<br/>est une réservation <em>perdue.</em><br/>Vous laissez de l'argent<br/>sur la <em>table.</em></>
+              <>Un seul lien.<br/>Trois sources de <em>revenus.</em></>
             )}
           </h1>
           <div className="hero-divider"/>
@@ -770,8 +842,24 @@ export default function Landing() {
             {t.hero_sub_end}
           </p>
           <div className="hero-actions">
-            <button className="btn-gold-lg" onClick={()=>navigate('/auth')}>{t.hero_cta}</button>
-            <button className="btn-ghost-lg" onClick={()=>document.getElementById('how')?.scrollIntoView({behavior:'smooth'})}>{t.hero_see}</button>
+            {!onboardingOpen ? (
+              waitlistSent ? (
+                <span className="btn-gold-lg" style={{cursor:'default',opacity:.8}}>✓ You're on the list</span>
+              ) : (
+                <form style={{display:'flex',gap:8}} onSubmit={e=>{e.preventDefault();if(waitlistEmail){supabase.from('waitlist').insert({email:waitlistEmail});setWaitlistSent(true)}}}>
+                  <input type="email" required value={waitlistEmail} onChange={e=>setWaitlistEmail(e.target.value)} placeholder="your@email.com" style={{padding:'0 16px',borderRadius:8,border:'1px solid rgba(201,168,76,.4)',background:'transparent',color:'#fff',fontSize:'0.95rem',width:220}}/>
+                  <button type="submit" className="btn-gold-lg" style={{whiteSpace:'nowrap'}}>Join waitlist</button>
+                </form>
+              )
+            ) : paymentsRequired ? (
+              <>
+                <button className="btn-gold-lg" onClick={()=>navigate('/auth?plan=essential')}>Essential $19/mo</button>
+                <button className="btn-ghost-lg" onClick={()=>navigate('/auth?plan=pro')}>Pro $39/mo</button>
+              </>
+            ) : (
+              <button className="btn-gold-lg" onClick={()=>navigate('/auth')}>Get started free</button>
+            )}
+            {onboardingOpen && <button className="btn-ghost-lg" onClick={()=>document.getElementById('how')?.scrollIntoView({behavior:'smooth'})}>{t.hero_see}</button>}
           </div>
           <p className="hero-note">{t.hero_note}</p>
         </div>
@@ -790,6 +878,13 @@ export default function Landing() {
             </div>
             <h2 className="sf-h2">{t.sf_h2_s} <em>{t.sf_h2_em}</em></h2>
             <p className="sf-sub">{t.sf_sub}</p>
+            {t.sf_pains&&<div style={{display:'flex',flexDirection:'column',gap:'.55rem',marginTop:'1.25rem',textAlign:'left',maxWidth:'380px',margin:'1.25rem auto 0'}}>
+              {t.sf_pains.map((pain,i)=>(
+                <div key={i} style={{display:'flex',alignItems:'flex-start',gap:'.65rem',fontSize:'.84rem',color:'var(--ink-2)',lineHeight:1.45}}>
+                  <span style={{color:'var(--gold)',flexShrink:0,fontWeight:700,marginTop:'1px'}}>—</span>{pain}
+                </div>
+              ))}
+            </div>}
           </div>
 
           {/* 3D Phone */}
@@ -1017,35 +1112,202 @@ export default function Landing() {
               ))}
             </div>
           </div>
-          <div className="phone-wrap" data-rv="right" data-delay="150">
-            <div className="phone-glow-bg"/>
-            <div className="iphone">
-              <div className="iphone-notch"><div className="iphone-pill"/></div>
-              <div className="iphone-body">
-                <div className="ip-topbar"><div className="ip-name">Elixir Hair Studio</div><div className="ip-badge">organized.</div></div>
-                <div className="ip-hero">
-                  <div className="ip-av">E</div>
-                  <div className="ip-title">Elixir Hair Studio</div>
-                  <div className="ip-sub">Natural Hair Specialist · Montreal, QC</div>
+          <div data-rv="right" data-delay="150" style={{display:'flex',flexDirection:'column',alignItems:'center',gap:20,width:'100%',maxWidth:560,margin:'0 auto'}}>
+
+            {/* Phone + floating chips */}
+            <div style={{position:'relative',display:'flex',justifyContent:'center',alignItems:'center',minHeight:'580px',width:'100%'}}>
+
+              {/* Chip TL — active tab (dynamic) */}
+              <div className="dash-chip" style={{left:'5%',top:'6%',animation:'chipFloat1 4.5s ease-in-out 0.2s infinite'}}>
+                <div style={{fontSize:'.58rem',color:'var(--ink-3)',letterSpacing:'.08em',textTransform:'uppercase',marginBottom:'.3rem',fontWeight:500}}>
+                  {activeVideo==='booking'?'📅 Booking':activeVideo==='shop'?'🛍 Shop':'🎓 Learn'}
                 </div>
-                <div className="ip-tabs">
-                  <div className="ip-tab on">{t.phone_tab_book}</div>
-                  <div className="ip-tab">{t.phone_tab_shop}</div>
-                  <div className="ip-tab">{t.phone_tab_form}</div>
+                <div style={{fontFamily:'Playfair Display,serif',fontSize:'1.1rem',fontWeight:700,color:'var(--ink)',lineHeight:1}}>
+                  {activeVideo==='booking'?'Book Now':activeVideo==='shop'?'Shop':'Learn'}
                 </div>
-                <div className="ip-scroll">
-                  <div className="ip-stitle">{t.phone_stitle}</div>
-                  {[['Box Braids','4–6 hrs','$180'],['Silk Press','2 hrs','$95'],['Loc Retwist','1.5 hrs','$120'],['Color & Cut','3 hrs','$220']].map(([n,d,p],i)=>(
-                    <div key={i} className="ip-svc">
-                      <div className="ip-bar"/>
-                      <div className="ip-info"><div className="ip-sname">{n}</div><div className="ip-dur">{d}</div></div>
-                      <div className="ip-price">{p}</div>
-                      <button className="ip-book">{t.phone_book_btn}</button>
-                    </div>
-                  ))}
+                <div style={{fontSize:'.65rem',color:'#4ade80',marginTop:'.3rem',fontWeight:500}}>
+                  {activeVideo==='booking'?'24/7 open':activeVideo==='shop'?'Always open':'On demand'}
                 </div>
-                <div className="ip-footer"><div className="ip-powered">Powered by <span translate="no">Organized.</span></div></div>
               </div>
+
+              {/* Chip TR — theme */}
+              <div className="dash-chip dash-chip-gold" style={{right:'5%',top:'18%',animation:'chipFloat2 5.5s ease-in-out 0.5s infinite'}}>
+                <div style={{fontSize:'.58rem',color:'var(--gold)',letterSpacing:'.08em',textTransform:'uppercase',marginBottom:'.3rem',fontWeight:500}}>Theme</div>
+                <div style={{fontSize:'.82rem',fontWeight:600,color:'var(--ink)',marginBottom:'.15rem'}}>⭐ Rose Blossom</div>
+                <div style={{fontSize:'.65rem',color:'var(--ink-3)'}}>Your brand colors</div>
+              </div>
+
+              {/* Chip BL — Shop */}
+              <div className="dash-chip dash-chip-gold" style={{left:'5%',bottom:'14%',animation:'chipFloat1 5s ease-in-out 0.8s infinite'}}>
+                <div style={{fontSize:'.58rem',color:'var(--gold)',letterSpacing:'.08em',textTransform:'uppercase',marginBottom:'.3rem',fontWeight:500}}>Your Shop</div>
+                <div style={{fontSize:'.82rem',fontWeight:600,color:'var(--ink)',marginBottom:'.15rem'}}>🛍 Shop</div>
+                <div style={{fontSize:'.65rem',color:'var(--ink-3)'}}>Sell while you sleep</div>
+              </div>
+
+              {/* Chip BR — Learn */}
+              <div className="dash-chip dash-chip-dark" style={{right:'5%',bottom:'20%',animation:'chipFloat2 4s ease-in-out 1.1s infinite'}}>
+                <div style={{fontSize:'.58rem',color:'rgba(255,255,255,.4)',letterSpacing:'.08em',textTransform:'uppercase',marginBottom:'.3rem',fontWeight:500}}>Academy</div>
+                <div style={{fontSize:'.82rem',fontWeight:600,color:'#fff',marginBottom:'.15rem'}}>🎓 Learn</div>
+                <div style={{fontSize:'.65rem',color:'rgba(255,255,255,.35)'}}>Teach what you know</div>
+              </div>
+
+              {/* Phone frame with video crossfade */}
+              <div className="vid-phone-wrap">
+                <div className="dash-btn-r"/><div className="dash-btn-l1"/><div className="dash-btn-l2"/>
+                <div className="vid-phone-inner">
+                  {/* Dynamic Island pill */}
+                  <div className="vid-dynamic-island"/>
+                  {/* Status bar */}
+                  <div className="vid-status-bar">
+                    <span className="vid-status-time">9:41</span>
+                    <div className="vid-status-icons">
+                      {/* Signal bars */}
+                      <svg width="17" height="12" viewBox="0 0 17 12" fill="none">
+                        <rect x="0"  y="8"  width="3" height="4"  rx="1" fill="white" fillOpacity="0.4"/>
+                        <rect x="4.5" y="5.5" width="3" height="6.5" rx="1" fill="white" fillOpacity="0.6"/>
+                        <rect x="9"  y="3"  width="3" height="9"  rx="1" fill="white" fillOpacity="0.8"/>
+                        <rect x="13.5" y="0" width="3" height="12" rx="1" fill="white"/>
+                      </svg>
+                      {/* WiFi */}
+                      <svg width="16" height="12" viewBox="0 0 16 12" fill="none">
+                        <path d="M8 9.5 A0.75 0.75 0 0 1 8 11 A0.75 0.75 0 0 1 8 9.5Z" fill="white"/>
+                        <path d="M5.2 7.2 Q8 4.8 10.8 7.2" stroke="white" strokeWidth="1.4" strokeLinecap="round" fill="none"/>
+                        <path d="M2.5 4.8 Q8 0.5 13.5 4.8" stroke="white" strokeWidth="1.4" strokeLinecap="round" fill="none" strokeOpacity="0.6"/>
+                      </svg>
+                      {/* Battery */}
+                      <svg width="25" height="12" viewBox="0 0 25 12" fill="none">
+                        <rect x="0.5" y="0.5" width="21" height="11" rx="3.5" stroke="white" strokeOpacity="0.5"/>
+                        <rect x="2" y="2" width="16" height="8" rx="2" fill="white"/>
+                        <path d="M22.5 4v4a2 2 0 0 0 0-4Z" fill="white" fillOpacity="0.5"/>
+                      </svg>
+                    </div>
+                  </div>
+                  {/* Browser bar */}
+                  <div className="vid-browser-bar">
+                    <span>beorganized.io</span>
+                  </div>
+                  {/* Video crossfade */}
+                  <div className="vid-screen-area">
+                    {['booking','shop','learn'].map(tab=>(
+                      <video key={tab} src={VIDEOS[tab]} autoPlay muted loop playsInline
+                        className="vid-screen"
+                        style={{opacity:activeVideo===tab?1:0,transition:'opacity 0.5s ease'}}/>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Tab switcher */}
+            <div style={{display:'flex',gap:8,background:'rgba(0,0,0,0.06)',borderRadius:100,padding:'4px'}}>
+              {['booking','shop','learn'].map(tab=>(
+                <button key={tab} onClick={()=>setActiveVideo(tab)}
+                  style={{padding:'8px 20px',borderRadius:100,border:'none',cursor:'pointer',fontFamily:'inherit',
+                          fontSize:'0.72rem',fontWeight:600,letterSpacing:'0.1em',textTransform:'uppercase',
+                          background:activeVideo===tab?'#C9A84C':'transparent',
+                          color:activeVideo===tab?'#1A0900':'#8B7355',transition:'all 0.2s'}}>
+                  {tab==='booking'?'Booking':tab==='shop'?'Shop':'Learn'}
+                </button>
+              ))}
+            </div>
+
+            {/* Theme colour swatches */}
+            <div style={{display:'flex',gap:16,justifyContent:'center',marginTop:8}}>
+              {[
+                {name:'Rose Blossom',hero:'#F2C4CE',nav:'#3D1A24'},
+                {name:'Warm Beige',hero:'#D4C4A8',nav:'#1A0900'},
+                {name:'Midnight Luxe',hero:'#080808',nav:'#C9A84C'},
+              ].map(th=>(
+                <div key={th.name} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:6}}>
+                  <div style={{width:56,height:80,borderRadius:12,overflow:'hidden',boxShadow:'0 4px 12px rgba(0,0,0,0.12)',display:'flex',flexDirection:'column'}}>
+                    <div style={{height:'35%',background:th.nav}}/>
+                    <div style={{flex:1,background:th.hero}}/>
+                  </div>
+                  <span style={{fontSize:'0.6rem',letterSpacing:'0.08em',textTransform:'uppercase',color:'#8B7355',textAlign:'center',lineHeight:1.3}}>{th.name}</span>
+                </div>
+              ))}
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      {/* SHOP SECTION */}
+      <div style={{background:'var(--ink)',padding:'7rem 3.5rem'}}>
+        <div style={{maxWidth:'1100px',margin:'0 auto',display:'grid',gridTemplateColumns:'1fr 1fr',gap:'6rem',alignItems:'center'}} className="phone-inner">
+          <div data-rv="left">
+            <div className="sec-tag"><div className="sec-tag-line"/><span className="sec-tag-text" style={{color:'rgba(181,137,58,.7)'}}>{t.shop_tag}</span></div>
+            <h2 className="phone-h2" style={{color:'#fff'}}>{t.shop_h2_s}<br/><em style={{color:'var(--gold)'}}>{t.shop_h2_em}</em></h2>
+            <p className="phone-desc" style={{color:'rgba(255,255,255,.4)'}}>{t.shop_desc}</p>
+            <div className="phone-points">
+              {t.shop_pts.map((p,i)=>(
+                <div key={i} className="phone-point" data-rv data-delay={i*80}>
+                  <div className="phone-point-icon" style={{background:'rgba(181,137,58,.15)'}}>{p.icon}</div>
+                  <div className="phone-point-text">
+                    <div className="phone-point-title" style={{color:'rgba(255,255,255,.75)'}}>{p.title}</div>
+                    <div className="phone-point-desc" style={{color:'rgba(255,255,255,.35)'}}>{p.desc}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div data-rv="right" data-delay="150" style={{display:'flex',justifyContent:'center'}}>
+            <div style={{background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.08)',borderRadius:'20px',padding:'2rem',width:'100%',maxWidth:'340px'}}>
+              <div style={{fontSize:'.65rem',letterSpacing:'.1em',textTransform:'uppercase',color:'rgba(181,137,58,.6)',fontWeight:500,marginBottom:'1.25rem'}}>Your Shop</div>
+              {[{name:'Argan Oil Treatment',price:'$38',stock:'12 in stock'},{name:'Curl Define Cream',price:'$26',stock:'8 in stock'},{name:'Edge Control Gel',price:'$18',stock:'24 in stock'}].map((item,i)=>(
+                <div key={i} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'.75rem .9rem',background:'rgba(255,255,255,.04)',borderRadius:'10px',marginBottom:'.5rem',border:'1px solid rgba(255,255,255,.06)'}}>
+                  <div>
+                    <div style={{fontSize:'.8rem',fontWeight:500,color:'rgba(255,255,255,.7)',marginBottom:'.15rem'}}>{item.name}</div>
+                    <div style={{fontSize:'.68rem',color:'rgba(255,255,255,.3)'}}>{item.stock}</div>
+                  </div>
+                  <div style={{fontFamily:'Playfair Display,serif',fontSize:'1.05rem',color:'var(--gold)',fontWeight:700}}>{item.price}</div>
+                </div>
+              ))}
+              <div style={{marginTop:'1.25rem',background:'rgba(181,137,58,.12)',border:'1px solid rgba(181,137,58,.2)',borderRadius:'12px',padding:'.85rem',textAlign:'center'}}>
+                <div style={{fontSize:'.68rem',color:'rgba(181,137,58,.7)',letterSpacing:'.06em',textTransform:'uppercase',fontWeight:500}}>This week</div>
+                <div style={{fontFamily:'Playfair Display,serif',fontSize:'1.75rem',color:'var(--gold)',fontWeight:700,marginTop:'.25rem'}}>$364</div>
+                <div style={{fontSize:'.65rem',color:'rgba(255,255,255,.3)',marginTop:'.2rem'}}>14 orders · Stripe payouts daily</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* LEARN / ACADEMY SECTION */}
+      <div style={{background:'var(--cream)',padding:'7rem 3.5rem'}}>
+        <div style={{maxWidth:'1100px',margin:'0 auto',display:'grid',gridTemplateColumns:'1fr 1fr',gap:'6rem',alignItems:'center'}} className="phone-inner">
+          <div data-rv="right" data-delay="150" style={{display:'flex',justifyContent:'center',order:1}}>
+            <div style={{background:'var(--white)',border:'1px solid var(--border)',borderRadius:'20px',padding:'2rem',width:'100%',maxWidth:'340px',boxShadow:'0 16px 48px rgba(0,0,0,.07)'}}>
+              <div style={{fontSize:'.65rem',letterSpacing:'.1em',textTransform:'uppercase',color:'var(--gold)',fontWeight:500,marginBottom:'1.25rem'}}>Your Academy</div>
+              {[{name:'Curl Care Masterclass',type:'Online · 6 modules',enrolled:18,price:'$149'},{name:'Loc Starter Workshop',type:'In-person · 3 hrs',enrolled:6,price:'$95'},{name:'Business Starter Kit',type:'Online · Free',enrolled:34,price:'Free'}].map((course,i)=>(
+                <div key={i} style={{padding:'.75rem .9rem',background:'var(--cream)',borderRadius:'10px',marginBottom:'.5rem',border:'1px solid var(--border)'}}>
+                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'.25rem'}}>
+                    <div style={{fontSize:'.8rem',fontWeight:500,color:'var(--ink)'}}>{course.name}</div>
+                    <div style={{fontFamily:'Playfair Display,serif',fontSize:'1rem',color:'var(--gold)',fontWeight:700,flexShrink:0,marginLeft:'.5rem'}}>{course.price}</div>
+                  </div>
+                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                    <div style={{fontSize:'.68rem',color:'var(--ink-3)'}}>{course.type}</div>
+                    <div style={{fontSize:'.65rem',color:'var(--gold)',background:'rgba(181,137,58,.1)',padding:'.15rem .5rem',borderRadius:'8px'}}>{course.enrolled} enrolled</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div data-rv="left" style={{order:0}}>
+            <div className="sec-tag"><div className="sec-tag-line"/><span className="sec-tag-text">{t.learn_tag}</span></div>
+            <h2 className="phone-h2">{t.learn_h2_s}<br/><em>{t.learn_h2_em}</em></h2>
+            <p className="phone-desc">{t.learn_desc}</p>
+            <div className="phone-points">
+              {t.learn_pts.map((p,i)=>(
+                <div key={i} className="phone-point" data-rv data-delay={i*80}>
+                  <div className="phone-point-icon">{p.icon}</div>
+                  <div className="phone-point-text">
+                    <div className="phone-point-title">{p.title}</div>
+                    <div className="phone-point-desc">{p.desc}</div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -1189,7 +1451,7 @@ export default function Landing() {
                           <div style={{width:4,height:4,borderRadius:'50%',background:'#4ade80'}}/>3 confirmed
                         </div>
                       </div>
-                      {[['A','Amara D.','Box Braids','10:00 AM','$180','#8b5cf6'],['K','Kezia B.','Silk Press','1:00 PM','$95','#ec4899'],['Z','Zoe M.','Loc Retwist','4:30 PM','$120','#f97316']].map(([av,name,svc,time,price,col],i)=>(
+                      {[['A','Amara D.','Box Braids','10:00 AM','$180','#8b5cf6'],['K','Kezia B.','Silk Press','1:00 PM','$95','#ec4899'],['M','Maya T.','Color & Cut','4:30 PM','$220','#f97316']].map(([av,name,svc,time,price,col],i)=>(
                         <div key={i} style={{display:'flex',alignItems:'center',gap:'.45rem',padding:'.35rem 0',borderTop:i>0?'1px solid var(--border)':'none'}}>
                           <div style={{width:24,height:24,borderRadius:'50%',background:col,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'.52rem',fontWeight:700,color:'#fff',flexShrink:0}}>{av}</div>
                           <div style={{flex:1,minWidth:0}}>

@@ -76,6 +76,12 @@ export async function updateBusinessProfile(workspaceId, fields) {
       domicile_fee: fields.offers_domicile ? Number(fields.domicile_fee) || 45 : null,
       domicile_radius_km: fields.offers_domicile ? Number(fields.domicile_radius_km) || 25 : null,
       domicile_notes: fields.offers_domicile ? fields.domicile_notes || null : null,
+      stat_clients: fields.stat_clients || null,
+      stat_years: fields.stat_years || null,
+      stat_rating: fields.stat_rating || null,
+      shop_advice: fields.shop_advice || null,
+      learn_graduates: fields.learn_graduates || null,
+      learn_rating: fields.learn_rating || null,
     })
     .eq('id', workspaceId)
 }
@@ -83,6 +89,30 @@ export async function updateBusinessProfile(workspaceId, fields) {
 /**
  * Sauvegarde les paramètres d'automatisation (demandes d'avis).
  */
+export async function updateShopStats(workspaceId, fields) {
+  return supabase
+    .from('workspaces')
+    .update({ shop_advice: fields.shop_advice || null })
+    .eq('id', workspaceId)
+}
+
+export async function updateLearnStats(workspaceId, fields) {
+  return supabase
+    .from('workspaces')
+    .update({
+      learn_graduates: fields.learn_graduates || null,
+      learn_rating: fields.learn_rating || null,
+    })
+    .eq('id', workspaceId)
+}
+
+export async function updateFaqSettings(workspaceId, faqSettings) {
+  return supabase
+    .from('workspaces')
+    .update({ faq_settings: faqSettings })
+    .eq('id', workspaceId)
+}
+
 export async function updateAutomationSettings(workspaceId, { reviewRequestsEnabled, googleReviewUrl, reviewDelayHours }) {
   return supabase
     .from('workspaces')

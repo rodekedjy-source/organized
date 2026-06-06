@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { updateOrderStatus, updateOrderTracking, markOrderDelivered, notifyOrderProcessing, notifyOrderShipped, notifyOrderDelivered } from '../api/orders'
+import { updateOrderStatus, updateOrderTracking, markOrderDelivered, notifyOrderShipped, notifyOrderDelivered } from '../api/orders'
 
 const CARRIERS = ['Canada Post', 'Purolator', 'UPS', 'FedEx', 'Other']
 
@@ -41,10 +41,9 @@ export default function OrderDetailPage({ order: init, onBack, workspace, toast 
     setActing(true)
     const { error } = await updateOrderStatus(order.id, 'processing')
     if (error) { toast('Could not update order.'); setActing(false); return }
-    setOrder(o => ({...o, status: 'processing'}))
-    await notifyOrderProcessing(order.id, workspace)
-    toast('Processing · client notified ✓')
+    toast('Marked as processing ✓')
     setActing(false)
+    setTimeout(() => onBack(), 300)
   }
 
   async function doShip() {
@@ -57,6 +56,7 @@ export default function OrderDetailPage({ order: init, onBack, workspace, toast 
     await notifyOrderShipped(updated, workspace?.name || '', link)
     toast('Shipped · client notified ✓')
     setShowShip(false); setTrackNo(''); setCarrier(CARRIERS[0]); setActing(false)
+    setTimeout(() => onBack(), 300)
   }
 
   async function doDeliver() {
@@ -64,9 +64,9 @@ export default function OrderDetailPage({ order: init, onBack, workspace, toast 
     const { error } = await markOrderDelivered(order.id)
     if (error) { toast('Could not update order.'); setActing(false); return }
     await notifyOrderDelivered(order, workspace?.name || '', link)
-    setOrder(o => ({...o, status:'delivered', delivered_at: new Date().toISOString()}))
     toast('Delivered · client notified ✓')
     setActing(false)
+    setTimeout(() => onBack(), 300)
   }
 
   return (

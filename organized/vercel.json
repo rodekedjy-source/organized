@@ -1,4 +1,5 @@
 {
+<<<<<<< Updated upstream
   "rewrites": [
     {
       "source": "/(.*)",
@@ -26,4 +27,14 @@
       ]
     }
   ]
+=======
+  "redirects": [
+    {
+      "source": "/:slug((?!book|track|enrollment|auth|x|dashboard|api|legal|suspended|assets|favicon)[a-z0-9-]+)",
+      "destination": "/book/:slug",
+      "permanent": false
+    }
+  ],
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+>>>>>>> Stashed changes
 }

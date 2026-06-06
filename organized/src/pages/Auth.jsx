@@ -98,7 +98,7 @@ function GoogleIcon(){
   )
 }
 
-export default function Auth({ onAuth }) {
+export default function Auth({ onAuth, onOnboarding }) {
   const [mode,       setMode]    = useState('signup')
   const [step,       setStep]    = useState(1)
   const [loading,    setLoading] = useState(false)
@@ -108,6 +108,7 @@ export default function Auth({ onAuth }) {
   const [forgotMode, setForgotMode] = useState(false)
   const [forgotSent, setForgotSent] = useState(false)
   const [oauthFlow,  setOauthFlow]  = useState(false)
+  const [tempSession, setTempSession] = useState(null)
   const [form, setForm] = useState({
     full_name:'', email:'', password:'', confirm_password:'',
     business_name:'', business_type:'',
@@ -122,6 +123,41 @@ export default function Auth({ onAuth }) {
   useEffect(() => {
     const urlMode = searchParams.get('mode')
     if (urlMode === 'login') { setMode('login'); setStep(1) }
+  }, [])
+
+  // Store ?plan=pro or ?plan=essential in localStorage
+  useEffect(() => {
+    const plan = searchParams.get('plan')
+    if (plan === 'pro' || plan === 'essential') {
+      localStorage.setItem('plan_selected', plan)
+    }
+  }, [])
+
+  // OAuth callback handler — fires when redirected back from Google (?callback=true)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('callback') === 'true') {
+      console.log('[callback] detected')
+      supabase.auth.getSession().then(async ({ data: { session } }) => {
+        console.log('[callback] session:', session?.user?.email)
+        if (session) {
+          const { data: ws } = await supabase
+            .from('workspaces')
+            .select('id')
+            .eq('user_id', session.user.id)
+            .maybeSingle()
+          console.log('[callback] workspace:', ws)
+          if (ws) {
+            onAuth(session)
+          } else {
+            setTempSession(session)
+            setOauthFlow(true)
+            setMode('signup')
+            setStep(3)
+          }
+        }
+      })
+    }
   }, [])
 
   function set(k,v){ setForm(f=>({...f,[k]:v})); setError('') }
@@ -160,9 +196,19 @@ export default function Auth({ onAuth }) {
           full_name: meta.full_name || meta.name || '',
           email:     session.user.email || '',
         }))
-        setOauthFlow(true)
-        setMode('signup')
-        setStep(3)
+
+        const isOAuthCallback = window.location.search.includes('callback=true')
+          || session.user?.app_metadata?.provider !== 'email'
+
+        if (isOAuthCallback) {
+          onOnboarding(true)
+          setOauthFlow(true)
+          setMode('signup')
+          setStep(3)
+          setTempSession(session)
+        } else {
+          setChecking(false)
+        }
 
       } catch(err) {
         console.error('Auth init error:', err)
@@ -190,7 +236,7 @@ export default function Auth({ onAuth }) {
     const{error}=await supabase.auth.signInWithOAuth({
       provider:'google',
       options:{
-        redirectTo:`${window.location.origin}/auth`,
+        redirectTo:`${window.location.origin}/auth?callback=true`,
         queryParams:{access_type:'offline',prompt:'consent'},
       },
     })
@@ -271,7 +317,7 @@ export default function Auth({ onAuth }) {
         .replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'').slice(0,30)
         +'-'+Math.random().toString(36).slice(2,6)
 
-      const{error:wsError}=await supabase.from('workspaces').insert({
+      const{data:wsInsert,error:wsError}=await supabase.from('workspaces').insert({
         user_id:user.id, name:form.business_name,
         slug, workspace_type_id:wt?.id||null,
         address_street:  form.address_street||null,
@@ -280,11 +326,38 @@ export default function Auth({ onAuth }) {
         address_postal:  form.address_postal||null,
         address_country: form.address_country||'Canada',
         share_address:   form.share_address||false,
-      })
+      }).select('id').single()
       if(wsError) throw wsError
 
-      onAuth(session)
-      // navigate géré par onAuthStateChange dans App.jsx
+      // Si OAuth flow, s'assurer que la session est bien set dans le client
+      if (tempSession) {
+        await supabase.auth.setSession({
+          access_token: tempSession.access_token,
+          refresh_token: tempSession.refresh_token,
+        })
+      }
+      const{data:{session:freshSession}}=await supabase.auth.getSession()
+      onOnboarding(false)
+      onAuth(tempSession || freshSession)
+      // fire and forget — ne bloque pas le navigate
+      supabase.functions.invoke('send-admin-notification', {
+        body: {
+          type: 'new_user',
+          user_name: form.full_name,
+          user_email: user.email,
+          workspace_name: form.business_name,
+          workspace_slug: slug,
+          created_at: new Date().toISOString(),
+        }
+      })
+      // Laisser le temps au WorkspaceContext de fetch le workspace
+      await new Promise(r => setTimeout(r, 1200))
+      const storedPlan = localStorage.getItem('plan_selected')
+      if (storedPlan && wsInsert?.id) {
+        await supabase.from('subscriptions').update({ plan: storedPlan }).eq('workspace_id', wsInsert.id)
+        localStorage.removeItem('plan_selected')
+      }
+      navigate('/dashboard')
     }catch(err){
       setError(err.message||'Something went wrong. Please try again.')
     }

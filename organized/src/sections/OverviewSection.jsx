@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { createAppointment } from '../api/appointments'
+import { getUnnotifiedWaitlistCount } from '../api/waitlist'
 
 // ── I18N ──────────────────────────────────────────────────────────────────────
 const LANG = {
@@ -243,22 +245,22 @@ function RescheduleModal({ appt, onClose, onSaved, toast }) {
   for(let d=1;d<=daysInMonth;d++) cells.push(d)
   return (
     <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.45)',zIndex:200,display:'flex',alignItems:'center',justifyContent:'center',padding:'1rem'}} onClick={onClose}>
-      <div style={{background:'var(--surface)',borderRadius:16,padding:'1.75rem',width:'100%',maxWidth:360,boxShadow:'0 24px 64px rgba(0,0,0,.2)'}} onClick={e=>e.stopPropagation()}>
+      <div style={{background:'var(--bg-card)',borderRadius:16,padding:'1.75rem',width:'100%',maxWidth:360,boxShadow:'0 24px 64px rgba(0,0,0,.2)'}} onClick={e=>e.stopPropagation()}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'1.25rem'}}>
           <div>
-            <div style={{fontFamily:"'Playfair Display',serif",fontSize:'1.2rem',color:'var(--ink)'}}>Reschedule</div>
-            <div style={{fontSize:'.78rem',color:'var(--ink-3)',marginTop:2}}>{appt.client_name} · {svcName(appt)}</div>
+            <div style={{fontFamily:"'Playfair Display',serif",fontSize:'1.2rem',color:'var(--text-primary)'}}>Reschedule</div>
+            <div style={{fontSize:'.78rem',color:'var(--text-secondary)',marginTop:2}}>{appt.client_name} · {svcName(appt)}</div>
           </div>
-          <button style={{background:'var(--bg)',border:'none',width:30,height:30,borderRadius:'50%',cursor:'pointer',color:'var(--ink-3)',fontSize:'1rem',display:'flex',alignItems:'center',justifyContent:'center'}} onClick={onClose}>×</button>
+          <button style={{background:'var(--bg-base)',border:'none',width:30,height:30,borderRadius:'50%',cursor:'pointer',color:'var(--text-secondary)',fontSize:'1rem',display:'flex',alignItems:'center',justifyContent:'center'}} onClick={onClose}>×</button>
         </div>
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'.75rem'}}>
           <button className="cal-nav-btn" onClick={prevMonth}>&#8249;</button>
-          <span style={{fontSize:'.84rem',fontWeight:600,color:'var(--ink)'}}>{monthLabel}</span>
+          <span style={{fontSize:'.84rem',fontWeight:600,color:'var(--text-primary)'}}>{monthLabel}</span>
           <button className="cal-nav-btn" onClick={nextMonth}>&#8250;</button>
         </div>
         <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:2,marginBottom:'1rem'}}>
           {['S','M','T','W','T','F','S'].map((d,i)=>(
-            <div key={i} style={{textAlign:'center',fontSize:'.62rem',fontWeight:600,color:'var(--ink-3)',padding:'3px 0'}}>{d}</div>
+            <div key={i} style={{textAlign:'center',fontSize:'.62rem',fontWeight:600,color:'var(--text-secondary)',padding:'3px 0'}}>{d}</div>
           ))}
           {cells.map((d,i)=>{
             const isPast=d&&new Date(year,month,d)<new Date(new Date().setHours(0,0,0,0))
@@ -268,15 +270,15 @@ function RescheduleModal({ appt, onClose, onSaved, toast }) {
                 style={{textAlign:'center',fontSize:'.78rem',padding:'6px 2px',borderRadius:6,
                   cursor:d&&!isPast?'pointer':'default',
                   background:isSelected?'var(--ink)':'transparent',
-                  color:isSelected?'#fff':isPast?'var(--border-2)':d?'var(--ink)':'transparent',
+                  color:isSelected?'#fff':isPast?'var(--border-2)':d?'var(--text-primary)':'transparent',
                   fontWeight:isSelected?600:400,transition:'background .12s'}}>{d||''}</div>
             )
           })}
         </div>
         <div style={{marginBottom:'1.25rem'}}>
-          <label style={{display:'block',fontSize:'.76rem',fontWeight:500,color:'var(--ink-3)',marginBottom:'.4rem'}}>TIME</label>
+          <label style={{display:'block',fontSize:'.76rem',fontWeight:500,color:'var(--text-secondary)',marginBottom:'.4rem'}}>TIME</label>
           <input type="time" value={time} onChange={e=>setTime(e.target.value)}
-            style={{width:'100%',padding:'.6rem .9rem',border:'1px solid var(--border-2)',borderRadius:8,fontSize:'.88rem',fontFamily:'inherit',color:'var(--ink)',background:'var(--surface)',outline:'none'}}/>
+            style={{width:'100%',padding:'.6rem .9rem',border:'1px solid var(--border-2)',borderRadius:8,fontSize:'.88rem',fontFamily:'inherit',color:'var(--text-primary)',background:'var(--bg-card)',outline:'none'}}/>
         </div>
         <div style={{display:'flex',gap:'.6rem'}}>
           <button className="btn btn-secondary" style={{flex:1,justifyContent:'center'}} onClick={onClose}>Cancel</button>
@@ -304,43 +306,43 @@ function MessageModal({ appt, onClose, workspace }) {
   function openEmail(){window.open(`mailto:${email}?subject=${encodeURIComponent(`Reminder — ${biz}`)}&body=${encodeURIComponent(emailBody)}`)}
   return (
     <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.45)',zIndex:200,display:'flex',alignItems:'center',justifyContent:'center',padding:'1rem'}} onClick={onClose}>
-      <div style={{background:'var(--surface)',borderRadius:16,padding:'1.75rem',width:'100%',maxWidth:400,boxShadow:'0 24px 64px rgba(0,0,0,.2)'}} onClick={e=>e.stopPropagation()}>
+      <div style={{background:'var(--bg-card)',borderRadius:16,padding:'1.75rem',width:'100%',maxWidth:400,boxShadow:'0 24px 64px rgba(0,0,0,.2)'}} onClick={e=>e.stopPropagation()}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'1.25rem'}}>
           <div>
-            <div style={{fontFamily:"'Playfair Display',serif",fontSize:'1.2rem',color:'var(--ink)'}}>Message client</div>
-            <div style={{fontSize:'.78rem',color:'var(--ink-3)',marginTop:2}}>{name}</div>
+            <div style={{fontFamily:"'Playfair Display',serif",fontSize:'1.2rem',color:'var(--text-primary)'}}>Message client</div>
+            <div style={{fontSize:'.78rem',color:'var(--text-secondary)',marginTop:2}}>{name}</div>
           </div>
-          <button style={{background:'var(--bg)',border:'none',width:30,height:30,borderRadius:'50%',cursor:'pointer',color:'var(--ink-3)',fontSize:'1rem',display:'flex',alignItems:'center',justifyContent:'center'}} onClick={onClose}>×</button>
+          <button style={{background:'var(--bg-base)',border:'none',width:30,height:30,borderRadius:'50%',cursor:'pointer',color:'var(--text-secondary)',fontSize:'1rem',display:'flex',alignItems:'center',justifyContent:'center'}} onClick={onClose}>×</button>
         </div>
         {phone?(
-          <div style={{marginBottom:'1.25rem',padding:'1rem',background:'var(--bg)',borderRadius:10,border:'1px solid var(--border)'}}>
+          <div style={{marginBottom:'1.25rem',padding:'1rem',background:'var(--bg-base)',borderRadius:10,border:'1px solid var(--border)'}}>
             <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'.65rem'}}>
               <div>
-                <div style={{fontSize:'.72rem',fontWeight:600,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'.05em'}}>SMS</div>
-                <div style={{fontSize:'.85rem',fontWeight:500,color:'var(--ink)',marginTop:2}}>{phone}</div>
+                <div style={{fontSize:'.72rem',fontWeight:600,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'.05em'}}>SMS</div>
+                <div style={{fontSize:'.85rem',fontWeight:500,color:'var(--text-primary)',marginTop:2}}>{phone}</div>
               </div>
               <button className="btn btn-primary btn-sm" onClick={openSMS}>Open SMS →</button>
             </div>
             <textarea value={smsBody} onChange={e=>setSmsBody(e.target.value)} rows={3}
-              style={{width:'100%',padding:'.55rem .75rem',border:'1px solid var(--border-2)',borderRadius:7,fontSize:'.78rem',fontFamily:'inherit',color:'var(--ink)',background:'var(--surface)',resize:'vertical',outline:'none',lineHeight:1.5}}/>
+              style={{width:'100%',padding:'.55rem .75rem',border:'1px solid var(--border-2)',borderRadius:7,fontSize:'.78rem',fontFamily:'inherit',color:'var(--text-primary)',background:'var(--bg-card)',resize:'vertical',outline:'none',lineHeight:1.5}}/>
           </div>
         ):(
-          <div style={{marginBottom:'1.25rem',padding:'1rem',background:'var(--bg)',borderRadius:10,border:'1px solid var(--border)',fontSize:'.82rem',color:'var(--ink-3)'}}>No phone number on file.</div>
+          <div style={{marginBottom:'1.25rem',padding:'1rem',background:'var(--bg-base)',borderRadius:10,border:'1px solid var(--border)',fontSize:'.82rem',color:'var(--text-secondary)'}}>No phone number on file.</div>
         )}
         {email?(
-          <div style={{padding:'1rem',background:'var(--bg)',borderRadius:10,border:'1px solid var(--border)'}}>
+          <div style={{padding:'1rem',background:'var(--bg-base)',borderRadius:10,border:'1px solid var(--border)'}}>
             <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'.65rem'}}>
               <div>
-                <div style={{fontSize:'.72rem',fontWeight:600,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'.05em'}}>Email</div>
-                <div style={{fontSize:'.85rem',fontWeight:500,color:'var(--ink)',marginTop:2}}>{email}</div>
+                <div style={{fontSize:'.72rem',fontWeight:600,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'.05em'}}>Email</div>
+                <div style={{fontSize:'.85rem',fontWeight:500,color:'var(--text-primary)',marginTop:2}}>{email}</div>
               </div>
               <button className="btn btn-primary btn-sm" onClick={openEmail}>Open Mail →</button>
             </div>
             <textarea value={emailBody} onChange={e=>setEmailBody(e.target.value)} rows={4}
-              style={{width:'100%',padding:'.55rem .75rem',border:'1px solid var(--border-2)',borderRadius:7,fontSize:'.78rem',fontFamily:'inherit',color:'var(--ink)',background:'var(--surface)',resize:'vertical',outline:'none',lineHeight:1.5}}/>
+              style={{width:'100%',padding:'.55rem .75rem',border:'1px solid var(--border-2)',borderRadius:7,fontSize:'.78rem',fontFamily:'inherit',color:'var(--text-primary)',background:'var(--bg-card)',resize:'vertical',outline:'none',lineHeight:1.5}}/>
           </div>
         ):(
-          <div style={{padding:'1rem',background:'var(--bg)',borderRadius:10,border:'1px solid var(--border)',fontSize:'.82rem',color:'var(--ink-3)'}}>No email address on file.</div>
+          <div style={{padding:'1rem',background:'var(--bg-base)',borderRadius:10,border:'1px solid var(--border)',fontSize:'.82rem',color:'var(--text-secondary)'}}>No email address on file.</div>
         )}
         <button className="btn btn-secondary" style={{width:'100%',justifyContent:'center',marginTop:'1rem'}} onClick={onClose}>Close</button>
       </div>
@@ -416,7 +418,7 @@ function MonthlyGoal({ appts, workspace, refetchWorkspace, lang='en' }) {
         {editing?(
           <div style={{display:'flex',gap:'.4rem',alignItems:'center'}}>
             <input type="number" value={draft} onChange={e=>setDraft(parseInt(e.target.value)||0)}
-              style={{width:'90px',padding:'.3rem .6rem',border:'1px solid var(--gold)',borderRadius:'6px',fontSize:'.82rem',fontFamily:'inherit',color:'var(--ink)',background:'var(--surface)'}}/>
+              style={{width:'90px',padding:'.3rem .6rem',border:'1px solid var(--gold)',borderRadius:'6px',fontSize:'.82rem',fontFamily:'inherit',color:'var(--text-primary)',background:'var(--bg-card)'}}/>
             <button className="btn btn-primary btn-xs" onClick={saveGoal} disabled={saving}>{saving?'…':'Save'}</button>
             <button className="btn btn-secondary btn-xs" onClick={()=>setEditing(false)}>✕</button>
           </div>
@@ -426,7 +428,7 @@ function MonthlyGoal({ appts, workspace, refetchWorkspace, lang='en' }) {
       </div>
       <div style={{padding:'1.25rem 1.4rem'}}>
         <div className="goal-track"><div className="goal-fill" style={{width:`${displayPct}%`}}/></div>
-        <div style={{display:'flex',justifyContent:'space-between',marginTop:'.5rem',fontSize:'.72rem',color:'var(--ink-3)'}}>
+        <div style={{display:'flex',justifyContent:'space-between',marginTop:'.5rem',fontSize:'.72rem',color:'var(--text-secondary)'}}>
           <span style={{color:pctVal>=100?'var(--green)':'var(--ink-3)',fontWeight:pctVal>=100?600:400}}>
             {pctVal>=100?'🎉 Goal reached!':`${pctVal}% reached`}
           </span>
@@ -441,7 +443,7 @@ function MonthlyGoal({ appts, workspace, refetchWorkspace, lang='en' }) {
 }
 
 // ── TOP SERVICE INSIGHT ────────────────────────────────────────────────────────
-function TopServiceInsight({ appts }) {
+function TopServiceInsight({ appts, onClick }) {
   const map={}
   appts.filter(a=>a.status==='confirmed').forEach(a=>{
     const name=svcName(a);if(name==='—') return
@@ -450,25 +452,25 @@ function TopServiceInsight({ appts }) {
   })
   const entries=Object.entries(map).sort((a,b)=>b[1].rev-a[1].rev)
   if(!entries.length) return (
-    <div className="card" style={{marginBottom:0}}>
+    <div className="card" style={{marginBottom:0,cursor:onClick?'pointer':undefined}} onClick={onClick}>
       <div className="card-head"><div className="card-title">Your top service</div></div>
-      <div style={{padding:'1.4rem',fontSize:'.82rem',color:'var(--ink-3)'}}>Confirm your first appointment to see which service drives your business.</div>
+      <div style={{padding:'1.4rem',fontSize:'.82rem',color:'var(--text-secondary)'}}>Confirm your first appointment to see which service drives your business.</div>
     </div>
   )
   const [name,{count,rev}]=entries[0]
   const totalRev=appts.filter(a=>a.status==='confirmed').reduce((s,a)=>s+Number(a.amount||0),0)
   const share=totalRev>0?Math.round((rev/totalRev)*100):0
   return (
-    <div className="card" style={{marginBottom:0}}>
+    <div className="card" style={{marginBottom:0,cursor:onClick?'pointer':undefined}} onClick={onClick}>
       <div className="card-head">
         <div className="card-title">Your top service</div>
         <span className="top-badge">{I.star} #1</span>
       </div>
       <div style={{padding:'1.25rem 1.4rem'}}>
-        <div style={{fontFamily:"'Playfair Display',serif",fontSize:'1.35rem',color:'var(--ink)',marginBottom:'.35rem'}}>{name}</div>
-        <div style={{fontSize:'.8rem',color:'var(--ink-3)',marginBottom:'1rem'}}>{count} booking{count>1?'s':''} &middot; {fmtRev(rev)} earned</div>
+        <div style={{fontFamily:"'Playfair Display',serif",fontSize:'1.35rem',color:'var(--text-primary)',marginBottom:'.35rem'}}>{name}</div>
+        <div style={{fontSize:'.8rem',color:'var(--text-secondary)',marginBottom:'1rem'}}>{count} booking{count>1?'s':''} &middot; {fmtRev(rev)} earned</div>
         <div className="top-track"><div className="top-fill" style={{width:`${share}%`}}/></div>
-        <div style={{fontSize:'.72rem',color:'var(--ink-3)',marginTop:'.4rem'}}><strong style={{color:'var(--gold)'}}>{share}%</strong> of your total revenue</div>
+        <div style={{fontSize:'.72rem',color:'var(--text-secondary)',marginTop:'.4rem'}}><strong style={{color:'var(--gold)'}}>{share}%</strong> of your total revenue</div>
       </div>
     </div>
   )
@@ -490,7 +492,7 @@ function WeekChart({ appts }) {
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1rem'}}>
         <div className="card-sub">Total: {fmtRev(total)}</div>
         {delta!==null&&(
-          <span style={{fontSize:'.72rem',fontWeight:600,color:delta>=0?'var(--green)':'var(--red)',background:delta>=0?'rgba(46,125,82,.08)':'rgba(192,57,43,.08)',padding:'2px 8px',borderRadius:'20px'}}>
+          <span style={{fontSize:'.72rem',fontWeight:600,color:delta>=0?'var(--green)':'var(--red)',background:delta>=0?'rgba(46,125,82,.08)':'rgba(192,57,43,.08)',padding:'2px 8px',borderRadius:'var(--border-radius-pill)'}}>
             {delta>=0?'↑':'↓'} {Math.abs(delta)}% vs last week
           </span>
         )}
@@ -558,7 +560,7 @@ function RevenuePanel({ appts, onClose }) {
 }
 
 // ── COACH SLIDER ──────────────────────────────────────────────────────────────
-function CoachSlider({ appts, stats, workspace, session, lang='en' }) {
+function CoachSlider({ appts, stats, workspace, session, lang='en', activeTab='booking' }) {
   const now=new Date()
   const mn=now.toLocaleDateString(lang==='fr'?'fr-FR':lang==='es'?'es-ES':'en-US',{month:'long'})
   const uid=session?.user?.id||'guest'
@@ -578,6 +580,7 @@ function CoachSlider({ appts, stats, workspace, session, lang='en' }) {
     const d=new Date(a.scheduled_at)
     return a.status==='confirmed'&&d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth()
   }).map(a=>new Date(a.scheduled_at).toISOString().split('T')[0])).size
+  if(activeTab==='booking'){
   if(activeDays===0) tips.push({icon:'📅',text:lang==='fr'?`Aucun jour actif ce mois-ci. Partage ton lien de réservation pour remplir ton agenda.`:lang==='es'?`Sin días activos este mes. Comparte tu enlace para llenar tu agenda.`:`No active days this month. Share your booking link to fill your calendar.`})
   else if(activeDays<8) tips.push({icon:'📅',text:lang==='fr'?`${activeDays} jour${activeDays>1?'s':''} actif${activeDays>1?'s':''} ce mois. Continue à partager ton lien — chaque slot vide est du revenu qui attend.`:lang==='es'?`${activeDays} día${activeDays>1?'s':''} activo${activeDays>1?'s':''} este mes. Sigue compartiendo tu enlace.`:`${activeDays} active day${activeDays>1?'s':''} this month. Keep sharing your link — every empty slot is revenue waiting.`})
   else if(activeDays<15) tips.push({icon:'📅',text:lang==='fr'?`${activeDays} jours actifs ce mois. Ton agenda se remplit bien — maintiens cette dynamique.`:lang==='es'?`${activeDays} días activos este mes. Tu agenda se está llenando bien.`:`${activeDays} active days this month. Your schedule is filling up — keep the momentum.`})
@@ -603,6 +606,15 @@ function CoachSlider({ appts, stats, workspace, session, lang='en' }) {
   const in3=new Date(now.getTime()+3*24*60*60*1000)
   const upcoming=appts.filter(a=>{const d=new Date(a.scheduled_at);return d>now&&d<=in3&&a.status!=='cancelled'})
   if(upcoming.length===0) tips.push({icon:'🔗',text:lang==='fr'?`Tes 3 prochains jours sont libres. Partager ton lien aujourd'hui pourrait remplir ces créneaux avant la fin de la semaine.`:lang==='es'?`Tus próximos 3 días están libres. Compartir tu enlace hoy podría llenar esos espacios.`:`Your next 3 days are open. Sharing your booking link today could fill those slots before the week ends.`})
+  }else if(activeTab==='shop'){
+    tips.push({icon:'💡',text:'Feature your best product to drive more sales.'})
+    tips.push({icon:'📦',text:'Consistent packaging builds brand trust.'})
+    tips.push({icon:'🎯',text:'A discount this week could clear old stock.'})
+  }else if(activeTab==='learn'){
+    tips.push({icon:'💡',text:'Short workshops convert better than long courses.'})
+    tips.push({icon:'🎓',text:'Your knowledge is worth charging for.'})
+    tips.push({icon:'✨',text:'One satisfied student brings three more.'})
+  }
   const INTERVAL=5000
   const [idx,setIdx]=useState(0)
   const [visible,setVisible]=useState(true)
@@ -643,7 +655,7 @@ function CoachSlider({ appts, stats, workspace, session, lang='en' }) {
 }
 
 // ── DAY PANEL ─────────────────────────────────────────────────────────────────
-function DayPanel({ dayStr, allAppts, blockedDates, onClose, onBlock, onUnblock, onBooked, workspace, lang='en' }) {
+function DayPanel({ dayStr, allAppts, blockedDates, onClose, onBlock, onUnblock, onBooked, workspace, lang='en', toast }) {
   useScrollLock()
   const [mode,setMode]=useState('main')
   const [reason,setReason]=useState('')
@@ -652,6 +664,7 @@ function DayPanel({ dayStr, allAppts, blockedDates, onClose, onBlock, onUnblock,
   const [noteSaved,setNoteSaved]=useState(false)
   const [noteLoading,setNoteLoading]=useState(true)
   const [services,setServices]=useState([])
+  const [availability,setAvailability]=useState([])
   const [bookingForm,setBookingForm]=useState({client_name:'',client_phone:'',client_email:'',service_id:'',time:'09:00',amount:'',status:'confirmed'})
   const [bookingSaving,setBookingSaving]=useState(false)
   const [bookingDone,setBookingDone]=useState(false)
@@ -669,7 +682,8 @@ function DayPanel({ dayStr, allAppts, blockedDates, onClose, onBlock, onUnblock,
   },[dayStr,workspace?.id])
   useEffect(()=>{
     if(mode!=='booking'||!workspace?.id) return
-    supabase.from('services').select('id,name,price').eq('workspace_id',workspace.id).eq('is_active',true).then(({data})=>setServices(data||[]))
+    supabase.from('services').select('id,name,price,duration_min').eq('workspace_id',workspace.id).eq('is_active',true).then(({data})=>setServices(data||[]))
+    supabase.from('availability').select('day_of_week,is_open,open_time,close_time').eq('workspace_id',workspace.id).then(({data})=>setAvailability(data||[]))
   },[mode,workspace?.id])
   async function saveNote(){
     if(!workspace?.id) return;setNoteSaving(true);setNoteSaved(false)
@@ -680,29 +694,54 @@ function DayPanel({ dayStr, allAppts, blockedDates, onClose, onBlock, onUnblock,
     const svc=services.find(s=>s.id===id)
     setBookingForm(f=>({...f,service_id:id,amount:svc?.price!=null?String(svc.price):f.amount}))
   }
-  async function saveBooking(){
-    if(!bookingForm.client_name.trim()||!bookingForm.time) return;setBookingSaving(true)
-    const [h,m]=bookingForm.time.split(':')
-    const dt=new Date(dayStr+'T00:00:00');dt.setHours(parseInt(h),parseInt(m),0,0)
-    const selectedSvc=services.find(s=>s.id===bookingForm.service_id)
-    const{error}=await supabase.from('appointments').insert({
-      workspace_id:workspace.id,client_name:bookingForm.client_name.trim(),
-      client_phone:bookingForm.client_phone.trim()||null,client_email:bookingForm.client_email.trim()||null,
-      service_id:bookingForm.service_id||null,service_name:selectedSvc?.name||null,
-      scheduled_at:dt.toISOString(),amount:parseFloat(bookingForm.amount)||0,status:bookingForm.status,
-    })
-    setBookingSaving(false);if(error) return;setBookingDone(true)
-    setTimeout(()=>{setBookingDone(false);setMode('main');setBookingForm({client_name:'',client_phone:'',client_email:'',service_id:'',time:'09:00',amount:'',status:'confirmed'});if(onBooked)onBooked()},1400)
+  async function saveBooking() {
+    if (!bookingForm.client_name.trim() || !bookingForm.time) return
+    setBookingSaving(true)
+    try {
+      const selectedSvc = services.find(s => s.id === bookingForm.service_id)
+      const tzOffset = -new Date().getTimezoneOffset()
+      const sign = tzOffset >= 0 ? '+' : '-'
+      const pad = n => String(Math.floor(Math.abs(n))).padStart(2, '0')
+      const offsetStr = `${sign}${pad(tzOffset / 60)}:${pad(tzOffset % 60)}`
+      const { error } = await createAppointment({
+        workspace_id: workspace.id,
+        client_name: bookingForm.client_name.trim(),
+        client_phone: bookingForm.client_phone.trim() || null,
+        client_email: bookingForm.client_email.trim() || null,
+        service_id: bookingForm.service_id || null,
+        service_name: selectedSvc?.name || null,
+        scheduled_at: `${dayStr}T${bookingForm.time}:00${offsetStr}`,
+        amount: parseFloat(bookingForm.amount) || 0,
+        status: bookingForm.status,
+        duration_min: Number(selectedSvc?.duration_min) || 60,
+        is_manual: true,
+      })
+      if (error) {
+        toast('Could not save booking — ' + error.message)
+        return
+      }
+      setBookingDone(true)
+      onBooked()
+      setTimeout(() => {
+        setBookingDone(false)
+        setMode('main')
+        setBookingForm({ client_name: '', client_phone: '', client_email: '', service_id: '', time: '09:00', amount: '', status: 'confirmed' })
+      }, 1400)
+    } catch (err) {
+      toast('Unexpected error — ' + err.message)
+    } finally {
+      setBookingSaving(false)
+    }
   }
-  const iS={width:'100%',padding:'.55rem .75rem',border:'1px solid var(--border-2)',borderRadius:8,fontSize:'.82rem',fontFamily:'inherit',color:'var(--ink)',background:'var(--surface)',outline:'none',transition:'border .15s'}
-  const lS={display:'block',fontSize:'.72rem',fontWeight:600,color:'var(--ink-3)',marginBottom:'.3rem',textTransform:'uppercase',letterSpacing:'.05em'}
+  const iS={width:'100%',padding:'.55rem .75rem',border:'1px solid var(--border-2)',borderRadius:8,fontSize:'.82rem',fontFamily:'inherit',color:'var(--text-primary)',background:'var(--bg-card)',outline:'none',transition:'border .15s'}
+  const lS={display:'block',fontSize:'.72rem',fontWeight:600,color:'var(--text-secondary)',marginBottom:'.3rem',textTransform:'uppercase',letterSpacing:'.05em'}
   return (
     <div className="rev-overlay" onClick={onClose}>
-      <div className="rev-panel" style={{maxHeight:'92vh',overflowY:'auto'}} onClick={e=>e.stopPropagation()}>
+      <div className="rev-panel" style={{maxHeight:'92vh',overflowY:'auto',paddingBottom:100}} onClick={e=>e.stopPropagation()}>
         <div className="rev-panel-head">
           <div style={{display:'flex',alignItems:'center',gap:'.65rem'}}>
             {mode==='booking'&&(
-              <button onClick={()=>setMode('main')} style={{background:'var(--bg)',border:'1px solid var(--border)',borderRadius:8,width:30,height:30,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',color:'var(--ink-3)'}}>
+              <button onClick={()=>setMode('main')} style={{background:'var(--bg-base)',border:'1px solid var(--border)',borderRadius:8,width:30,height:30,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',color:'var(--text-secondary)'}}>
                 <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" width="12" height="12"><path d="M10 3L5 8l5 5"/></svg>
               </button>
             )}
@@ -711,7 +750,7 @@ function DayPanel({ dayStr, allAppts, blockedDates, onClose, onBlock, onUnblock,
                 {mode==='booking'?t(lang,'new_booking'):label}
               </div>
               {mode==='main'&&isPast&&(
-                <div style={{fontSize:'.72rem',color:'var(--ink-3)',marginTop:3,display:'flex',alignItems:'center',gap:'.3rem'}}>
+                <div style={{fontSize:'.72rem',color:'var(--text-secondary)',marginTop:3,display:'flex',alignItems:'center',gap:'.3rem'}}>
                   <span>📅</span>{t(lang,'past_day')}{dayRevenue>0&&<span style={{color:'var(--green)',fontWeight:600,marginLeft:4}}>· {fmtRev(dayRevenue)} earned</span>}
                 </div>
               )}
@@ -756,7 +795,7 @@ function DayPanel({ dayStr, allAppts, blockedDates, onClose, onBlock, onUnblock,
                   onFocus={e=>e.target.style.borderColor='var(--gold)'} onBlur={e=>e.target.style.borderColor='var(--border-2)'}/></div>
             </div>
             <div style={{display:'flex',alignItems:'center',gap:'.65rem',marginTop:'.5rem'}}>
-              <div style={{display:'flex',background:'var(--surface)',border:'1px solid var(--border-2)',borderRadius:8,overflow:'hidden',flexShrink:0}}>
+              <div style={{display:'flex',background:'var(--bg-card)',border:'1px solid var(--border-2)',borderRadius:8,overflow:'hidden',flexShrink:0}}>
                 {['confirmed','pending'].map(s=>(
                   <button key={s} onClick={()=>setBookingForm(f=>({...f,status:s}))}
                     style={{padding:'.4rem .85rem',border:'none',cursor:'pointer',fontFamily:'inherit',fontSize:'.75rem',fontWeight:500,transition:'all .15s',
@@ -777,12 +816,12 @@ function DayPanel({ dayStr, allAppts, blockedDates, onClose, onBlock, onUnblock,
           <>
             {dayAppts.length>0?(
               <div style={{marginBottom:'1.25rem'}}>
-                <div style={{fontSize:'.7rem',fontWeight:600,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'.6rem'}}>{isPast?'What happened that day':'Appointments this day'}</div>
+                <div style={{fontSize:'.7rem',fontWeight:600,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'.6rem'}}>{isPast?'What happened that day':'Appointments this day'}</div>
                 {dayAppts.map(a=>(
-                  <div key={a.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'.75rem 1rem',background:'var(--bg)',borderRadius:10,marginBottom:'.5rem'}}>
+                  <div key={a.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'.75rem 1rem',background:'var(--bg-base)',borderRadius:10,marginBottom:'.5rem'}}>
                     <div>
-                      <div style={{fontWeight:600,fontSize:'.88rem',color:'var(--ink)'}}>{a.client_name}</div>
-                      <div style={{fontSize:'.75rem',color:'var(--ink-3)',marginTop:2}}>{new Date(a.scheduled_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})} · {svcName(a)}</div>
+                      <div style={{fontWeight:600,fontSize:'.88rem',color:'var(--text-primary)'}}>{a.client_name}</div>
+                      <div style={{fontSize:'.75rem',color:'var(--text-secondary)',marginTop:2}}>{new Date(a.scheduled_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})} · {svcName(a)}</div>
                     </div>
                     <div style={{display:'flex',gap:'.4rem',alignItems:'center'}}>
                       <span className={`badge badge-${a.status}`}>{a.status}</span>
@@ -791,13 +830,13 @@ function DayPanel({ dayStr, allAppts, blockedDates, onClose, onBlock, onUnblock,
                   </div>
                 ))}
                 {!isPast&&dayAppts.filter(a=>a.status!=='cancelled').length>0&&!blocked&&(
-                  <div style={{fontSize:'.76rem',color:'var(--ink-3)',padding:'.6rem .8rem',background:'var(--bg)',borderRadius:8,marginTop:'.4rem'}}>
+                  <div style={{fontSize:'.76rem',color:'var(--text-secondary)',padding:'.6rem .8rem',background:'var(--bg-base)',borderRadius:8,marginTop:'.4rem'}}>
                     This day has bookings. Blocking it will not cancel them — message each client first.
                   </div>
                 )}
               </div>
             ):(
-              <div style={{textAlign:'center',padding:'1rem 0',color:'var(--ink-3)',fontSize:'.85rem',marginBottom:'1rem'}}>
+              <div style={{textAlign:'center',padding:'1rem 0',color:'var(--text-secondary)',fontSize:'.85rem',marginBottom:'1rem'}}>
                 {isPast?'No appointments were recorded for this day.':'No appointments on this day.'}
               </div>
             )}
@@ -806,13 +845,13 @@ function DayPanel({ dayStr, allAppts, blockedDates, onClose, onBlock, onUnblock,
                 <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',background:'rgba(192,57,43,.06)',border:'1px solid rgba(192,57,43,.15)',borderRadius:10,padding:'1rem 1.1rem',marginBottom:'1rem'}}>
                   <div>
                     <div style={{fontWeight:600,fontSize:'.85rem',color:'var(--red)'}}>Blocked</div>
-                    {blocked.reason&&<div style={{fontSize:'.75rem',color:'var(--ink-3)',marginTop:2}}>{blocked.reason}</div>}
+                    {blocked.reason&&<div style={{fontSize:'.75rem',color:'var(--text-secondary)',marginTop:2}}>{blocked.reason}</div>}
                   </div>
                   <button className="btn btn-secondary btn-xs" onClick={()=>onUnblock(blocked.id)}>Unblock</button>
                 </div>
               ):(
                 <div style={{borderTop:'1px solid var(--border)',paddingTop:'1rem',marginBottom:'1rem'}}>
-                  <div style={{fontSize:'.7rem',fontWeight:600,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'.75rem'}}>{t(lang,'block_date')}</div>
+                  <div style={{fontSize:'.7rem',fontWeight:600,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'.75rem'}}>{t(lang,'block_date')}</div>
                   <div className="field" style={{marginBottom:'.75rem'}}>
                     <label>{t(lang,'reason')}</label>
                     <input value={reason} onChange={e=>setReason(e.target.value)} placeholder="Vacation, personal, training..."/>
@@ -823,13 +862,13 @@ function DayPanel({ dayStr, allAppts, blockedDates, onClose, onBlock, onUnblock,
             )}
             <div style={{borderTop:'1px solid var(--border)',paddingTop:'1rem'}}>
               <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'.5rem'}}>
-                <div style={{fontSize:'.7rem',fontWeight:600,color:'var(--ink-3)',textTransform:'uppercase',letterSpacing:'.08em'}}>📝 {t(lang,'note_title')}</div>
+                <div style={{fontSize:'.7rem',fontWeight:600,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'.08em'}}>📝 {t(lang,'note_title')}</div>
                 {noteSaved&&<span style={{fontSize:'.72rem',color:'var(--green)',fontWeight:600}}>{t(lang,'note_saved')}</span>}
               </div>
-              {noteLoading?<div style={{fontSize:'.78rem',color:'var(--ink-3)',padding:'.4rem 0'}}>Loading...</div>:(
+              {noteLoading?<div style={{fontSize:'.78rem',color:'var(--text-secondary)',padding:'.4rem 0'}}>Loading...</div>:(
                 <>
                   <textarea value={note} onChange={e=>{setNote(e.target.value);setNoteSaved(false)}} placeholder={t(lang,'note_placeholder')} rows={2}
-                    style={{width:'100%',padding:'.55rem .75rem',border:'1px solid var(--border-2)',borderRadius:8,fontSize:'.82rem',fontFamily:'inherit',color:'var(--ink)',background:'var(--bg)',resize:'vertical',outline:'none',lineHeight:1.5,transition:'border .15s'}}
+                    style={{width:'100%',padding:'.55rem .75rem',border:'1px solid var(--border-2)',borderRadius:8,fontSize:'.82rem',fontFamily:'inherit',color:'var(--text-primary)',background:'var(--bg-base)',resize:'vertical',outline:'none',lineHeight:1.5,transition:'border .15s'}}
                     onFocus={e=>e.target.style.borderColor='var(--gold)'} onBlur={e=>e.target.style.borderColor='var(--border-2)'}/>
                   <button className="btn btn-secondary btn-sm" style={{marginTop:'.5rem',width:'100%',justifyContent:'center'}} onClick={saveNote} disabled={noteSaving}>{noteSaving?'Saving…':t(lang,'save_note')}</button>
                 </>
@@ -854,7 +893,7 @@ function InteractiveCal({ allAppts, blockedDates, onDayClick }) {
   const apptDays=new Set(allAppts.filter(a=>a.status!=='cancelled').map(a=>{
     if(!a.scheduled_at) return null
     const d=new Date(a.scheduled_at)
-    if(d.getFullYear()===viewYear&&d.getMonth()===viewMonth) return d.getDate()
+    if(d.getUTCFullYear()===viewYear&&d.getUTCMonth()===viewMonth) return d.getUTCDate()
     return null
   }).filter(Boolean))
   const blockedSet=new Set(blockedDates.map(b=>{
@@ -871,7 +910,7 @@ function InteractiveCal({ allAppts, blockedDates, onDayClick }) {
     <div>
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'.65rem'}}>
         <button className="cal-nav-btn" onClick={prevM}>&#8249;</button>
-        <span style={{fontSize:'.84rem',fontWeight:600,color:'var(--ink)'}}>{monthLabel}</span>
+        <span style={{fontSize:'.84rem',fontWeight:600,color:'var(--text-primary)'}}>{monthLabel}</span>
         <button className="cal-nav-btn" onClick={nextM}>&#8250;</button>
       </div>
       <div className="cal-grid">
@@ -890,7 +929,7 @@ function InteractiveCal({ allAppts, blockedDates, onDayClick }) {
           )
         })}
       </div>
-      <div style={{display:'flex',gap:'1rem',marginTop:'.75rem',fontSize:'.7rem',color:'var(--ink-3)'}}>
+      <div style={{display:'flex',gap:'1rem',marginTop:'.75rem',fontSize:'.7rem',color:'var(--text-secondary)'}}>
         <span style={{display:'flex',alignItems:'center',gap:'.3rem'}}><span style={{width:6,height:6,borderRadius:'50%',background:'var(--gold)',display:'inline-block'}}/> Appointment</span>
         <span style={{display:'flex',alignItems:'center',gap:'.3rem'}}><span style={{width:6,height:6,borderRadius:'50%',background:'var(--red)',display:'inline-block'}}/> Blocked</span>
       </div>
@@ -899,7 +938,7 @@ function InteractiveCal({ allAppts, blockedDates, onDayClick }) {
 }
 
 // ── OVERVIEW ──────────────────────────────────────────────────────────────────
-export default function OverviewSection({ workspace, session, ownerData, toast, setPage, refetchWorkspace, lang='en' }) {
+export default function OverviewSection({ workspace, session, ownerData, toast, setPage, refetchWorkspace, lang='en', onNavigate, activeTab='booking' }) {
   const [appts,setAppts]=useState([])
   const [allAppts,setAllAppts]=useState([])
   const [blockedDates,setBlockedDates]=useState([])
@@ -908,6 +947,18 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
   const [showRevenue,setShowRevenue]=useState(false)
   const [reminderBannerDismissed, setReminderBannerDismissed] = useState(false)
   const [remindersSent,setRemindersSent]=useState([])
+  const [shopOrders,setShopOrders]=useState([])
+  const [allProducts,setAllProducts]=useState([])
+  const [shopProducts,setShopProducts]=useState([])
+  const [shopTopProd,setShopTopProd]=useState(null)
+  const [offerings,setOfferings]=useState([])
+  const [allServices,setAllServices]=useState([])
+  const [upcomingOffering,setUpcomingOffering]=useState(null)
+  const [learnRevMonth,setLearnRevMonth]=useState(0)
+  const [learnEnrollCount,setLearnEnrollCount]=useState(0)
+  const [learnCompletedCount,setLearnCompletedCount]=useState(0)
+  const [learnActiveOfferings,setLearnActiveOfferings]=useState([])
+  const [learnWaitlistCount,setLearnWaitlistCount]=useState(0)
   useEffect(()=>{
     if(!workspace) return
     const cacheKey=`org_cache_${workspace.id}`
@@ -925,20 +976,25 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
     const ch=supabase.channel('ov-rt').on('postgres_changes',{event:'*',schema:'public',table:'appointments',filter:`workspace_id=eq.${workspace.id}`},fetchData).subscribe()
     const poll=setInterval(fetchData, 8000)
     return()=>{ supabase.removeChannel(ch); clearInterval(poll) }
-  },[workspace])
+  },[workspace?.id])
   async function fetchData(){
     const today=new Date().toISOString().split('T')[0],now=new Date()
-    const[a,p,e,b]=await Promise.all([
+    const[a,p,e,b,ord,off,svc]=await Promise.all([
       supabase.from('appointments').select('*, services(name)').eq('workspace_id',workspace.id),
-      supabase.from('products').select('id').eq('workspace_id',workspace.id),
+      supabase.from('products').select('id,name,price,stock,is_active').eq('workspace_id',workspace.id).order('created_at',{ascending:false}),
       supabase.from('enrollments').select('id').eq('workspace_id',workspace.id),
       supabase.from('blocked_dates').select('*').eq('workspace_id',workspace.id),
+      supabase.from('orders').select('id,status,total_amount,product_name,client_name,created_at,tracking_number,delivered_at').eq('workspace_id',workspace.id),
+      supabase.from('offerings').select('id,title,workshop_date,spots_total,spots_taken,is_active').eq('workspace_id',workspace.id),
+      supabase.from('services').select('id,name,price,duration_min').eq('workspace_id',workspace.id).eq('is_active',true),
     ])
     const ad=a.data||[]
     const bd=b.data||[]
     const pd=p.data||[]
     const ed=e.data||[]
     setAllAppts(ad);setBlockedDates(bd)
+    setShopOrders(ord.data||[]);setAllProducts(pd);setOfferings(off.data||[])
+    setAllServices(svc.data||[])
     const monthNow=now.getMonth(),yearNow=now.getFullYear()
     const monthApptsCount=ad.filter(x=>{const d=new Date(x.scheduled_at);return d.getFullYear()===yearNow&&d.getMonth()===monthNow}).length
     const newStats={
@@ -972,6 +1028,80 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
     setSelectedDay(null);fetchData()
   }
   async function handleUnblock(id){await supabase.from('blocked_dates').delete().eq('id',id);toast('Date unblocked.');setSelectedDay(null);fetchData()}
+  function fetchShopData(){
+    if(!workspace?.id) return
+    // Products — no is_active filter (null/missing treated as active), exclude soft-deleted
+    supabase.from('products').select('id,name,price,stock,is_active')
+      .eq('workspace_id',workspace.id)
+      .is('deleted_at',null)
+      .order('created_at',{ascending:false})
+      .then(({data})=>{ setShopProducts(data||[]) })
+    // Top product — fresh orders query grouped client-side
+    supabase.from('orders').select('product_name,total_amount')
+      .eq('workspace_id',workspace.id)
+      .in('status',['confirmed','shipped','delivered'])
+      .then(({data})=>{
+        if(!data?.length){setShopTopProd(null);return}
+        const map={}
+        data.forEach(o=>{const k=o.product_name||'?';if(!map[k])map[k]={count:0,rev:0};map[k].count++;map[k].rev+=Number(o.total_amount||0)})
+        const top=Object.entries(map).sort((a,b)=>b[1].rev-a[1].rev)[0]
+        setShopTopProd(top?{name:top[0],...top[1]}:null)
+      })
+  }
+  useEffect(()=>{
+    if(activeTab!=='shop'||!workspace?.id) return
+    fetchShopData()
+  },[activeTab,workspace?.id])
+  useEffect(()=>{
+    if(!workspace?.id||activeTab!=='shop') return
+    const channel=supabase
+      .channel('shop-realtime')
+      .on('postgres_changes',{event:'*',schema:'public',table:'orders',filter:`workspace_id=eq.${workspace.id}`},()=>{ fetchShopData() })
+      .on('postgres_changes',{event:'*',schema:'public',table:'products',filter:`workspace_id=eq.${workspace.id}`},()=>{ fetchShopData() })
+      .subscribe()
+    return()=>supabase.removeChannel(channel)
+  },[workspace?.id,activeTab])
+
+  // ── Learn data ────────────────────────────────────────────────────────────
+  function fetchLearnData(){
+    if(!workspace?.id) return
+    const now=new Date(),monthStart=new Date(now.getFullYear(),now.getMonth(),1)
+    supabase.from('offerings')
+      .select('id,title,type,workshop_date,spots_total,spots_taken,price,level,early_bird_price,early_bird_ends_at')
+      .eq('workspace_id',workspace.id).eq('is_active',true)
+      .not('workshop_date','is',null).gt('workshop_date',now.toISOString())
+      .order('workshop_date',{ascending:true}).limit(1)
+      .then(({data})=>setUpcomingOffering(data?.[0]||null))
+    supabase.from('enrollments')
+      .select('id,amount_paid,completed_at,payment_status,created_at')
+      .eq('workspace_id',workspace.id)
+      .then(({data})=>{
+        const d=data||[]
+        setLearnEnrollCount(d.length)
+        setLearnCompletedCount(d.filter(e=>e.completed_at).length)
+        setLearnRevMonth(d.filter(e=>e.payment_status==='paid'&&new Date(e.created_at)>=monthStart).reduce((s,e)=>s+Number(e.amount_paid||0),0))
+      })
+    supabase.from('offerings')
+      .select('id,title,price,level,type')
+      .eq('workspace_id',workspace.id).eq('is_active',true).limit(2)
+      .then(({data})=>setLearnActiveOfferings(data||[]))
+  getUnnotifiedWaitlistCount(workspace.id)
+    .then(({count})=>setLearnWaitlistCount(count))
+  }
+  useEffect(()=>{
+    if(!workspace?.id||activeTab!=='learn') return
+    fetchLearnData()
+  },[activeTab,workspace?.id])
+  useEffect(()=>{
+    if(!workspace?.id||activeTab!=='learn') return
+    const ch=supabase.channel('learn-realtime')
+      .on('postgres_changes',{event:'*',schema:'public',table:'enrollments',filter:`workspace_id=eq.${workspace.id}`},()=>fetchLearnData())
+      .on('postgres_changes',{event:'*',schema:'public',table:'offerings',filter:`workspace_id=eq.${workspace.id}`},()=>fetchLearnData())
+      .on('postgres_changes',{event:'*',schema:'public',table:'waitlist_entries',filter:`workspace_id=eq.${workspace.id}`},()=>fetchLearnData())
+      .subscribe()
+    return()=>supabase.removeChannel(ch)
+  },[workspace?.id,activeTab])
+
   const todayCount=appts.length
   const mRev=monthRevenue(allAppts,0),lastMRev=monthRevenue(allAppts,-1),mDelta=pct(mRev,lastMRev)
   const curMonthName = new Date().toLocaleDateString(lang==='fr'?'fr-FR':lang==='es'?'es-ES':'en-US',{month:'long'})
@@ -983,11 +1113,28 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
             stats.cancelled>0?`${stats.cancelled} ${lang==='fr'?'annulé(s)':lang==='es'?'cancelados':'cancelled'}`:
             stats.confirmed>0?`${stats.confirmed} ${lang==='fr'?'confirmé(s)':lang==='es'?'confirmados':'confirmed'}`:'—',
       up:stats.pending===0,isCancelled:stats.pending===0&&stats.cancelled>0,page:'appointments'},
-    {label:lang==='fr'?'Produits':lang==='es'?'Productos':'Products',value:stats.products,delta:lang==='fr'?'Listés dans votre boutique':lang==='es'?'Listados en tu tienda':'Listed in your shop',up:true,page:'products'},
-    {label:lang==='fr'?'Élèves':lang==='es'?'Estudiantes':'Students',value:stats.students,delta:lang==='fr'?'Total des inscriptions':lang==='es'?'Total de matrículas':'Total enrollments',up:true,page:'formations'},
+  ]
+  const learnCards=[
+    {label:'Revenue — '+curMonthName,value:fmtRev(learnRevMonth),delta:'—',up:true,page:'revenue'},
+  ]
+  // ── Shop-specific data ────────────────────────────────────────────────────────
+  const shopNow=new Date(),shopMonthStart=new Date(shopNow.getFullYear(),shopNow.getMonth(),1)
+  const shopLastMonthStart=new Date(shopNow.getFullYear(),shopNow.getMonth()-1,1)
+  const shopPaid=shopOrders.filter(o=>['confirmed','shipped','delivered'].includes(o.status))
+  const shopRevMonth=shopPaid.filter(o=>new Date(o.created_at)>=shopMonthStart).reduce((s,o)=>s+Number(o.total_amount||0),0)
+  const shopRevLast=shopPaid.filter(o=>{const d=new Date(o.created_at);return d>=shopLastMonthStart&&d<shopMonthStart}).reduce((s,o)=>s+Number(o.total_amount||0),0)
+  const shopRevDelta=pct(shopRevMonth,shopRevLast)
+  const shopPending=shopOrders.filter(o=>o.status==='pending').length
+  const shopNeedTracking=shopOrders.filter(o=>o.status==='shipped'&&!o.tracking_number).length
+  const shopProcessing=shopOrders.filter(o=>o.status==='confirmed').length
+  const shopLowStock=allProducts.filter(p=>p.stock!=null&&Number(p.stock)<=2)
+  const weekStartShop=new Date(shopNow);weekStartShop.setDate(shopNow.getDate()-shopNow.getDay());weekStartShop.setHours(0,0,0,0)
+  const shopDeliveredWeek=shopOrders.filter(o=>o.status==='delivered'&&o.delivered_at&&new Date(o.delivered_at)>=weekStartShop).length
+  const shopCards=[
+    {label:'Revenue — '+curMonthName,value:fmtRev(shopRevMonth),delta:shopRevDelta!==null?`${shopRevDelta>=0?'↑':'↓'} ${Math.abs(shopRevDelta)}% vs last month`:'—',up:shopRevDelta===null||shopRevDelta>=0,page:'revenue'},
   ]
   return (
-    <div>
+    <div style={{background:'var(--bg-base)',minHeight:'100%'}}>
       <div className="page-head">
         <div>
           <div className="page-title">{(()=>{const h=new Date().getHours();return h<12?t(lang,'morning'):h<17?t(lang,'afternoon'):t(lang,'evening')})()}, {ownerData?.full_name?.trim().split(' ')[0]||firstName(workspace,session)}</div>
@@ -1011,9 +1158,111 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
           )}
         </div>
       </div>
-      <NextUpBanner appts={allAppts} workspace={workspace} onReloaded={fetchData} toast={toast} lang={lang}/>
+      {activeTab==='booking'&&<NextUpBanner appts={allAppts} workspace={workspace} onReloaded={fetchData} toast={toast} lang={lang}/>}
+      {activeTab==='shop'&&(()=>{
+        const newOrders=shopOrders.filter(o=>['pending','confirmed'].includes(o.status))
+        const needsTracking=shopOrders.filter(o=>o.status==='processing'&&!o.tracking_number)
+        const lowStock=shopProducts.filter(p=>p.stock!==null&&p.stock<=3)
+        const actions=[]
+        newOrders.slice(0,3).forEach(o=>actions.push({
+          type:'order',priority:'high',
+          label:`New order — ${o.client_name||'Client'} · $${Number(o.total_amount||0).toFixed(2)}`,
+        }))
+        if(needsTracking.length>0) actions.push({
+          type:'tracking',priority:'high',
+          label:`${needsTracking.length} order${needsTracking.length>1?'s':''} need${needsTracking.length===1?'s':''} tracking number`,
+        })
+        lowStock.forEach(p=>actions.push({
+          type:'stock',priority:'medium',
+          label:`Low stock: ${p.name} — ${p.stock} left`,
+        }))
+        const hasHigh=actions.some(a=>a.priority==='high')
+        const visible=actions.slice(0,4)
+        const extra=actions.length-4
+        return(
+          <div className="next-up-banner" style={{marginBottom:'1rem',borderTop:'2px solid rgba(201,168,76,0.3)'}}>
+            <div style={{fontSize:'.65rem',fontWeight:700,color:'rgba(255,255,255,.45)',textTransform:'uppercase',letterSpacing:'.1em',marginBottom:'.75rem'}}>
+              {actions.length>0?'ACTION NEEDED':'ALL CLEAR'}
+            </div>
+            {actions.length===0?(
+              <>
+                <div style={{fontSize:'1rem',fontWeight:700,color:'#22c55e',marginBottom:'.25rem'}}>✓ Everything is up to date</div>
+                <div style={{fontSize:'.78rem',color:'rgba(255,255,255,.5)',marginBottom:'.75rem'}}>No pending orders or stock alerts</div>
+                <div style={{display:'flex',justifyContent:'flex-end'}}>
+                  <button onClick={()=>onNavigate?.('orders')} style={{background:'var(--gold)',border:'none',color:'#1a1814',borderRadius:8,padding:'.5rem 1.1rem',fontSize:'.78rem',fontWeight:700,cursor:'pointer',fontFamily:'inherit'}}>View orders →</button>
+                </div>
+              </>
+            ):(
+              <>
+                {visible.map((a,i)=>(
+                  <div key={i} onClick={()=>onNavigate?.(a.type==='stock'?'products':'orders')}
+                    style={{display:'flex',alignItems:'center',gap:'.6rem',padding:'6px 0',borderBottom:'1px solid rgba(255,255,255,0.06)',cursor:'pointer'}}>
+                    <div style={{width:7,height:7,borderRadius:'50%',flexShrink:0,background:a.priority==='high'?'#EF4444':'#F59E0B'}}/>
+                    <span style={{fontSize:13,color:'#fff',flex:1}}>{a.label}</span>
+                    <span style={{fontSize:11,color:'rgba(255,255,255,.35)'}}>›</span>
+                  </div>
+                ))}
+                {extra>0&&<div style={{fontSize:'.72rem',color:'rgba(255,255,255,.4)',paddingTop:'.4rem'}}>+ {extra} more</div>}
+                <div style={{display:'flex',justifyContent:'flex-end',marginTop:'.75rem'}}>
+                  <button onClick={()=>onNavigate?.(hasHigh?'orders':'products')}
+                    style={{background:'var(--gold)',border:'none',color:'#1a1814',borderRadius:8,padding:'.5rem 1.1rem',fontSize:'.78rem',fontWeight:700,cursor:'pointer',fontFamily:'inherit'}}>
+                    {hasHigh?'Review orders →':'Manage products →'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )
+      })()}
+      {activeTab==='learn'&&(
+        <div style={{background:'linear-gradient(135deg,#2C1810,#1A0F0A)',borderRadius:20,padding:20,marginBottom:12,border:'1px solid rgba(201,168,76,0.2)'}}>
+          <div style={{fontSize:'.65rem',fontWeight:700,color:'var(--gold)',textTransform:'uppercase',letterSpacing:'.1em',marginBottom:'.75rem'}}>UPCOMING</div>
+          {upcomingOffering?(
+            <>
+              <div style={{display:'flex',alignItems:'center',gap:'.5rem',marginBottom:'.3rem',flexWrap:'wrap'}}>
+                <div style={{fontSize:18,fontWeight:700,color:'#fff'}}>{upcomingOffering.title}</div>
+                {upcomingOffering.level&&<span style={{fontSize:10,fontWeight:700,color:'var(--gold)',background:'rgba(201,168,76,.15)',border:'1px solid rgba(201,168,76,.3)',borderRadius:20,padding:'2px 8px',textTransform:'capitalize'}}>{upcomingOffering.level}</span>}
+              </div>
+              <div style={{fontSize:13,color:'rgba(255,255,255,.6)',marginBottom:'.35rem'}}>
+                {new Date(upcomingOffering.workshop_date).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}
+              </div>
+              {upcomingOffering.spots_total>0&&(()=>{
+                const left=upcomingOffering.spots_total-(upcomingOffering.spots_taken||0)
+                const pct=Math.min(100,((upcomingOffering.spots_taken||0)/upcomingOffering.spots_total)*100)
+                return(<>
+                  <div style={{fontSize:12,color:'rgba(255,255,255,.5)',marginBottom:4}}>{left} spot{left!==1?'s':''} remaining</div>
+                  <div style={{height:4,background:'rgba(255,255,255,.1)',borderRadius:2,marginBottom:'.6rem'}}>
+                    <div style={{height:'100%',background:'var(--gold)',borderRadius:2,width:`${pct}%`,transition:'width .4s'}}/>
+                  </div>
+                </>)
+              })()}
+              <div style={{fontSize:14,color:upcomingOffering.early_bird_price&&new Date(upcomingOffering.early_bird_ends_at)>new Date()?'#F59E0B':'#fff',fontWeight:600,marginBottom:'.75rem'}}>
+                {upcomingOffering.early_bird_price&&new Date(upcomingOffering.early_bird_ends_at)>new Date()
+                  ?`$${upcomingOffering.early_bird_price} early bird · ends ${new Date(upcomingOffering.early_bird_ends_at).toLocaleDateString('en-US',{month:'short',day:'numeric'})}`
+                  :`$${Number(upcomingOffering.price||0).toFixed(0)}`
+                }
+              </div>
+            </>
+          ):(
+            <div style={{fontSize:14,color:'rgba(255,255,255,.5)',marginBottom:'.75rem'}}>No upcoming workshops</div>
+          )}
+          {learnWaitlistCount > 0 && (
+            <div onClick={() => onNavigate?.('enrollments')}
+              style={{display:'flex',alignItems:'center',gap:'.6rem',padding:'6px 0',borderBottom:'1px solid rgba(255,255,255,0.06)',cursor:'pointer',marginBottom:'.5rem'}}>
+              <div style={{width:7,height:7,borderRadius:'50%',flexShrink:0,background:'#F59E0B'}}/>
+              <span style={{fontSize:13,color:'#fff',flex:1}}>{learnWaitlistCount} student{learnWaitlistCount > 1 ? 's' : ''} on waitlist — spot available?</span>
+              <span style={{fontSize:11,color:'rgba(255,255,255,.35)'}}>›</span>
+            </div>
+          )}
+          <div style={{display:'flex',justifyContent:'flex-end'}}>
+            <button onClick={()=>onNavigate?.('offerings')} style={{background:'var(--gold)',border:'none',color:'#1a1814',borderRadius:8,padding:'.5rem 1.1rem',fontSize:'.78rem',fontWeight:700,cursor:'pointer',fontFamily:'inherit'}}>
+              {upcomingOffering?'Manage →':'+ Add workshop →'}
+            </button>
+          </div>
+        </div>
+      )}
       {remindersSent.length>0&&!reminderBannerDismissed&&(
-        <div style={{background:'var(--ink)',borderRadius:10,padding:'.65rem 1.1rem',marginBottom:'1rem',display:'flex',alignItems:'center',gap:'.75rem',animation:'milestoneIn .35s ease'}}>
+        <div style={{background:'var(--bg-card-dark)',borderRadius:10,padding:'.65rem 1.1rem',marginBottom:'1rem',display:'flex',alignItems:'center',gap:'.75rem',animation:'milestoneIn .35s ease'}}>
           <span style={{fontSize:'.9rem'}}>💬</span>
           <div style={{flex:1}}>
             <span style={{fontSize:'.75rem',color:'rgba(255,255,255,.5)',fontWeight:600,textTransform:'uppercase',letterSpacing:'.06em'}}>{lang==='fr'?'Rappels envoyés aujourd’hui':lang==='es'?'Recordatorios enviados hoy':'Reminders sent today'}</span>
@@ -1024,65 +1273,264 @@ export default function OverviewSection({ workspace, session, ownerData, toast, 
           <button onClick={()=>setReminderBannerDismissed(true)} style={{flexShrink:0,padding:'4px 14px',borderRadius:20,background:'rgba(255,255,255,.1)',border:'1px solid rgba(255,255,255,.15)',color:'rgba(255,255,255,.7)',fontSize:'.72rem',fontWeight:600,cursor:'pointer'}}>OK</button>
         </div>
       )}
-      <CoachSlider appts={allAppts} stats={stats} workspace={workspace} session={session} lang={lang}/>
+      <CoachSlider appts={allAppts} stats={stats} workspace={workspace} session={session} lang={lang} activeTab={activeTab}/>
       <div className="stats-scroll">
-        {cards.map((s,i)=>(
-          <button key={i} className="stat-card stat-card-btn" onClick={()=>s.page==='revenue'?setShowRevenue(true):setPage(s.page)}>
+        {(activeTab==='shop'?shopCards:activeTab==='learn'?learnCards:cards).map((s,i)=>(
+          <button key={i} className="stat-card stat-card-btn" onClick={()=>onNavigate?.(s.page)}>
             <div className="stat-label">{s.label}</div>
             <div className="stat-value">{s.value}</div>
-            <div className={`stat-delta ${s.isCancelled?'delta-down':s.up?'delta-up':'delta-down'}`}>{s.delta}</div>
-            <div className="stat-arrow">&#8594;</div>
+            <div className={`stat-delta ${s.up?'delta-up':s.isCancelled?'delta-down':''}`} style={!s.up&&!s.isCancelled?{color:'var(--text-secondary)'}:{}}>{s.delta}</div>
+            <div style={{fontSize:13,fontWeight:500,color:'var(--accent-gold)',marginTop:'.25rem'}}>View details →</div>
           </button>
         ))}
       </div>
-      <div className="grid-2" style={{marginBottom:'1.25rem'}}>
-        <div className="card" style={{marginBottom:0}}>
-          <div className="card-head"><div className="card-title">{t(lang,'revenue_week')}</div></div>
-          <div className="card-body"><WeekChart appts={allAppts}/></div>
-        </div>
-        <MonthlyGoal appts={allAppts} workspace={workspace} refetchWorkspace={refetchWorkspace} lang={lang}/>
-      </div>
-      <div className="grid-2" style={{marginBottom:'1.25rem'}}>
-        <TopServiceInsight appts={allAppts}/>
-        <div className="card" style={{marginBottom:0}}>
-          <div className="card-head">
-            <div className="card-title" style={{cursor:'pointer'}} onClick={()=>setPage('availability')}>{t(lang,'calendar')}</div>
-            <span style={{fontSize:'.72rem',color:'var(--ink-3)'}}>{t(lang,'tap_date')}</span>
+      {activeTab==='shop'?(
+        <>
+          {/* Orders — single card (FIX 7) */}
+          <div className="card" style={{marginBottom:'1.25rem',cursor:'pointer',marginTop:12}} onClick={()=>onNavigate?.('orders')}>
+            <div className="card-head">
+              <div>
+                <div style={{fontSize:'.65rem',fontWeight:700,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'.25rem'}}>ORDERS</div>
+                <div className="card-title">{shopOrders.length} total</div>
+                {(shopPending+shopProcessing)>0
+                  ?<div style={{fontSize:'.78rem',color:'#b45309',fontWeight:600,marginTop:2}}>{shopPending+shopProcessing} need attention</div>
+                  :<div style={{fontSize:'.78rem',color:'#16a34a',fontWeight:600,marginTop:2}}>All up to date</div>
+                }
+              </div>
+              <div className="stat-arrow">&#8594;</div>
+            </div>
+            <div style={{padding:'.4rem 1.25rem',fontSize:'.78rem',fontWeight:500,color:'var(--accent-gold)'}}>View details →</div>
           </div>
-          <div className="card-body"><InteractiveCal allAppts={allAppts} blockedDates={blockedDates} onDayClick={setSelectedDay}/></div>
-        </div>
-      </div>
-      <div className="card">
-        <div className="card-head">
-          <div className="card-title">{t(lang,'today_schedule')}</div>
-          <span className="badge badge-confirmed">{todayCount} {t(lang,'confirmed')}</span>
-        </div>
-        {todayCount===0?(
-          <div className="empty-state">
-            <div className="empty-icon">{I.cal}</div>
-            <div className="empty-title">{t(lang,'day_open')}</div>
-            <div className="empty-sub">{t(lang,'share_link')}</div>
-            <button className="btn btn-primary btn-sm" style={{marginTop:'.75rem'}} onClick={()=>{navigator.clipboard?.writeText(`${window.location.origin}/book/${workspace?.slug||''}`);toast(t(lang,'link_copied'))}}>{t(lang,'copy_booking_link')}</button>
-          </div>
-        ):(
-          <div>
-            {appts.map(a=>(
-              <div key={a.id} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'.85rem 1.25rem',borderBottom:'1px solid var(--border)',gap:'.75rem'}}>
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontWeight:600,fontSize:'.88rem',color:'var(--ink)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{a.client_name}</div>
-                  <div style={{fontSize:'.72rem',color:'var(--ink-3)',marginTop:2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{svcName(a)}</div>
+          {/* Products — dedicated shopProducts fetch (FIX 1) */}
+          <div className="card" style={{marginBottom:'1.25rem',cursor:'pointer'}} onClick={()=>onNavigate?.('products')}>
+            <div className="card-head">
+              <div>
+                <div style={{fontSize:'.65rem',fontWeight:700,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'.25rem'}}>PRODUCTS</div>
+                <div className="card-title">Your products</div>
+              </div>
+              <div className="stat-arrow">&#8594;</div>
+            </div>
+            {shopProducts.length>0
+              ?shopProducts.slice(0,2).map(p=>(
+                <div key={p.id} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'.45rem 1.25rem',borderBottom:'1px solid var(--border)'}}>
+                  <div style={{fontWeight:600,fontSize:'.84rem',color:'var(--text-primary)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flex:1}}>{p.name}</div>
+                  <div style={{display:'flex',alignItems:'center',gap:'.5rem',flexShrink:0,marginLeft:'.5rem'}}>
+                    {p.stock!=null&&Number(p.stock)<=2&&<span style={{fontSize:'.65rem',fontWeight:700,background:'rgba(245,158,11,.15)',color:'#b45309',border:'1px solid rgba(245,158,11,.3)',borderRadius:4,padding:'1px 6px'}}>Low stock</span>}
+                    <div style={{fontSize:'.82rem',color:'var(--text-secondary)'}}>${Number(p.price||0).toFixed(2)}</div>
+                  </div>
                 </div>
-                <div style={{textAlign:'right',flexShrink:0}}>
-                  <div style={{fontSize:'.85rem',fontWeight:600,color:'var(--ink)'}}>{new Date(a.scheduled_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</div>
-                  <div style={{marginTop:3}}><span className={`badge badge-${a.status}`} style={{fontSize:'.65rem'}}>{a.status}</span></div>
+              ))
+              :<div style={{padding:'.6rem 1.25rem',fontSize:'.78rem',color:'var(--text-secondary)',fontStyle:'italic'}}>No active products yet</div>
+            }
+            <div style={{padding:'.5rem 1.25rem',fontSize:'.78rem',fontWeight:600,color:'var(--accent-gold)'}}>+ Add product</div>
+          </div>
+          {/* Top Product — always shown, clickable (FIX 3) */}
+          <div className="card" style={{marginBottom:'1.25rem',cursor:'pointer'}} onClick={()=>onNavigate?.('products')}>
+            <div className="card-head">
+              <div>
+                <div style={{fontSize:'.65rem',fontWeight:700,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'.25rem'}}>TOP PRODUCT</div>
+                {shopTopProd
+                  ?<><div className="card-title">{shopTopProd.name}</div><div style={{fontSize:'.78rem',color:'var(--text-secondary)',marginTop:2}}>{shopTopProd.count} sold · {fmtRev(shopTopProd.rev)}</div></>
+                  :<div style={{fontSize:'.84rem',color:'var(--text-secondary)',fontStyle:'italic',marginTop:2}}>No sales yet</div>
+                }
+              </div>
+              <div className="stat-arrow">&#8594;</div>
+            </div>
+            <div style={{padding:'.4rem 1.25rem',fontSize:'.78rem',fontWeight:500,color:'var(--accent-gold)'}}>
+              {shopTopProd?'View details →':'View all products →'}
+            </div>
+          </div>
+          {/* Reviews */}
+          <div className="card" style={{marginBottom:'1.25rem',cursor:'pointer'}} onClick={()=>onNavigate?.('reviews')}>
+            <div className="card-head">
+              <div>
+                <div style={{fontSize:'.65rem',fontWeight:700,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'.25rem'}}>REVIEWS</div>
+                <div className="card-title">Product reviews</div>
+                <div className="card-sub">See what customers are saying</div>
+              </div>
+              <div className="stat-arrow">&#8594;</div>
+            </div>
+          </div>
+          {/* Policy */}
+          <div className="card" style={{marginBottom:'1.25rem',cursor:'pointer'}} onClick={()=>onNavigate?.('policy')}>
+            <div className="card-head">
+              <div>
+                <div style={{fontSize:'.65rem',fontWeight:700,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'.25rem'}}>SHOP POLICY</div>
+                <div className="card-title">Refunds & shipping terms</div>
+                <div className="card-sub">Define your shop terms</div>
+              </div>
+              <div className="stat-arrow">&#8594;</div>
+            </div>
+          </div>
+          {/* Shipping */}
+          <div className="card" style={{marginBottom:'1.25rem',cursor:'pointer'}} onClick={()=>onNavigate?.('shipping')}>
+            <div className="card-head">
+              <div>
+                <div style={{fontSize:'.65rem',fontWeight:700,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'.25rem'}}>SHIPPING</div>
+                <div className="card-title">Carriers & rules</div>
+                <div className="card-sub">Configure your shipping setup</div>
+              </div>
+              <div className="stat-arrow">&#8594;</div>
+            </div>
+          </div>
+        </>
+      ) : activeTab==='learn' ? (
+        <>
+          {/* Enrollments */}
+          <div className="card" style={{marginBottom:'1.25rem',cursor:'pointer',marginTop:12}} onClick={()=>onNavigate?.('enrollments')}>
+            <div className="card-head">
+              <div>
+                <div style={{fontSize:'.65rem',fontWeight:700,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'.25rem'}}>ENROLLMENTS</div>
+                <div className="card-title">{learnEnrollCount} enrolled · {learnCompletedCount} completed</div>
+              </div>
+              <div className="stat-arrow">&#8594;</div>
+            </div>
+            <div style={{padding:'.4rem 1.25rem',fontSize:'.78rem',fontWeight:500,color:'var(--accent-gold)'}}>View all enrollments →</div>
+          </div>
+          {/* Formations & Workshops */}
+          <div className="card" style={{marginBottom:'1.25rem',cursor:'pointer'}} onClick={()=>onNavigate?.('offerings')}>
+            <div className="card-head">
+              <div>
+                <div style={{fontSize:'.65rem',fontWeight:700,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'.25rem'}}>FORMATIONS &amp; WORKSHOPS</div>
+                <div className="card-title">Your offerings</div>
+              </div>
+              <div className="stat-arrow">&#8594;</div>
+            </div>
+            {learnActiveOfferings.length>0
+              ? learnActiveOfferings.map(o=>(
+                <div key={o.id} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'.45rem 1.25rem',borderBottom:'1px solid var(--border)'}}>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontWeight:600,fontSize:'.84rem',color:'var(--text-primary)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{o.title}</div>
+                    {o.level&&<span style={{fontSize:'.65rem',color:'var(--text-secondary)',textTransform:'capitalize'}}>{o.level}</span>}
+                  </div>
+                  <div style={{display:'flex',alignItems:'center',gap:'.4rem',flexShrink:0,marginLeft:'.5rem'}}>
+                    <span style={{fontSize:'.65rem',fontWeight:700,background:o.type==='workshop'?'rgba(201,168,76,.12)':'rgba(34,197,94,.1)',color:o.type==='workshop'?'var(--gold)':'#16a34a',borderRadius:4,padding:'1px 6px'}}>{o.type==='workshop'?'Workshop':'Online'}</span>
+                    <div style={{fontSize:'.82rem',color:'var(--text-secondary)'}}>{Number(o.price)===0?'Free':`$${Number(o.price).toFixed(0)}`}</div>
+                  </div>
+                </div>
+              ))
+              : <div style={{padding:'.6rem 1.25rem',fontSize:'.78rem',color:'var(--text-secondary)',fontStyle:'italic'}}>No active offerings yet</div>
+            }
+            <div style={{padding:'.5rem 1.25rem',fontSize:'.78rem',fontWeight:600,color:'var(--accent-gold)'}}>+ Add formation</div>
+          </div>
+          {/* Reviews */}
+          <div className="card" style={{marginBottom:'1.25rem',cursor:'pointer'}} onClick={()=>onNavigate?.('reviews')}>
+            <div className="card-head">
+              <div>
+                <div style={{fontSize:'.65rem',fontWeight:700,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'.25rem'}}>REVIEWS</div>
+                <div className="card-title">Student reviews</div>
+                <div className="card-sub">See what students are saying</div>
+              </div>
+              <div className="stat-arrow">&#8594;</div>
+            </div>
+          </div>
+          {/* Learn Policy */}
+          <div className="card" style={{marginBottom:'1.25rem',cursor:'pointer'}} onClick={()=>onNavigate?.('policy')}>
+            <div className="card-head">
+              <div>
+                <div style={{fontSize:'.65rem',fontWeight:700,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'.25rem'}}>LEARN POLICY</div>
+                <div className="card-title">Refund & access terms</div>
+                <div className="card-sub">Define your course terms</div>
+              </div>
+              <div className="stat-arrow">&#8594;</div>
+            </div>
+          </div>
+        </>
+      ) : (
+        <>
+          <MonthlyGoal appts={allAppts} workspace={workspace} refetchWorkspace={refetchWorkspace} lang={lang}/>
+          <div className="grid-2" style={{marginBottom:'1.25rem',marginTop:12}}>
+            <div className="card" style={{marginBottom:0,cursor:'pointer'}} onClick={()=>onNavigate?.('services')}>
+              <div className="card-head">
+                <div>
+                  <div style={{fontSize:'.65rem',fontWeight:700,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'.25rem'}}>SERVICES</div>
+                  <div className="card-title">Your services</div>
+                </div>
+                <div className="stat-arrow">&#8594;</div>
+              </div>
+              {allServices.slice(0,2).map(s=>(
+                <div key={s.id} style={{padding:'.45rem 1.25rem',borderBottom:'1px solid var(--border)'}}>
+                  <div style={{fontSize:'.84rem',fontWeight:500,color:'var(--text-primary)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{s.name}</div>
+                  <div style={{fontSize:'.7rem',color:'var(--text-secondary)'}}>${s.price} · {s.duration_min}min</div>
+                </div>
+              ))}
+              {allServices.length===0&&<div style={{padding:'.6rem 1.25rem',fontSize:'.78rem',color:'var(--text-secondary)',fontStyle:'italic'}}>No services yet</div>}
+              <div style={{padding:'.5rem 1.25rem',fontSize:'.78rem',fontWeight:600,color:'var(--accent-gold)'}}>+ Add service</div>
+            </div>
+            <div className="card" style={{marginBottom:0,cursor:'pointer'}} onClick={()=>onNavigate?.('availability')}>
+              <div className="card-head">
+                <div>
+                  <div className="card-title">{t(lang,'calendar')}</div>
+                  <div style={{fontSize:'.72rem',color:'var(--text-secondary)'}}>{t(lang,'tap_date')}</div>
+                  <div style={{fontSize:12,color:'#C9A84C',marginTop:2}}>Set up your availability →</div>
                 </div>
               </div>
-            ))}
+              <div className="card-body" onClick={e=>e.stopPropagation()}><InteractiveCal allAppts={allAppts} blockedDates={blockedDates} onDayClick={setSelectedDay}/></div>
+            </div>
           </div>
-        )}
-      </div>
+          <div className="card" style={{marginBottom:'1.25rem',cursor:'pointer'}} onClick={()=>onNavigate?.('portfolio')}>
+            <div className="card-head">
+              <div>
+                <div style={{fontSize:'.65rem',fontWeight:700,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'.25rem'}}>PORTFOLIO</div>
+                <div className="card-title">Your work</div>
+                <div className="card-sub">Showcase your best photos</div>
+              </div>
+              <div className="stat-arrow">&#8594;</div>
+            </div>
+          </div>
+          <div className="card" style={{marginBottom:'1.25rem',cursor:'pointer'}} onClick={()=>onNavigate?.('reviews')}>
+            <div className="card-head">
+              <div>
+                <div style={{fontSize:'.65rem',fontWeight:700,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'.25rem'}}>REVIEWS</div>
+                <div className="card-title">Client reviews</div>
+                <div className="card-sub">See what clients are saying</div>
+              </div>
+              <div className="stat-arrow">&#8594;</div>
+            </div>
+          </div>
+          <div className="card" style={{marginBottom:'1.25rem',cursor:'pointer'}} onClick={()=>onNavigate?.('policy')}>
+            <div className="card-head">
+              <div>
+                <div style={{fontSize:'.65rem',fontWeight:700,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'.25rem'}}>POLICY</div>
+                <div className="card-title">Booking policy</div>
+                <div className="card-sub">Set your terms and fees</div>
+              </div>
+              <div className="stat-arrow">&#8594;</div>
+            </div>
+          </div>
+          <div className="card">
+            <div className="card-head">
+              <div className="card-title">{t(lang,'today_schedule')}</div>
+              <span className="badge badge-confirmed">{todayCount} {t(lang,'confirmed')}</span>
+            </div>
+            {todayCount===0?(
+              <div className="empty-state">
+                <div className="empty-icon">{I.cal}</div>
+                <div className="empty-title">{t(lang,'day_open')}</div>
+                <div className="empty-sub">{t(lang,'share_link')}</div>
+                <button className="btn btn-primary btn-sm" style={{marginTop:'.75rem'}} onClick={()=>{navigator.clipboard?.writeText(`${window.location.origin}/book/${workspace?.slug||''}`);toast(t(lang,'link_copied'))}}>{t(lang,'copy_booking_link')}</button>
+              </div>
+            ):(
+              <div>
+                {appts.map(a=>(
+                  <div key={a.id} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'.85rem 1.25rem',borderBottom:'1px solid var(--border)',gap:'.75rem',cursor:'pointer'}} onClick={()=>onNavigate?.('appointments')}>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontWeight:600,fontSize:'.88rem',color:'var(--text-primary)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{a.client_name}</div>
+                      <div style={{fontSize:'.72rem',color:'var(--text-secondary)',marginTop:2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{svcName(a)}</div>
+                    </div>
+                    <div style={{textAlign:'right',flexShrink:0}}>
+                      <div style={{fontSize:'.85rem',fontWeight:600,color:'var(--text-primary)'}}>{new Date(a.scheduled_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</div>
+                      <div style={{marginTop:3}}><span className={`badge badge-${a.status}`} style={{fontSize:'.65rem'}}>{a.status}</span></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+      )}
       {showRevenue&&<RevenuePanel appts={allAppts} onClose={()=>setShowRevenue(false)}/>}
-      {selectedDay&&(<DayPanel dayStr={selectedDay} allAppts={allAppts} blockedDates={blockedDates} onClose={()=>setSelectedDay(null)} onBlock={handleBlock} onUnblock={handleUnblock} onBooked={fetchData} workspace={workspace} lang={lang}/>)}
+      {selectedDay&&(<DayPanel dayStr={selectedDay} allAppts={allAppts} blockedDates={blockedDates} onClose={()=>setSelectedDay(null)} onBlock={handleBlock} onUnblock={handleUnblock} onBooked={fetchData} workspace={workspace} lang={lang} toast={toast}/>)}
     </div>
   )
 }

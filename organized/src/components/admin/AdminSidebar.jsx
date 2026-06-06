@@ -52,6 +52,10 @@ const NAV = [
     group: 'Config',
     items: [
       {
+        id: 'platform', label: 'Platform',
+        icon: <svg className="x-nav-icon" viewBox="0 0 15 15" fill="none"><path d="M7.5 1L1 4.5v6L7.5 14l6.5-3.5v-6L7.5 1z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/><circle cx="7.5" cy="7.5" r="2" stroke="currentColor" strokeWidth="1.2"/></svg>,
+      },
+      {
         id: 'team', label: 'Team',
         icon: <svg className="x-nav-icon" viewBox="0 0 15 15" fill="none"><circle cx="5" cy="4" r="2" stroke="currentColor" strokeWidth="1.2"/><circle cx="10" cy="4" r="2" stroke="currentColor" strokeWidth="1.2"/><path d="M1 12c0-2.21 1.79-4 4-4s4 1.79 4 4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/><path d="M10 8c1.66 0 3 1.34 3 3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>,
       },

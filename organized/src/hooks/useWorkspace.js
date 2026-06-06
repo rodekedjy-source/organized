@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { fetchWorkspaceAndUser, fetchSubscription, getSession, onAuthStateChange } from '../api/workspace'
 import { fetchPendingReviewsCount } from '../api/notifications'
 
@@ -10,6 +10,7 @@ export function useWorkspace() {
   const [pendingReviews, setPendingReviews] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const retryCount = useRef(0)
 
   const refresh = useCallback(async (s) => {
     const activeSession = s ?? session
@@ -19,6 +20,18 @@ export function useWorkspace() {
     const [{ data: ws, error: wsErr }, { data: user }] = await fetchWorkspaceAndUser(activeSession.user.id)
     if (wsErr) { setError(wsErr.message); setLoading(false); return }
 
+    if (!ws && !wsErr) {
+      if (retryCount.current < 2) {
+        retryCount.current += 1
+        setTimeout(() => refresh(s ?? session), 600)
+      } else {
+        retryCount.current = 0
+        setWorkspace(null)
+        setLoading(false)
+      }
+      return
+    }
+    retryCount.current = 0
     setWorkspace(ws)
     setOwnerData(user)
 

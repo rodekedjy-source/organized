@@ -3,13 +3,13 @@ import { supabase } from '../lib/supabase'
 import { useProducts } from '../hooks/useProducts'
 import { useWorkspaceContext } from '../contexts/WorkspaceContext'
 import { useToast } from '../contexts/ToastContext'
-import { insertProduct, updateProduct, deleteProduct, deleteProducts } from '../api/products'
+import { insertProduct, updateProduct, deleteProduct, deleteProducts, setFeaturedProduct } from '../api/products'
 import { formatCurrency } from '../lib/formatters'
 
 // ── PLAN GATING ───────────────────────────────────────────────────────────────
 const PLAN_FEATURES = {
   free: [], essential: [],
-  pro: ['products', 'formations', 'analytics_full', 'ai_enhance', 'custom_branding', 'clients_unlimited'],
+  pro: ['products', 'formations', 'analytics_full', 'custom_branding', 'clients_unlimited'],
 }
 function canAccess(subscription, feature) {
   const plan = subscription?.plan || 'essential'
@@ -21,7 +21,6 @@ function UpgradeGate({ feature }) {
   const INFO = {
     products: { name: 'Product Sales', desc: 'Sell products directly through your booking page.' },
     formations: { name: 'Workshops & Formations', desc: 'Create and monetize courses, workshops, and events.' },
-    ai_enhance: { name: 'AI Photo Enhancement', desc: 'Transform product photos into professional studio shots.' },
     clients_unlimited: { name: 'Unlimited Clients', desc: 'Remove the 50-client cap on your Essential plan.' },
   }
   const info = INFO[feature] || { name: feature, desc: '' }
@@ -55,6 +54,12 @@ function UpgradeGate({ feature }) {
 }
 
 // ── LOCAL HELPERS ─────────────────────────────────────────────────────────────
+function isSaleActive(p) {
+  if (!p.discount_price) return false
+  if (!p.discount_ends_at) return true
+  return new Date(p.discount_ends_at) > new Date()
+}
+
 function useScrollLock() {
   useEffect(() => {
     const prev = document.body.style.overflow
@@ -101,128 +106,6 @@ async function uploadProductImages(files, workspaceId) {
   }))
 }
 
-// ── AI ENHANCE MODAL ──────────────────────────────────────────────────────────
-function EnhanceModal({ imageUrl, imagePreview, workspace, onSelect, onClose, toast }) {
-  const [phase, setPhase] = useState('templates')
-  const [templates, setTemplates] = useState([])
-  const [selected, setSelected] = useState(null)
-  const [resultUrl, setResultUrl] = useState(null)
-  const [saving, setSaving] = useState(false)
-  const EDGE = 'https://bwfpioxvfqwnwzkvtebg.supabase.co/functions/v1/enhance-product-image'
-
-  useEffect(() => {
-    fetch(EDGE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) })
-      .then(r => r.json())
-      .then(d => { if (d?.templates) setTemplates(d.templates) })
-      .catch(() => {
-        setTemplates([
-          { id: 'studio_white', label: 'Studio Blanc', emoji: '⬜', url: 'https://v3b.fal.media/files/b/0a98fac8/C9DokWdUT0u69qqaDgR_9.jpg' },
-          { id: 'marble_luxe', label: 'Marbre Luxe', emoji: '🧇', url: 'https://v3b.fal.media/files/b/0a98fac8/5z50B-ImghTkqTO0j6Eoj.jpg' },
-          { id: 'bokeh_gold', label: 'Bokeh Doré', emoji: '✨', url: 'https://v3b.fal.media/files/b/0a98fac8/42ZN6OhGvPsYAVaY0KSqI.jpg' },
-          { id: 'noir_dramatique', label: 'Nuit Dramatique', emoji: '🌑', url: 'https://v3b.fal.media/files/b/0a98fac8/gi_jVMyiTa9YJBYjU_SMu.jpg' },
-          { id: 'rose_poudre', label: 'Rose Poudré', emoji: '🌸', url: 'https://v3b.fal.media/files/b/0a98fac8/VmNTUlN8iy0eObxGLJTAJ.jpg' },
-          { id: 'botanique', label: 'Botanique', emoji: '🌿', url: 'https://v3b.fal.media/files/b/0a98fac8/uCsXKl3V_WiABW9oVevBi.jpg' },
-        ])
-      })
-  }, [])
-
-  async function generate(template) {
-    setSelected(template); setPhase('loading')
-    try {
-      const res = await fetch(EDGE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image_url: imageUrl, template_id: template.id }) })
-      const data = await res.json()
-      if (data?.error) throw new Error(data.error)
-      if (data?.url) { setResultUrl(data.url); setPhase('result'); return }
-      throw new Error('No image returned.')
-    } catch (e) { toast('Enhancement failed — ' + e.message); setPhase('templates') }
-  }
-
-  async function save() {
-    if (!resultUrl) return; setSaving(true)
-    try {
-      let finalUrl = resultUrl
-      if (resultUrl.startsWith('data:')) {
-        const blob = await (await fetch(resultUrl)).blob()
-        const path = `${workspace.id}/enhanced-${Date.now()}.png`
-        await supabase.storage.from('product-images').upload(path, blob, { upsert: true, contentType: 'image/png' })
-        const { data: ud } = supabase.storage.from('product-images').getPublicUrl(path)
-        finalUrl = ud?.publicUrl || resultUrl
-      }
-      onSelect(finalUrl); onClose()
-    } catch (e) { toast('Could not save: ' + e.message) }
-    finally { setSaving(false) }
-  }
-
-  return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 1050, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', padding: '0' }}>
-      <style>{`@keyframes spin-en{to{transform:rotate(360deg)}} @keyframes slide-up{from{transform:translateY(100%)}to{transform:translateY(0)}}`}</style>
-      <div style={{ background: 'var(--surface)', borderRadius: '20px 20px 0 0', width: '100%', maxWidth: '520px', overflow: 'hidden', boxShadow: '0 -8px 40px rgba(0,0,0,.4)', animation: 'slide-up .3s ease', maxHeight: '92vh', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-          <div>
-            <div style={{ fontSize: '.95rem', fontWeight: 700, fontFamily: "'Playfair Display',serif" }}>✨ AI Photo Enhancement</div>
-            <div style={{ fontSize: '.72rem', color: 'var(--ink-3)', marginTop: '.1rem' }}>Choose a background template</div>
-          </div>
-          <button onClick={onClose} style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '8px', width: 28, height: 28, cursor: 'pointer', color: 'var(--ink-3)', fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
-        </div>
-        <div style={{ padding: '1rem 1.25rem', overflowY: 'auto', flex: 1 }}>
-          {phase !== 'result' && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '.75rem', marginBottom: '1rem', background: 'var(--bg)', borderRadius: 10, padding: '.65rem' }}>
-              <img src={imagePreview || imageUrl} style={{ width: 52, height: 52, objectFit: 'cover', borderRadius: 8, flexShrink: 0 }} alt="product" />
-              <div>
-                <div style={{ fontSize: '.8rem', fontWeight: 600, color: 'var(--ink)' }}>Your product</div>
-                <div style={{ fontSize: '.7rem', color: 'var(--ink-3)' }}>Background will be replaced by AI</div>
-              </div>
-            </div>
-          )}
-          {phase === 'templates' && (
-            <>
-              <div style={{ fontSize: '.68rem', fontWeight: 700, color: 'var(--ink-3)', marginBottom: '.65rem', textTransform: 'uppercase', letterSpacing: '.08em' }}>Select a background</div>
-              {templates.length === 0
-                ? <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--ink-3)', fontSize: '.85rem' }}>Loading templates...</div>
-                : (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '.5rem' }}>
-                    {templates.map(tpl => (
-                      <div key={tpl.id} onClick={() => generate(tpl)}
-                        style={{ cursor: 'pointer', borderRadius: 10, overflow: 'hidden', border: '2px solid var(--border)', transition: 'border-color .15s,transform .1s' }}
-                        onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--gold)'; e.currentTarget.style.transform = 'scale(1.02)' }}
-                        onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.transform = 'scale(1)' }}>
-                        <img src={tpl.url} alt={tpl.label} style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
-                        <div style={{ padding: '.3rem .4rem', background: 'var(--bg)' }}>
-                          <div style={{ fontSize: '.65rem', fontWeight: 600, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tpl.emoji} {tpl.label}</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-            </>
-          )}
-          {phase === 'loading' && (
-            <div style={{ textAlign: 'center', padding: '2.5rem 0' }}>
-              {selected && <img src={selected.url} style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 12, marginBottom: '1rem', opacity: .6 }} alt="" />}
-              <div style={{ width: 40, height: 40, borderRadius: '50%', border: '3px solid var(--border)', borderTopColor: 'var(--gold)', animation: 'spin-en 1s linear infinite', margin: '0 auto .9rem' }} />
-              <div style={{ fontWeight: 600, color: 'var(--ink)', marginBottom: '.3rem', fontSize: '.9rem' }}>Creating your visual…</div>
-              <div style={{ fontSize: '.75rem', color: 'var(--ink-3)' }}>Removing background · Compositing · ~15 seconds</div>
-            </div>
-          )}
-          {phase === 'result' && (
-            <>
-              <img src={resultUrl} style={{ width: '100%', aspectRatio: '1', objectFit: 'contain', borderRadius: 12, marginBottom: '1rem', background: '#f5f5f5' }} alt="enhanced" />
-              <button onClick={save} disabled={saving}
-                style={{ width: '100%', padding: '.85rem', background: 'linear-gradient(135deg,#c5a66a,#a8863d)', color: '#fff', border: 'none', borderRadius: 10, fontWeight: 600, fontSize: '.88rem', cursor: saving ? 'default' : 'pointer', opacity: saving ? .7 : 1, marginBottom: '.6rem' }}>
-                {saving ? 'Saving…' : '✓ Use this photo'}
-              </button>
-              <button onClick={() => { setPhase('templates'); setResultUrl(null); setSelected(null) }}
-                style={{ width: '100%', padding: '.65rem', background: 'none', border: '1px solid var(--border)', borderRadius: 9, color: 'var(--ink-3)', cursor: 'pointer', fontSize: '.82rem' }}>
-                ← Try another template
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // ── IMAGE EDITOR MODAL ────────────────────────────────────────────────────────
 function ImageEditorModal({ imageUrl, workspaceId, productName = '', onSave, onClose, toast }) {
   useScrollLock()
@@ -233,9 +116,8 @@ function ImageEditorModal({ imageUrl, workspaceId, productName = '', onSave, onC
   const [loaded, setLoaded] = useState(false)
   const [saving, setSaving] = useState(false)
   const [mode, setMode] = useState('adjust')
-  const [showEnhance, setShowEnhance] = useState(false)
-  const [cropAspect, setCropAspect] = useState(null)
   const [crop, setCrop] = useState({ x: 0, y: 0, w: 1, h: 1 })
+  const dragRef = useRef(null)
 
   useEffect(() => {
     fetch(imageUrl).then(r => r.blob()).then(blob => {
@@ -279,17 +161,62 @@ function ImageEditorModal({ imageUrl, workspaceId, productName = '', onSave, onC
 
   function rotate(deg) { setRotation(r => (r + deg + 360) % 360) }
 
-  function applyAspect(a) {
-    setCropAspect(a)
-    if (a === null) { setCrop({ x: 0, y: 0, w: 1, h: 1 }); return }
-    const canvas = canvasRef.current; if (!canvas) return
-    const cw = canvas.width, ch = canvas.height
-    let rw = 1, rh = 1
-    if (a === 1) { const s = Math.min(cw, ch); rw = s / cw; rh = s / ch }
-    else if (a === 0.75) { rw = Math.min(1, ch * 0.75 / cw); rh = Math.min(1, cw / (ch * 0.75)) }
-    else if (a === 1.333) { rh = Math.min(1, cw * 0.75 / ch); rw = Math.min(1, ch * 1.333 / cw) }
-    setCrop({ x: (1 - rw) / 2, y: (1 - rh) / 2, w: rw, h: rh })
+  function getNormCoords(clientX, clientY) {
+    const rect = canvasRef.current.getBoundingClientRect()
+    return { x: (clientX - rect.left) / rect.width, y: (clientY - rect.top) / rect.height }
   }
+
+  function getHitTarget(nx, ny) {
+    const { x, y, w, h } = crop
+    const HS = 0.08
+    if (nx >= x && nx <= x + HS && ny >= y && ny <= y + HS) return 'tl'
+    if (nx >= x + w - HS && nx <= x + w && ny >= y && ny <= y + HS) return 'tr'
+    if (nx >= x && nx <= x + HS && ny >= y + h - HS && ny <= y + h) return 'bl'
+    if (nx >= x + w - HS && nx <= x + w && ny >= y + h - HS && ny <= y + h) return 'br'
+    if (nx >= x && nx <= x + w && ny >= y && ny <= y + h) return 'move'
+    return null
+  }
+
+  function handleDragStart(clientX, clientY) {
+    if (mode !== 'crop') return
+    const { x: nx, y: ny } = getNormCoords(clientX, clientY)
+    const target = getHitTarget(nx, ny)
+    if (!target) return
+    dragRef.current = { type: target, startX: nx, startY: ny, startCrop: { ...crop } }
+  }
+
+  function handleDragMove(clientX, clientY) {
+    if (!dragRef.current) return
+    const { x: nx, y: ny } = getNormCoords(clientX, clientY)
+    const { type, startX, startY, startCrop } = dragRef.current
+    const dx = nx - startX, dy = ny - startY
+    const MIN = 0.05
+    setCrop(() => {
+      let { x, y, w, h } = startCrop
+      if (type === 'move') {
+        x = Math.max(0, Math.min(1 - w, x + dx))
+        y = Math.max(0, Math.min(1 - h, y + dy))
+      } else if (type === 'tl') {
+        const nx2 = Math.max(0, Math.min(x + w - MIN, x + dx))
+        const ny2 = Math.max(0, Math.min(y + h - MIN, y + dy))
+        w = w + (x - nx2); h = h + (y - ny2); x = nx2; y = ny2
+      } else if (type === 'tr') {
+        const ny2 = Math.max(0, Math.min(y + h - MIN, y + dy))
+        h = h + (y - ny2); y = ny2
+        w = Math.max(MIN, Math.min(1 - x, w + dx))
+      } else if (type === 'bl') {
+        const nx2 = Math.max(0, Math.min(x + w - MIN, x + dx))
+        w = w + (x - nx2); x = nx2
+        h = Math.max(MIN, Math.min(1 - y, h + dy))
+      } else if (type === 'br') {
+        w = Math.max(MIN, Math.min(1 - x, w + dx))
+        h = Math.max(MIN, Math.min(1 - y, h + dy))
+      }
+      return { x: Math.max(0, x), y: Math.max(0, y), w: Math.min(1 - x, Math.max(MIN, w)), h: Math.min(1 - y, Math.max(MIN, h)) }
+    })
+  }
+
+  function handleDragEnd() { dragRef.current = null }
 
   async function save() {
     const canvas = canvasRef.current, img = imgRef.current
@@ -322,12 +249,12 @@ function ImageEditorModal({ imageUrl, workspaceId, productName = '', onSave, onC
   const ctrlBtn = () => ({ background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)', color: 'rgba(255,255,255,.75)', borderRadius: 12, width: 68, height: 64, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 5, transition: 'background .15s' })
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: '#080706', zIndex: 500, display: 'flex', flexDirection: 'column' }}>
+    <div style={{ position: 'fixed', inset: 0, background: '#080706', zIndex: 500, display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '.85rem 1.25rem', borderBottom: '1px solid rgba(255,255,255,.06)', flexShrink: 0 }}>
         <button onClick={onClose} style={tabBtn(false)}>Cancel</button>
         <div style={{ display: 'flex', gap: '.35rem' }}>
-          <button onClick={() => setMode('adjust')} style={tabBtn(mode === 'adjust')}>Adjust</button>
-          <button onClick={() => setMode('crop')} style={tabBtn(mode === 'crop')}>Crop</button>
+          <button onClick={e => { e.stopPropagation(); setMode('adjust') }} style={tabBtn(mode === 'adjust')}>Adjust</button>
+          <button onClick={e => { e.stopPropagation(); setMode('crop') }} style={tabBtn(mode === 'crop')}>Crop</button>
         </div>
         <button onClick={save} disabled={saving || !loaded}
           style={{ background: saving || !loaded ? 'rgba(197,169,106,.3)' : 'var(--gold)', border: 'none', color: '#1a1814', borderRadius: 9, padding: '.45rem 1.1rem', cursor: 'pointer', fontFamily: 'inherit', fontSize: '.8rem', fontWeight: 700, transition: 'all .15s' }}>
@@ -336,7 +263,16 @@ function ImageEditorModal({ imageUrl, workspaceId, productName = '', onSave, onC
       </div>
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.25rem', overflow: 'hidden' }}>
         {!loaded && <div style={{ color: 'rgba(255,255,255,.25)', fontSize: '.75rem', letterSpacing: '.1em', textTransform: 'uppercase' }}>Loading…</div>}
-        <canvas ref={canvasRef} style={{ maxWidth: '100%', maxHeight: '100%', display: loaded ? 'block' : 'none', borderRadius: 6 }} />
+        <canvas ref={canvasRef}
+          style={{ maxWidth: '100%', maxHeight: '100%', display: loaded ? 'block' : 'none', borderRadius: 6, touchAction: mode === 'crop' ? 'none' : 'auto', cursor: mode === 'crop' ? 'crosshair' : 'default' }}
+          onTouchStart={e => { if (mode !== 'crop') return; e.preventDefault(); const t = e.touches[0]; handleDragStart(t.clientX, t.clientY) }}
+          onTouchMove={e => { if (mode !== 'crop') return; e.preventDefault(); const t = e.touches[0]; handleDragMove(t.clientX, t.clientY) }}
+          onTouchEnd={handleDragEnd}
+          onMouseDown={e => { if (mode !== 'crop') return; handleDragStart(e.clientX, e.clientY) }}
+          onMouseMove={e => { if (mode !== 'crop') return; handleDragMove(e.clientX, e.clientY) }}
+          onMouseUp={handleDragEnd}
+          onMouseLeave={handleDragEnd}
+        />
       </div>
       <div style={{ padding: '1rem 1.25rem 2.75rem', background: 'rgba(0,0,0,.7)', backdropFilter: 'blur(20px)', flexShrink: 0 }}>
         {mode === 'adjust' && (
@@ -349,40 +285,14 @@ function ImageEditorModal({ imageUrl, workspaceId, productName = '', onSave, onC
                 <span style={{ fontSize: '.55rem', color: 'rgba(255,255,255,.3)', textTransform: 'uppercase', letterSpacing: '.07em' }}>{c.sub}</span>
               </button>
             ))}
-            <button onClick={() => setShowEnhance(true)}
-              style={{ background: 'rgba(197,169,106,.1)', border: '1px solid rgba(197,169,106,.25)', color: 'var(--gold)', borderRadius: 12, width: 68, height: 64, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 5, transition: 'all .15s' }}
-              onMouseEnter={e => e.currentTarget.style.background = 'rgba(197,169,106,.2)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'rgba(197,169,106,.1)'}>
-              <span style={{ fontSize: '.82rem', fontWeight: 700, letterSpacing: '.04em' }}>AI</span>
-              <span style={{ fontSize: '.55rem', color: 'rgba(197,169,106,.5)', textTransform: 'uppercase', letterSpacing: '.07em' }}>Enhance</span>
-            </button>
           </div>
         )}
         {mode === 'crop' && (
-          <div>
-            <div style={{ fontSize: '.6rem', color: 'rgba(255,255,255,.25)', textTransform: 'uppercase', letterSpacing: '.12em', textAlign: 'center', marginBottom: '.6rem' }}>Aspect ratio</div>
-            <div style={{ display: 'flex', justifyContent: 'center', gap: '.4rem', flexWrap: 'wrap' }}>
-              {[{ label: 'Free', val: null }, { label: '1:1', val: 1 }, { label: '3:4', val: 0.75 }, { label: '4:3', val: 1.333 }].map(a => (
-                <button key={a.label} onClick={() => applyAspect(a.val)} style={{ ...tabBtn(cropAspect === a.val), padding: '.4rem .8rem', borderRadius: 8 }}>{a.label}</button>
-              ))}
-            </div>
-            <div style={{ textAlign: 'center', marginTop: '.55rem', fontSize: '.6rem', color: 'rgba(255,255,255,.18)', letterSpacing: '.06em' }}>Tap Done to apply</div>
+          <div style={{ textAlign: 'center', fontSize: '.6rem', color: 'rgba(255,255,255,.25)', letterSpacing: '.08em', padding: '.5rem 0' }}>
+            Drag corners or move to crop
           </div>
         )}
       </div>
-      {showEnhance && (
-        <EnhanceModal imageUrl={imageUrl} imagePreview={imageUrl} workspace={{ id: workspaceId }}
-          onSelect={newUrl => {
-            fetch(newUrl).then(r => r.blob()).then(blob => {
-              const blobUrl = URL.createObjectURL(blob)
-              const img = new Image()
-              img.onload = () => { imgRef.current = img; draw() }
-              img.src = blobUrl
-            })
-            toast('Photo enhanced.'); setShowEnhance(false)
-          }}
-          onClose={() => setShowEnhance(false)} toast={toast} />
-      )}
     </div>
   )
 }
@@ -390,7 +300,7 @@ function ImageEditorModal({ imageUrl, workspaceId, productName = '', onSave, onC
 // ── PRODUCT EDIT MODAL ────────────────────────────────────────────────────────
 function ProductEditModal({ product, workspaceId, onClose, onSaved, onDeleted, toast }) {
   useScrollLock()
-  const [form, setForm] = useState({ name: product.name || '', price: String(product.price ?? ''), stock: String(product.stock ?? ''), description: product.description || '' })
+  const [form, setForm] = useState({ name: product.name || '', price: String(product.price ?? ''), stock: String(product.stock ?? ''), description: product.description || '', discount_price: product.discount_price != null ? String(product.discount_price) : '', discount_ends_at: product.discount_ends_at ? product.discount_ends_at.slice(0, 16) : '' })
   const [existingImgs, setExistingImgs] = useState((product.images || []).map(url => ({ url, preview: url })))
   const [newImgs, setNewImgs] = useState([])
   const [uploading, setUploading] = useState(false)
@@ -412,7 +322,7 @@ function ProductEditModal({ product, workspaceId, onClose, onSaved, onDeleted, t
   async function save() {
     setSaving(true)
     const finalImages = [...existingImgs.map(i => i.url), ...newImgs.filter(i => i.url).map(i => i.url)]
-    const { error } = await updateProduct(product.id, { name: form.name, price: form.price, stock: form.stock, description: form.description, images: finalImages })
+    const { error } = await updateProduct(product.id, { name: form.name, price: form.price, stock: form.stock, description: form.description, images: finalImages, discount_price: form.discount_price || null, discount_ends_at: form.discount_ends_at || null })
     setSaving(false); if (error) { toast('Error saving.'); return }
     toast(`${form.name} updated.`); onSaved(); onClose()
   }
@@ -481,6 +391,14 @@ function ProductEditModal({ product, workspaceId, onClose, onSaved, onDeleted, t
               <div className="field"><label>Stock</label><input style={iS} type="number" value={form.stock} onChange={e => setForm(f => ({ ...f, stock: e.target.value }))} onFocus={e => e.target.style.borderColor = 'var(--gold)'} onBlur={e => e.target.style.borderColor = 'var(--border-2)'} /></div>
               <div className="field"><label>Description</label><input style={iS} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} onFocus={e => e.target.style.borderColor = 'var(--gold)'} onBlur={e => e.target.style.borderColor = 'var(--border-2)'} /></div>
             </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '.75rem' }}>
+              <div className="field"><label>Discount Price <span style={{ fontWeight: 400, color: 'var(--ink-3)' }}>(optional)</span></label><input style={iS} type="number" min="0" value={form.discount_price} onChange={e => setForm(f => ({ ...f, discount_price: e.target.value }))} placeholder="Leave empty for no discount" onFocus={e => e.target.style.borderColor = 'var(--gold)'} onBlur={e => e.target.style.borderColor = 'var(--border-2)'} /></div>
+              <div className="field">
+                <label>Discount Ends <span style={{ fontWeight: 400, color: 'var(--ink-3)' }}>(optional)</span></label>
+                <input style={iS} type="datetime-local" value={form.discount_ends_at} onChange={e => setForm(f => ({ ...f, discount_ends_at: e.target.value }))} onFocus={e => e.target.style.borderColor = 'var(--gold)'} onBlur={e => e.target.style.borderColor = 'var(--border-2)'} />
+                <span style={{ fontSize: '.68rem', color: 'var(--ink-3)', marginTop: '.2rem', display: 'block' }}>Leave empty for permanent discount</span>
+              </div>
+            </div>
             {existingImgs.length > 0 && (
               <div>
                 <div style={{ fontSize: '.72rem', fontWeight: 600, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: '.5rem' }}>Current photos — click ✕ to remove</div>
@@ -526,7 +444,7 @@ export default function ProductsSection() {
   const toast = useToast()
   const { data, refresh } = useProducts(workspace?.id)
   const [addMode, setAddMode] = useState(false)
-  const [form, setForm] = useState({ name: '', price: '', stock: '', description: '' })
+  const [form, setForm] = useState({ name: '', price: '', stock: '', description: '', discount_price: '', discount_ends_at: '' })
   const [pendingImgs, setPendingImgs] = useState([])
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -537,8 +455,20 @@ export default function ProductsSection() {
   const [deleting, setDeleting] = useState(false)
   const [editorTarget, setEditorTarget] = useState(null)
   const fileInputRef = useRef(null)
+  // Optimistic local override for featured_product_id
+  const [localFeaturedId, setLocalFeaturedId] = useState(undefined)
+  const featuredId = localFeaturedId !== undefined ? localFeaturedId : workspace?.featured_product_id
 
   if (!canAccess(subscription, 'products')) return <UpgradeGate feature="products" />
+
+  async function handleSetFeatured(e, productId) {
+    e.stopPropagation()
+    const next = featuredId === productId ? null : productId
+    setLocalFeaturedId(next)
+    const { error } = await setFeaturedProduct(workspace.id, next)
+    if (error) { toast('Could not update featured product.'); setLocalFeaturedId(undefined) }
+    else refresh()
+  }
 
   function enterSelectMode() { setSelectMode(true); setSelected(new Set()); setShowDotMenu(false) }
   function exitSelectMode() { setSelectMode(false); setSelected(new Set()) }
@@ -560,8 +490,8 @@ export default function ProductsSection() {
   async function add(e) {
     e.preventDefault(); setSaving(true)
     const imageUrls = pendingImgs.filter(p => p.url).map(p => p.url)
-    await insertProduct({ workspaceId: workspace.id, name: form.name, price: form.price, stock: form.stock, description: form.description, images: imageUrls })
-    toast(`${form.name} added.`); setForm({ name: '', price: '', stock: '', description: '' }); setPendingImgs([]); setSaving(false); setAddMode(false); refresh()
+    await insertProduct({ workspaceId: workspace.id, name: form.name, price: form.price, stock: form.stock, description: form.description, images: imageUrls, discount_price: form.discount_price || null, discount_ends_at: form.discount_ends_at || null })
+    toast(`${form.name} added.`); setForm({ name: '', price: '', stock: '', description: '', discount_price: '', discount_ends_at: '' }); setPendingImgs([]); setSaving(false); setAddMode(false); refresh()
   }
 
   const iS = { width: '100%', padding: '.6rem .85rem', border: '1px solid var(--border-2)', borderRadius: 9, fontSize: '.85rem', fontFamily: 'inherit', color: 'var(--ink)', background: 'var(--surface)', outline: 'none', transition: 'border .15s' }
@@ -585,6 +515,17 @@ export default function ProductsSection() {
             <div className="field"><label>Price (CAD)</label>
               <input style={iS} type="number" value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} placeholder="28" required
                 onFocus={e => e.target.style.borderColor = 'var(--gold)'} onBlur={e => e.target.style.borderColor = 'var(--border-2)'} /></div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div className="field"><label>Discount Price <span style={{ fontWeight: 400, color: 'var(--ink-3)' }}>(optional)</span></label>
+              <input style={iS} type="number" min="0" value={form.discount_price} onChange={e => setForm(f => ({ ...f, discount_price: e.target.value }))} placeholder="Leave empty for no discount"
+                onFocus={e => e.target.style.borderColor = 'var(--gold)'} onBlur={e => e.target.style.borderColor = 'var(--border-2)'} /></div>
+            <div className="field">
+              <label>Discount Ends <span style={{ fontWeight: 400, color: 'var(--ink-3)' }}>(optional)</span></label>
+              <input style={iS} type="datetime-local" value={form.discount_ends_at} onChange={e => setForm(f => ({ ...f, discount_ends_at: e.target.value }))}
+                onFocus={e => e.target.style.borderColor = 'var(--gold)'} onBlur={e => e.target.style.borderColor = 'var(--border-2)'} />
+              <span style={{ fontSize: '.68rem', color: 'var(--ink-3)', marginTop: '.2rem', display: 'block' }}>Leave empty for permanent discount</span>
+            </div>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div className="field"><label>Stock</label>
@@ -677,11 +618,33 @@ export default function ProductsSection() {
               <div key={p.id} className="prod-card" onClick={() => selectMode ? toggleSelect(p.id) : setEditProduct(p)}
                 style={{ cursor: 'pointer', position: 'relative', outline: isSelected ? '2.5px solid var(--gold)' : 'none', transition: 'outline .12s' }}>
                 {selectMode && (<div style={{ position: 'absolute', top: 8, left: 8, zIndex: 2, width: 22, height: 22, borderRadius: 6, border: `2px solid ${isSelected ? 'var(--gold)' : 'rgba(255,255,255,.7)'}`, background: isSelected ? 'var(--gold)' : 'rgba(0,0,0,.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all .12s' }}>{isSelected && <svg viewBox="0 0 10 10" fill="none" stroke="#fff" strokeWidth="2.5" width="10" height="10"><polyline points="1.5,5 4,7.5 8.5,2.5" /></svg>}</div>)}
+              {!selectMode && (
+                <button
+                  onClick={e => handleSetFeatured(e, p.id)}
+                  title={featuredId === p.id ? 'Remove from featured' : 'Set as featured'}
+                  style={{
+                    position: 'absolute', top: 8, right: 8, zIndex: 2,
+                    width: 28, height: 28, borderRadius: '50%',
+                    border: featuredId === p.id ? 'none' : '1px solid var(--border)',
+                    background: featuredId === p.id ? 'var(--gold)' : 'transparent',
+                    color: featuredId === p.id ? '#fff' : 'var(--ink-3)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    cursor: 'pointer', transition: 'all .2s ease', padding: 0,
+                  }}
+                >
+                  <svg viewBox="0 0 16 16" width="12" height="12"
+                    fill={featuredId === p.id ? 'currentColor' : 'none'}
+                    stroke="currentColor" strokeWidth={featuredId === p.id ? '0' : '1.5'}>
+                    <path d="M8 1l1.8 4.5H15l-4.2 3 1.6 4.8L8 10.8l-4.4 2.5 1.6-4.8L1 6.5h5.2z"/>
+                  </svg>
+                </button>
+              )}
                 <div className="prod-img" style={{ position: 'relative', overflow: 'hidden', background: 'var(--bg)' }}>
                   {imgs.length > 0
                     ? <img src={imgs[0]} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform .3s', filter: isSelected ? 'brightness(.8)' : 'none' }} onMouseEnter={e => { if (!selectMode) e.currentTarget.style.transform = 'scale(1.06)' }} onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'} />
                     : <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '.3rem' }}><span style={{ fontSize: '1.5rem' }}>📷</span><span style={{ fontSize: '.65rem', color: 'var(--ink-3)' }}>Add photos</span></div>}
                   {imgs.length > 1 && <div style={{ position: 'absolute', bottom: 5, right: 6, background: 'rgba(0,0,0,.5)', color: '#fff', fontSize: '.6rem', padding: '1px 6px', borderRadius: 20 }}>+{imgs.length - 1}</div>}
+                  {isSaleActive(p) && <div className="prod-sale-badge">SALE</div>}
                 </div>
                 <div className="prod-body">
                   <div className="prod-name">{p.name}</div>

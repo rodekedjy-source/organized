@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useClients } from '../hooks/useClients'
 import { useWorkspaceContext } from '../contexts/WorkspaceContext'
 import { useToast } from '../contexts/ToastContext'
 import { fetchAppointmentsByClient } from '../api/appointments'
 import { updateClientTag } from '../api/clients'
 import { formatCurrency } from '../lib/formatters'
+import { supabase } from '../lib/supabase'
 
 // ── I18N ──────────────────────────────────────────────────────────────────────
 const LANG = {
@@ -34,19 +35,21 @@ function useScrollLock() {
   }, [])
 }
 
-const PERIODS = ['week', 'month', 'year']
+const PERIODS = ['all', 'month', 'year']
 const PERIOD_LABELS = {
-  en: { week: 'This Week', month: 'This Month', year: 'This Year' },
-  fr: { week: 'Cette semaine', month: 'Ce mois', year: 'Cette année' },
-  es: { week: 'Esta semana', month: 'Este mes', year: 'Este año' },
+  en: { all: 'All', week: 'This Week', month: 'This Month', year: 'This Year' },
+  fr: { all: 'Tous', week: 'Cette semaine', month: 'Ce mois', year: 'Cette année' },
+  es: { all: 'Todos', week: 'Esta semana', month: 'Este mes', year: 'Este año' },
 }
 function startOfPeriod(period) {
+  if (period === 'all') return new Date(0)
   const now = new Date()
-  if (period === 'week') { const d = new Date(now); d.setDate(now.getDate() - now.getDay()); d.setHours(0, 0, 0, 0); return d }
+  if (period === 'week') { return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) }
   if (period === 'month') return new Date(now.getFullYear(), now.getMonth(), 1)
   return new Date(now.getFullYear(), 0, 1)
 }
 function filterByPeriod(arr, period, dateKey = 'scheduled_at') {
+  if (period === 'all') return arr
   const start = startOfPeriod(period)
   return arr.filter(r => new Date(r[dateKey]) >= start)
 }
@@ -189,6 +192,117 @@ function ClientHistoryPanel({ client, workspace, onClose }) {
   )
 }
 
+// ── CSV HELPERS ───────────────────────────────────────────────────────────────
+const CSV_HEADERS = ['full_name', 'email', 'phone', 'notes', 'total_visits', 'total_spent', 'last_visit_at', 'created_at']
+
+function escapeCSV(val) {
+  if (val == null || val === '') return ''
+  const s = String(val)
+  return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s
+}
+
+function exportCSV(clients) {
+  const rows = clients.map(c => CSV_HEADERS.map(h => escapeCSV(c[h])).join(','))
+  const csv = [CSV_HEADERS.join(','), ...rows].join('\n')
+  const blob = new Blob([csv], { type: 'text/csv' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url; a.download = 'clients-organized.csv'; a.click()
+  URL.revokeObjectURL(url)
+}
+
+function downloadTemplate() {
+  const csv = CSV_HEADERS.join(',') + '\n'
+  const blob = new Blob([csv], { type: 'text/csv' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url; a.download = 'clients-template.csv'; a.click()
+  URL.revokeObjectURL(url)
+}
+
+function parseCSV(text) {
+  const lines = text.trim().split(/\r?\n/)
+  if (lines.length < 2) return []
+  const rawHeaders = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/^"|"$/g, ''))
+
+  // Column detection: Organized format or generic
+  function findCol(candidates) {
+    for (const c of candidates) {
+      const i = rawHeaders.indexOf(c)
+      if (i !== -1) return i
+    }
+    return -1
+  }
+  const colName  = findCol(['full_name', 'name', 'nom', 'full name'])
+  const colEmail = findCol(['email', 'e-mail', 'courriel'])
+  const colPhone = findCol(['phone', 'téléphone', 'telephone', 'tel', 'mobile'])
+  const colNotes = findCol(['notes', 'note', 'remarques'])
+
+  if (colName === -1 && colEmail === -1) return []
+
+  return lines.slice(1).map(line => {
+    // Simple CSV split respecting quoted fields
+    const cols = []
+    let cur = '', inQ = false
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i]
+      if (ch === '"') { inQ = !inQ }
+      else if (ch === ',' && !inQ) { cols.push(cur.trim()); cur = '' }
+      else { cur += ch }
+    }
+    cols.push(cur.trim())
+    const get = i => (i !== -1 ? (cols[i] || '').replace(/^"|"$/g, '').trim() : '')
+    return { full_name: get(colName), email: get(colEmail), phone: get(colPhone), notes: get(colNotes) }
+  }).filter(r => r.full_name || r.email)
+}
+
+// ── IMPORT MODAL ──────────────────────────────────────────────────────────────
+function ImportModal({ rows, onConfirm, onClose, busy }) {
+  const preview = rows.slice(0, 3)
+  return (
+    <div className="rev-overlay" onClick={onClose}>
+      <div className="rev-panel" style={{ maxWidth: 480 }} onClick={e => e.stopPropagation()}>
+        <div className="rev-panel-head">
+          <div style={{ fontFamily: "'Playfair Display',serif", fontSize: '1.1rem', color: 'var(--ink)' }}>
+            Import {rows.length} client{rows.length !== 1 ? 's' : ''}
+          </div>
+          <button className="rev-close" onClick={onClose}>&#10005;</button>
+        </div>
+        <p style={{ fontSize: '.82rem', color: 'var(--ink-3)', marginBottom: '1rem' }}>
+          Preview (first {Math.min(3, rows.length)} of {rows.length}). Duplicates (same email) will be skipped.
+        </p>
+        <div style={{ overflowX: 'auto', marginBottom: '1.25rem' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '.78rem' }}>
+            <thead>
+              <tr>
+                {['Name', 'Email', 'Phone'].map(h => (
+                  <th key={h} style={{ textAlign: 'left', padding: '.35rem .6rem', fontWeight: 600, color: 'var(--ink-3)', borderBottom: '1px solid var(--border)', fontSize: '.7rem', textTransform: 'uppercase', letterSpacing: '.06em' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {preview.map((r, i) => (
+                <tr key={i}>
+                  <td style={{ padding: '.4rem .6rem', color: 'var(--ink)', borderBottom: '1px solid var(--border)' }}>{r.full_name || '—'}</td>
+                  <td style={{ padding: '.4rem .6rem', color: 'var(--ink-2)', borderBottom: '1px solid var(--border)' }}>{r.email || '—'}</td>
+                  <td style={{ padding: '.4rem .6rem', color: 'var(--ink-2)', borderBottom: '1px solid var(--border)' }}>{r.phone || '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div style={{ display: 'flex', gap: '.6rem', justifyContent: 'flex-end' }}>
+          <button onClick={onClose} disabled={busy} style={{ padding: '.5rem 1rem', borderRadius: 8, border: '1px solid var(--border-2)', background: 'transparent', color: 'var(--ink-2)', fontSize: '.82rem', cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
+          <button onClick={onConfirm} disabled={busy}
+            style={{ padding: '.5rem 1.25rem', borderRadius: 8, border: 'none', background: 'var(--gold)', color: '#fff', fontSize: '.82rem', fontWeight: 600, cursor: busy ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: busy ? 0.7 : 1 }}>
+            {busy ? 'Importing…' : `Import ${rows.length} client${rows.length !== 1 ? 's' : ''}`}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── CLIENTS SECTION ───────────────────────────────────────────────────────────
 export default function ClientsSection({ lang = 'en' }) {
   const { workspace, subscription } = useWorkspaceContext()
@@ -196,15 +310,45 @@ export default function ClientsSection({ lang = 'en' }) {
   const { data, loading, refresh } = useClients(workspace?.id)
   const [selected, setSelected] = useState(null)
   const [search, setSearch] = useState('')
-  const [period, setPeriod] = useState('month')
+  const [period, setPeriod] = useState('all')
+  const [importRows, setImportRows] = useState(null)
+  const [importing, setImporting] = useState(false)
+  const fileInputRef = useRef(null)
 
-  const periodClients = filterByPeriod(data, period, 'last_visit').filter(c => c.full_name?.toLowerCase().includes(search.toLowerCase()))
+  function handleFileChange(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    e.target.value = ''
+    const reader = new FileReader()
+    reader.onload = ev => {
+      const rows = parseCSV(ev.target.result)
+      if (!rows.length) { toast.show?.('No valid clients found in file.', 'err'); return }
+      setImportRows(rows)
+    }
+    reader.readAsText(file)
+  }
+
+  async function confirmImport() {
+    if (!importRows || !workspace?.id) return
+    setImporting(true)
+    const toInsert = importRows.map(r => ({ workspace_id: workspace.id, full_name: r.full_name || null, email: r.email || null, phone: r.phone || null, notes: r.notes || null }))
+    const { error, count } = await supabase.from('clients').upsert(toInsert, { onConflict: 'workspace_id,email', ignoreDuplicates: true, count: 'exact' })
+    setImporting(false)
+    setImportRows(null)
+    if (error) { toast.show?.(`Import failed: ${error.message}`, 'err'); return }
+    const imported = count ?? toInsert.length
+    toast.show?.(`${imported} client${imported !== 1 ? 's' : ''} imported successfully`)
+    refresh()
+  }
+
+  const periodClients = filterByPeriod(data, period, 'last_visit_at').filter(c => c.full_name?.toLowerCase().includes(search.toLowerCase()))
   const allFiltered = data.filter(c => c.full_name?.toLowerCase().includes(search.toLowerCase()))
   const displayData = search ? allFiltered : periodClients
 
   const totalRevenue = displayData.reduce((s, c) => s + Number(c.total_spent || 0), 0)
   const totalVisits = displayData.reduce((s, c) => s + Number(c.total_visits || 0), 0)
-  const newClients = displayData.filter(c => c.created_at && new Date(c.created_at) >= startOfPeriod(period)).length
+  const newStart = period === 'all' ? new Date(Date.now() - 30 * 86400000) : startOfPeriod(period)
+  const newClients = displayData.filter(c => c.created_at && new Date(c.created_at) >= newStart).length
 
   return (
     <div>
@@ -212,6 +356,21 @@ export default function ClientsSection({ lang = 'en' }) {
         <div>
           <div className="page-title">{t(lang, 'clients_title')}</div>
           <div className="page-sub">{data.length} client{data.length !== 1 ? 's' : ''} total</div>
+        </div>
+        <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+          <button onClick={downloadTemplate}
+            style={{ padding: '.4rem .85rem', borderRadius: 8, border: '1px solid var(--border-2)', background: 'transparent', color: 'var(--ink-3)', fontSize: '.75rem', fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+            ↓ Template
+          </button>
+          <button onClick={() => fileInputRef.current?.click()}
+            style={{ padding: '.4rem .85rem', borderRadius: 8, border: '1px solid var(--border-2)', background: 'transparent', color: 'var(--ink-2)', fontSize: '.75rem', fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+            ↑ Import CSV
+          </button>
+          <button onClick={() => exportCSV(data)} disabled={!data.length}
+            style={{ padding: '.4rem .85rem', borderRadius: 8, border: '1px solid var(--gold-dim)', background: 'var(--gold-lt)', color: 'var(--gold)', fontSize: '.75rem', fontWeight: 600, cursor: data.length ? 'pointer' : 'not-allowed', fontFamily: 'inherit', whiteSpace: 'nowrap', opacity: data.length ? 1 : 0.5 }}>
+            ↓ Export CSV
+          </button>
+          <input ref={fileInputRef} type="file" accept=".csv" style={{ display: 'none' }} onChange={handleFileChange} />
         </div>
       </div>
 
@@ -285,6 +444,15 @@ export default function ClientsSection({ lang = 'en' }) {
           client={selected}
           workspace={workspace}
           onClose={() => { setSelected(null); refresh() }}
+        />
+      )}
+
+      {importRows && (
+        <ImportModal
+          rows={importRows}
+          busy={importing}
+          onConfirm={confirmImport}
+          onClose={() => setImportRows(null)}
         />
       )}
     </div>

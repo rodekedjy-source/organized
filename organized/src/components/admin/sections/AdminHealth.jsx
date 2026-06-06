@@ -18,6 +18,16 @@ export default function AdminHealth() {
   const [checks, setChecks] = useState(null)
   const [security, setSecurity] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [lastBackup, setLastBackup] = useState(undefined) // null = none found, Date = last backup
+
+  async function fetchLastBackup() {
+    try {
+      const { data } = await supabase.rpc('get_last_backup_info')
+      setLastBackup(data?.created_at ? new Date(data.created_at) : null)
+    } catch (_) {
+      setLastBackup(null)
+    }
+  }
 
   async function runChecks() {
     setLoading(true)
@@ -37,7 +47,7 @@ export default function AdminHealth() {
     // Edge function count via admin-metrics
     let edgeFnCount = null
     try {
-      const { data: metricsData } = await supabase.functions.invoke('admin-metrics')
+      const { data: metricsData } = await supabase.functions.invoke('admin-metrics', { method: 'GET' })
       if (metricsData?.edge_function_count != null) {
         edgeFnCount = metricsData.edge_function_count
       } else if (metricsData?.functions != null) {
@@ -52,11 +62,20 @@ export default function AdminHealth() {
     setLoading(false)
   }
 
-  useEffect(() => { runChecks() }, [])
+  useEffect(() => { runChecks(); fetchLastBackup() }, [])
 
   const ok  = t => ({ type: 'ok',  label: t })
   const wn  = t => ({ type: 'wn',  label: t })
   const err = t => ({ type: 'err', label: t })
+
+  // DB Backup status
+  const backupStatus = (() => {
+    if (lastBackup === undefined) return wn('Checking…')
+    if (lastBackup === null)      return err('No backup found')
+    const ageDays = (Date.now() - lastBackup.getTime()) / 86400000
+    const label = `Last: ${lastBackup.toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' })}`
+    return ageDays <= 8 ? ok(label) : err(`Overdue · ${label}`)
+  })()
 
   // Derived security values
   const rlsTables       = security?.rls_tables ?? []
@@ -117,6 +136,7 @@ export default function AdminHealth() {
           <HRow name="Supabase Database" status={loading ? wn('Checking…') : checks?.db.ok ? ok(`Operational · ${checks.db.ms}ms`) : err('Error')} pulse={!loading && checks?.db.ok} />
           <HRow name="Supabase Auth"     status={loading ? wn('Checking…') : checks?.auth.ok ? ok(`Operational · ${checks.auth.ms}ms`) : err('Error')} />
           <HRow name="Supabase Storage"  status={ok('Operational')} />
+          <HRow name="DB Backup"         status={backupStatus} />
           <HRow name="Vercel Production" status={ok('READY — v6 hero')} />
           <HRow name="Stripe Webhook"    status={ok('Active v2')} />
           <HRow name="Resend (Emails)"   status={ok('Active')} />
@@ -168,6 +188,7 @@ export default function AdminHealth() {
               { name: 'create-payment-intent',     version: 'v6',  jwt: false },
               { name: 'stripe-webhook',            version: 'v2',  jwt: false },
               { name: 'admin-metrics',             version: 'v1',  jwt: false },
+              { name: 'backup-database',           version: 'v1',  jwt: false },
             ].map(fn => (
               <tr key={fn.name}>
                 <td style={{ fontFamily: 'DM Mono,monospace', fontSize: 11 }}>{fn.name}</td>

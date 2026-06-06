@@ -68,7 +68,7 @@ function buildConfirmedEmail(opts: {
     ? `<tr><td style="padding:6px 0;font-size:14px;color:#555;font-family:Georgia,serif;"><strong style="color:#1A0900;">Ships to:</strong> ${opts.shipping_address}</td></tr>`
     : ''
   const itemsBlock = buildItemsTable(opts)
-  const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head><body style="margin:0;padding:0;background:#F0EDE8;font-family:Georgia,serif;"><table width="100%" cellpadding="0" cellspacing="0" style="padding:32px 16px;"><tr><td align="center"><table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;"><tr><td style="background:#1A0900;padding:24px 32px;border-radius:12px 12px 0 0;"><p style="margin:0;font-family:Georgia,serif;font-size:22px;color:#C9A84C;letter-spacing:0.1em;">Organized.</p></td></tr><tr><td style="background:#FFFFFF;padding:36px 32px;"><p style="margin:0 0 8px;font-size:16px;color:#1A0900;font-family:Georgia,serif;">Hi ${opts.client_name},</p><p style="margin:0 0 24px;font-size:15px;color:#444;line-height:1.75;font-family:Georgia,serif;">Your order has been confirmed. We&#39;ll notify you as soon as it ships.</p><div style="background:#F8F6F2;border-radius:8px;padding:16px 20px;margin:0 0 20px;">${itemsBlock}<table width="100%" cellpadding="0" cellspacing="0">${shippingRow}</table></div>${receiptBlock}</td></tr><tr><td style="background:#F8F6F2;padding:20px 32px;border-radius:0 0 12px 12px;border-top:1px solid #EDE9E3;"><p style="margin:0 0 4px;font-size:14px;color:#555;font-family:Georgia,serif;">— ${opts.workspace_name}</p><p style="margin:0;font-size:12px;color:#BBB;font-family:Georgia,serif;">Powered by Organized.</p></td></tr></table></td></tr></table></body></html>`
+  const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head><body style="margin:0;padding:0;background:#F0EDE8;font-family:Georgia,serif;"><table width="100%" cellpadding="0" cellspacing="0" style="padding:32px 16px;"><tr><td align="center"><table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;"><tr><td style="background:#1A0900;padding:24px 32px;border-radius:12px 12px 0 0;"><p style="margin:0;font-family:Georgia,serif;font-size:22px;color:#C9A84C;letter-spacing:0.1em;">Organized.</p></td></tr><tr><td style="background:#FFFFFF;padding:36px 32px;"><p style="margin:0 0 8px;font-size:16px;color:#1A0900;font-family:Georgia,serif;">Hi ${opts.client_name},</p><p style="margin:0 0 24px;font-size:15px;color:#444;line-height:1.75;font-family:Georgia,serif;">Your order has been confirmed and is currently being processed. You&#39;ll receive a shipping confirmation with tracking details once your order is on its way.</p><div style="background:#F8F6F2;border-radius:8px;padding:16px 20px;margin:0 0 20px;">${itemsBlock}<p style="margin:16px 0;padding:12px 16px;background:#f5f0e8;border-radius:8px;font-size:14px;color:#1a1a1a;font-family:Georgia,serif;">Your order has been confirmed and is currently being processed. You&#39;ll receive a shipping confirmation with tracking details once your order is on its way. 🙏</p><table width="100%" cellpadding="0" cellspacing="0">${shippingRow}</table></div>${receiptBlock}</td></tr><tr><td style="background:#F8F6F2;padding:20px 32px;border-radius:0 0 12px 12px;border-top:1px solid #EDE9E3;"><p style="margin:0 0 4px;font-size:14px;color:#555;font-family:Georgia,serif;">— ${opts.workspace_name}</p><p style="margin:0;font-size:12px;color:#BBB;font-family:Georgia,serif;">Powered by Organized.</p></td></tr></table></td></tr></table></body></html>`
   return { subject, html }
 }
 
@@ -89,38 +89,6 @@ function buildOwnerConfirmedEmail(opts: {
     : ''
   const itemsBlock = buildItemsTable(opts)
   const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head><body style="margin:0;padding:0;background:#F0EDE8;font-family:Georgia,serif;"><table width="100%" cellpadding="0" cellspacing="0" style="padding:32px 16px;"><tr><td align="center"><table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;"><tr><td style="background:#1A0900;padding:24px 32px;border-radius:12px 12px 0 0;"><p style="margin:0;font-family:Georgia,serif;font-size:22px;color:#C9A84C;letter-spacing:0.1em;">Organized.</p></td></tr><tr><td style="background:#FFFFFF;padding:36px 32px;"><p style="margin:0 0 8px;font-size:16px;color:#1A0900;font-family:Georgia,serif;">Hi,</p><p style="margin:0 0 24px;font-size:15px;color:#444;line-height:1.75;font-family:Georgia,serif;">You have a new order on your Organized. store.</p><div style="background:#F8F6F2;border-radius:8px;padding:16px 20px;margin:0 0 24px;">${itemsBlock}<table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:6px 0;font-size:14px;color:#555;font-family:Georgia,serif;"><strong style="color:#1A0900;">Customer:</strong> ${opts.client_name}</td></tr><tr><td style="padding:6px 0;font-size:14px;color:#555;font-family:Georgia,serif;"><strong style="color:#1A0900;">Email:</strong> ${opts.client_email}</td></tr>${shippingRow}</table></div><p style="margin:0 0 16px;font-size:14px;color:#444;font-family:Georgia,serif;">Log in to your dashboard to manage this order:</p><table cellpadding="0" cellspacing="0"><tr><td style="background:#C9A84C;border-radius:6px;"><a href="https://beorganized.io/dashboard" style="display:inline-block;padding:14px 28px;font-size:15px;font-weight:600;color:#fff;text-decoration:none;font-family:Georgia,serif;letter-spacing:0.03em;">View Order →</a></td></tr></table></td></tr><tr><td style="background:#F8F6F2;padding:20px 32px;border-radius:0 0 12px 12px;border-top:1px solid #EDE9E3;"><p style="margin:0;font-size:14px;color:#555;font-family:Georgia,serif;">— Organized.</p></td></tr></table></td></tr></table></body></html>`
-  return { subject, html }
-}
-
-function buildProcessingEmail(opts: {
-  client_name: string
-  product_name: string
-  quantity: number
-  total_amount: string
-  currency: string
-  workspace_name: string
-  cart_items?: CartItem[] | null
-  unit_price?: number | string | null
-}): { subject: string; html: string } {
-  const subject = `Your order is being prepared 📦`
-  const itemsBlock = buildItemsTable(opts)
-  const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head><body style="margin:0;padding:0;background:#F0EDE8;font-family:Georgia,serif;"><table width="100%" cellpadding="0" cellspacing="0" style="padding:32px 16px;"><tr><td align="center"><table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;"><tr><td style="background:#1A0900;padding:24px 32px;border-radius:12px 12px 0 0;"><p style="margin:0;font-family:Georgia,serif;font-size:22px;color:#C9A84C;letter-spacing:0.1em;">Organized.</p></td></tr><tr><td style="background:#FFFFFF;padding:36px 32px;"><p style="margin:0 0 8px;font-size:16px;color:#1A0900;font-family:Georgia,serif;">Hi ${opts.client_name},</p><p style="margin:0 0 24px;font-size:15px;color:#444;line-height:1.75;font-family:Georgia,serif;">Great news! We&#39;ve received your order and we&#39;re preparing it for shipment.</p><div style="background:#F8F6F2;border-radius:8px;padding:16px 20px;margin:0 0 20px;">${itemsBlock}</div><p style="margin:0;font-size:14px;color:#555;line-height:1.75;font-family:Georgia,serif;">You&#39;ll receive another email with tracking info once your order ships.</p></td></tr><tr><td style="background:#F8F6F2;padding:20px 32px;border-radius:0 0 12px 12px;border-top:1px solid #EDE9E3;"><p style="margin:0 0 4px;font-size:14px;color:#555;font-family:Georgia,serif;">— ${opts.workspace_name}</p><p style="margin:0;font-size:12px;color:#BBB;font-family:Georgia,serif;">Powered by Organized.</p></td></tr></table></td></tr></table></body></html>`
-  return { subject, html }
-}
-
-function buildOwnerProcessingEmail(opts: {
-  product_name: string
-  quantity: number
-  total_amount: string
-  currency: string
-  client_name: string
-  client_email: string
-  cart_items?: CartItem[] | null
-  unit_price?: number | string | null
-}): { subject: string; html: string } {
-  const subject = `Order now processing — ${opts.product_name}`
-  const itemsBlock = buildItemsTable(opts)
-  const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head><body style="margin:0;padding:0;background:#F0EDE8;font-family:Georgia,serif;"><table width="100%" cellpadding="0" cellspacing="0" style="padding:32px 16px;"><tr><td align="center"><table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;"><tr><td style="background:#1A0900;padding:24px 32px;border-radius:12px 12px 0 0;"><p style="margin:0;font-family:Georgia,serif;font-size:22px;color:#C9A84C;letter-spacing:0.1em;">Organized.</p></td></tr><tr><td style="background:#FFFFFF;padding:36px 32px;"><p style="margin:0 0 8px;font-size:16px;color:#1A0900;font-family:Georgia,serif;">Hi,</p><p style="margin:0 0 24px;font-size:15px;color:#444;line-height:1.75;font-family:Georgia,serif;">You marked an order as processing. A confirmation email has been sent to the customer.</p><div style="background:#F8F6F2;border-radius:8px;padding:16px 20px;margin:0 0 24px;">${itemsBlock}<table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:6px 0;font-size:14px;color:#555;font-family:Georgia,serif;"><strong style="color:#1A0900;">Customer:</strong> ${opts.client_name}</td></tr><tr><td style="padding:6px 0;font-size:14px;color:#555;font-family:Georgia,serif;"><strong style="color:#1A0900;">Email:</strong> ${opts.client_email}</td></tr></table></div><table cellpadding="0" cellspacing="0"><tr><td style="background:#C9A84C;border-radius:6px;"><a href="https://beorganized.io/dashboard" style="display:inline-block;padding:14px 28px;font-size:15px;font-weight:600;color:#fff;text-decoration:none;font-family:Georgia,serif;letter-spacing:0.03em;">View Order →</a></td></tr></table></td></tr><tr><td style="background:#F8F6F2;padding:20px 32px;border-radius:0 0 12px 12px;border-top:1px solid #EDE9E3;"><p style="margin:0;font-size:14px;color:#555;font-family:Georgia,serif;">— Organized.</p></td></tr></table></td></tr></table></body></html>`
   return { subject, html }
 }
 
@@ -217,19 +185,6 @@ Deno.serve(async (req: Request) => {
       })
       subject = result.subject
       html = result.html
-    } else if (type === 'processing') {
-      const result = buildProcessingEmail({
-        client_name: client_name || 'there',
-        product_name: product_name || 'your order',
-        quantity: quantity || 1,
-        total_amount: total_amount || '0.00',
-        currency: currency || 'CAD',
-        workspace_name: workspace_name || '',
-        cart_items: cart_items || null,
-        unit_price: unit_price || null,
-      })
-      subject = result.subject
-      html = result.html
     } else if (type === 'shipped') {
       const result = buildShippedEmail({
         client_name: client_name || 'there',
@@ -251,7 +206,7 @@ Deno.serve(async (req: Request) => {
       subject = result.subject
       html = result.html
     } else {
-      return new Response(JSON.stringify({ error: 'Invalid type. Must be confirmed, processing, shipped, or delivered.' }), {
+      return new Response(JSON.stringify({ error: 'Invalid type. Must be confirmed, shipped, or delivered.' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
@@ -275,21 +230,10 @@ Deno.serve(async (req: Request) => {
       })
     }
 
-    // Send owner notification for confirmed and processing orders
-    if ((type === 'confirmed' || type === 'processing') && owner_email) {
+    // Send owner notification for confirmed orders
+    if (type === 'confirmed' && owner_email) {
       try {
-        const ownerResult = type === 'processing'
-          ? buildOwnerProcessingEmail({
-              product_name: product_name || 'your order',
-              quantity: quantity || 1,
-              total_amount: total_amount || '0.00',
-              currency: currency || 'CAD',
-              client_name: client_name || '',
-              client_email: client_email || '',
-              cart_items: cart_items || null,
-              unit_price: unit_price || null,
-            })
-          : buildOwnerConfirmedEmail({
+        const ownerResult = buildOwnerConfirmedEmail({
               product_name: product_name || 'your order',
               quantity: quantity || 1,
               total_amount: total_amount || '0.00',

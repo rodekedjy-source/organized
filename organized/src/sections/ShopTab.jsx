@@ -1,0 +1,44 @@
+import { useState } from 'react'
+import OverviewSection      from './OverviewSection'
+import ProductsSection      from './ProductsSection'
+import ReviewsSection       from './ReviewsSection'
+import PolicySection        from './PolicySection'
+import RevenuePageShop      from './RevenuePageShop'
+import OrderHistorySection  from './OrderHistorySection'
+import ShippingSection      from './ShippingSection'
+import BackBar              from './BackBar'
+
+export default function ShopTab(props) {
+  const [subPage, setSubPage] = useState(null)
+  const [refreshKey, setRefreshKey] = useState(0)
+  const { workspace, toast, refetch, isPro } = props
+  const back    = () => { setRefreshKey(k => k + 1); setSubPage(null) }
+  const goBack  = () => setRefreshKey(k => k + 1)
+
+  if (isPro === false) return (
+    <div style={{ textAlign: 'center', padding: '48px 24px' }}>
+      <p style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: 8 }}>Shop is a Pro feature</p>
+      <p style={{ color: '#888', marginBottom: 24, fontSize: '14px' }}>Upgrade to Pro to sell products and manage orders.</p>
+      <button style={{ background: '#1A0900', color: '#C9A84C', border: 'none', borderRadius: 8, padding: '12px 28px', fontSize: '14px', cursor: 'pointer' }}
+        onClick={() => window.location.href = '/dashboard?upgrade=true'}>
+        Upgrade to Pro →
+      </button>
+    </div>
+  )
+
+  if (subPage === 'revenue')  return <><BackBar onBack={back} title="Revenue" /><div style={{paddingBottom:90}}><RevenuePageShop workspace={workspace} /></div></>
+  if (subPage === 'orders')   return <><BackBar onBack={back} title="Orders" /><div style={{paddingBottom:90}}><OrderHistorySection key={refreshKey} workspace={workspace} toast={toast} onDetailBack={goBack} /></div></>
+  if (subPage === 'products') return <><BackBar onBack={back} title="Products" /><div style={{paddingBottom:90}}><ProductsSection {...props} /></div></>
+  if (subPage === 'reviews')  return <><BackBar onBack={back} title="Reviews" /><div style={{paddingBottom:90}}><ReviewsSection {...props} type="shop" /></div></>
+  if (subPage === 'shipping') return <><BackBar onBack={back} title="Shipping" /><div style={{paddingBottom:90}}><ShippingSection workspace={workspace} toast={toast} /></div></>
+  if (subPage === 'policy')   return (
+    <>
+      <BackBar onBack={back} title="Policy" />
+      <div style={{paddingBottom:90}}>
+        <PolicySection workspace={workspace} toast={toast} refetch={refetch} type="shop" />
+      </div>
+    </>
+  )
+
+  return <OverviewSection {...props} activeTab="shop" onNavigate={(page) => setSubPage(page)} />
+}

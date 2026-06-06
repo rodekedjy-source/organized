@@ -9,16 +9,23 @@ import ClientsSection       from '../sections/ClientsSection'
 import OfferingsSection     from '../sections/OfferingsSection'
 import OverviewSection      from '../sections/OverviewSection'
 import PortfolioSection     from '../sections/PortfolioSection'
+import OrdersSection        from '../sections/OrdersSection'
 import ProductsSection      from '../sections/ProductsSection'
 import ReviewsSection       from '../sections/ReviewsSection'
 import ServicesSection      from '../sections/ServicesSection'
 import SettingsSection      from '../sections/SettingsSection'
+import PolicySection       from '../sections/PolicySection'
+import PaymentsSection     from '../sections/PaymentsSection'
+import FloatingTabBar from '../sections/FloatingTabBar'
+import BookingTab     from '../sections/BookingTab'
+import ShopTab        from '../sections/ShopTab'
+import LearnTab       from '../sections/LearnTab'
 
 const LANG = {
   en: {
     morning:'Good morning',afternoon:'Good afternoon',evening:'Good evening',
     nav_overview:'Overview',nav_appointments:'Appointments',nav_services:'Services',
-    nav_products:'Products',nav_formations:'Formations',nav_clients:'Clients',
+    nav_products:'Products',nav_orders:'Orders',nav_formations:'Formations',nav_clients:'Clients',
     nav_availability:'Availability',nav_settings:'Settings',nav_signout:'Sign out',
     nav_portfolio:'Portfolio',nav_reviews:'Reviews',nav_payments:'Payments',
     copy_link:'Copy link',link_copied:'Booking link copied!',
@@ -73,7 +80,7 @@ const LANG = {
   fr: {
     morning:'Bonjour',afternoon:'Bonjour',evening:'Bonsoir',
     nav_overview:'Accueil',nav_appointments:'Rendez-vous',nav_services:'Services',
-    nav_products:'Produits',nav_formations:'Formations',nav_clients:'Clients',
+    nav_products:'Produits',nav_orders:'Commandes',nav_formations:'Formations',nav_clients:'Clients',
     nav_availability:'Disponibilités',nav_settings:'Paramètres',nav_signout:'Déconnexion',
     nav_portfolio:'Portfolio',nav_reviews:'Avis',nav_payments:'Paiements',
     copy_link:'Copier le lien',link_copied:'Lien copié !',
@@ -128,7 +135,7 @@ const LANG = {
   es: {
     morning:'Buenos días',afternoon:'Buenas tardes',evening:'Buenas noches',
     nav_overview:'Inicio',nav_appointments:'Citas',nav_services:'Servicios',
-    nav_products:'Productos',nav_formations:'Formaciones',nav_clients:'Clientes',
+    nav_products:'Productos',nav_orders:'Pedidos',nav_formations:'Formaciones',nav_clients:'Clientes',
     nav_availability:'Disponibilidad',nav_settings:'Configuración',nav_signout:'Cerrar sesión',
     nav_portfolio:'Portfolio',nav_reviews:'Reseñas',nav_payments:'Pagos',
     copy_link:'Copiar enlace',link_copied:'¡Enlace copiado!',
@@ -282,16 +289,22 @@ const I = {
   box:   <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M1 4.5l7-3 7 3v7l-7 3-7-3v-7z"/><path d="M8 1.5v14M1 4.5l7 3 7-3"/></svg>,
   grad:  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M8 2L1 6l7 4 7-4-7-4z"/><path d="M3 8.5V12c0 1 2 2.5 5 2.5s5-1.5 5-2.5V8.5"/></svg>,
   users: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="6" cy="5" r="2.5"/><path d="M1 13c0-2.5 2-4 5-4s5 1.5 5 4"/><circle cx="12" cy="5" r="2"/><path d="M14 13c0-1.5-1-3-3-3"/></svg>,
-  gear:  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8" cy="8" r="2.5"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.1 3.1l1.4 1.4M11.5 11.5l1.4 1.4M3.1 12.9l1.4-1.4M11.5 4.5l1.4-1.4"/></svg>,
+  gear:  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>,
   bell:  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M8 1a5 5 0 00-5 5v3.5L1.5 11h13L13 9.5V6a5 5 0 00-5-5zM6 11v.5a2 2 0 004 0V11"/></svg>,
   check: <svg viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="1.5,5 4,7.5 8.5,2.5"/></svg>,
   star:  <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1l1.8 4.5H15l-4.2 3 1.6 4.8L8 10.8l-4.4 2.5 1.6-4.8L1 6.5h5.2z"/></svg>,
   clock: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8" cy="8" r="6.5"/><path d="M8 4.5V8l2.5 2"/></svg>,
   link:  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M6.5 9.5a3.5 3.5 0 005 0l2-2a3.5 3.5 0 00-5-5l-1 1"/><path d="M9.5 6.5a3.5 3.5 0 00-5 0l-2 2a3.5 3.5 0 005 5l1-1"/></svg>,
   avail: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8" cy="8" r="6.5"/><path d="M8 4v4l2.5 2.5"/></svg>,
-  card:  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="1" y="3.5" width="14" height="9" rx="1.5"/><path d="M1 6.5h14"/><path d="M4 10h2M9 10h3"/></svg>,
+  card:   <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="1" y="3.5" width="14" height="9" rx="1.5"/><path d="M1 6.5h14"/><path d="M4 10h2M9 10h3"/></svg>,
+  shield: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M8 1.5l5 2v4c0 3.2-2.3 5.8-5 6.8-2.7-1-5-3.6-5-6.8v-4l5-2z"/></svg>,
+  orders: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="1.5" width="12" height="13" rx="1.5"/><path d="M5 5h6M5 8h6M5 11h4"/></svg>,
 }
 
+const PLAN_FEATURES = {
+  free: [], essential: [],
+  pro: ['products', 'formations', 'analytics_full', 'custom_branding', 'clients_unlimited'],
+}
 function canAccess(subscription, feature) {
   const plan = subscription?.plan || 'essential'
   const feats = PLAN_FEATURES[plan] || []
@@ -304,7 +317,6 @@ function UpgradeGate({ feature }) {
   const INFO = {
     products:   { name:'Product Sales',          desc:'Sell products directly through your booking page.' },
     formations: { name:'Workshops & Formations', desc:'Create and monetize courses, workshops, and events.' },
-    ai_enhance: { name:'AI Photo Enhancement',   desc:'Transform product photos into professional studio shots.' },
     clients_unlimited: { name:'Unlimited Clients', desc:'Remove the 50-client cap on your Essential plan.' },
   }
   const info = INFO[feature] || { name: feature, desc: '' }
@@ -798,10 +810,18 @@ export default function Dashboard() {
   const [subscription,setSubscription]=useState(null)
   const [showPaywall,setShowPaywall]=useState(false)
   const [lang,setLang]=useState('en')
+  const [activeTab,setActiveTab]=useState('booking')
   const [pendingReviews,setPendingReviews]=useState(0)
+  const [pendingOrders,setPendingOrders]=useState(0)
+  const [badges,setBadges]=useState({booking:0,shop:0,learn:0})
   const [avatarExpanded,setAvatarExpanded]=useState(false)
   const [avatarUploading,setAvatarUploading]=useState(false)
   const navigate = useNavigate()
+
+  // Auto-navigate to Payments after Stripe Connect redirect
+  useEffect(()=>{
+    if(new URLSearchParams(window.location.search).get('stripe')==='success') setPage('payments')
+  },[])
 
   // Lock body scroll when sidebar is open
   useEffect(()=>{
@@ -825,6 +845,10 @@ export default function Dashboard() {
       supabase.from('workspaces').select('*').eq('user_id',s.user.id).maybeSingle(),
       supabase.from('users').select('*').eq('id',s.user.id).maybeSingle(),
     ])
+    if (ws?.beta_suspended === true) {
+      window.location.replace('/suspended')
+      return
+    }
     setWorkspace(ws)
     setOwnerData(user)
     if(user?.language) setLang(user.language)
@@ -840,7 +864,76 @@ export default function Dashboard() {
       supabase.from('reviews').select('id',{count:'exact'}).eq('workspace_id',ws.id).eq('is_approved',false)
         .then(({count})=>setPendingReviews(count||0))
     }
+    // Pending orders badge
+    if(ws?.id){
+      supabase.from('orders').select('id',{count:'exact'}).eq('workspace_id',ws.id).eq('status','confirmed').is('deleted_at',null)
+        .then(({count})=>setPendingOrders(count||0))
+    }
   }
+
+  useEffect(()=>{
+    if(!workspace?.id) return
+    const channel = supabase
+      .channel('workspace-status-' + workspace.id)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'workspaces',
+        filter: `id=eq.${workspace.id}`,
+      }, (payload) => {
+        const w = payload.new
+        if (w.beta_suspended === true && !w.is_beta) {
+          window.location.replace('/suspended')
+        } else {
+          setWorkspace(prev => ({ ...prev, ...w }))
+        }
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [workspace?.id])
+
+  async function fetchBadges(wsId){
+    if(!wsId) return
+    const[{count:bookingCount},{count:shopCount},{count:learnCount},{count:waitlistCount}]=await Promise.all([
+      supabase.from('appointments').select('id',{count:'exact',head:true}).eq('workspace_id',wsId).eq('status','pending'),
+      supabase.from('orders').select('id',{count:'exact',head:true}).eq('workspace_id',wsId).in('status',['pending','confirmed']).is('deleted_at',null),
+      supabase.from('enrollments').select('id',{count:'exact',head:true}).eq('workspace_id',wsId).eq('payment_status','pending'),
+      supabase.from('waitlist_entries').select('id',{count:'exact',head:true}).eq('workspace_id',wsId).is('notified_at',null),
+    ])
+    setBadges({booking:bookingCount||0,shop:shopCount||0,learn:(learnCount||0)+(waitlistCount||0)})
+  }
+  useEffect(()=>{
+    if(!workspace?.id) return
+    fetchBadges(workspace.id)
+    const interval=setInterval(()=>fetchBadges(workspace.id),60000)
+    return()=>clearInterval(interval)
+  },[workspace?.id])
+
+  useEffect(()=>{
+    if(!workspace?.id) return
+    const ordersChannel=supabase
+      .channel('orders-changes')
+      .on('postgres_changes',{event:'*',schema:'public',table:'orders',filter:`workspace_id=eq.${workspace.id}`},()=>{ fetchBadges(workspace.id) })
+      .subscribe()
+    const appointmentsChannel=supabase
+      .channel('appointments-changes')
+      .on('postgres_changes',{event:'*',schema:'public',table:'appointments',filter:`workspace_id=eq.${workspace.id}`},()=>{ fetchBadges(workspace.id) })
+      .subscribe()
+    const enrollmentsChannel=supabase
+      .channel('enrollments-changes')
+      .on('postgres_changes',{event:'*',schema:'public',table:'enrollments',filter:`workspace_id=eq.${workspace.id}`},()=>{ fetchBadges(workspace.id) })
+      .subscribe()
+    const waitlistChannel=supabase
+      .channel('waitlist-badge-changes')
+      .on('postgres_changes',{event:'*',schema:'public',table:'waitlist_entries',filter:`workspace_id=eq.${workspace.id}`},()=>{ fetchBadges(workspace.id) })
+      .subscribe()
+    return()=>{
+      supabase.removeChannel(ordersChannel)
+      supabase.removeChannel(appointmentsChannel)
+      supabase.removeChannel(enrollmentsChannel)
+      supabase.removeChannel(waitlistChannel)
+    }
+  },[workspace?.id])
 
   function setTheme(t){
     setThemeState(t)
@@ -866,16 +959,7 @@ export default function Dashboard() {
   async function handleSignOut(){ await supabase.auth.signOut(); navigate('/') }
 
   const NAV=[
-    {key:'overview',label:'nav_overview',icon:I.home},
-    {key:'appointments',label:'nav_appointments',icon:I.cal},
-    {key:'services',label:'nav_services',icon:I.box},
-    {key:'products',label:'nav_products',icon:I.box},
-    {key:'formations',label:'nav_formations',icon:I.grad},
-    {key:'clients',label:'nav_clients',icon:I.users},
     {key:'payments',label:'nav_payments',icon:I.card},
-    {key:'portfolio',label:'nav_portfolio',icon:I.box},
-    {key:'reviews',label:'nav_reviews',icon:I.home},
-    {key:'availability',label:'nav_availability',icon:I.avail},
     {key:'settings',label:'nav_settings',icon:I.gear},
   ]
 
@@ -899,12 +983,14 @@ export default function Dashboard() {
       case 'appointments': return <AppointmentsSection {...props}/>
       case 'services':     return <ServicesSection {...props}/>
       case 'products':     return canAccess(subscription,'products') ? <ProductsSection {...props}/> : <UpgradeGate feature="products"/>
+      case 'orders':       return <OrdersSection workspace={workspace} toast={toast}/>
       case 'formations':   return canAccess(subscription,'formations') ? <OfferingsSection {...props}/> : <UpgradeGate feature="formations"/>
       case 'clients':      return <ClientsSection {...props}/>
-      case 'payments':     return <Payments {...props}/>
+      case 'payments':     return <PaymentsSection workspace={workspace} toast={toast} refetchWorkspace={fetchWorkspace}/>
       case 'portfolio':    return <PortfolioSection {...props}/>
       case 'reviews':      return <ReviewsSection {...props}/>
       case 'availability': return <AvailabilitySection {...props}/>
+      case 'policy':       return <PolicySection workspace={workspace} toast={toast} refetch={fetchWorkspace}/>
       case 'settings':     return <SettingsSection {...props}/>
       default:             return <OverviewSection {...props}/>
     }
@@ -930,11 +1016,16 @@ export default function Dashboard() {
             Organized<span className="brand-dot">.</span>
           </div>
         </div>
+        <div style={{display:'flex',alignItems:'center',gap:2}}>
+          <button onClick={()=>navigateTo('settings')} style={{background:'none',border:'none',cursor:'pointer',width:34,height:34,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',color:'var(--ink-3)',flexShrink:0}} aria-label="Settings">
+            <span style={{width:18,height:18,display:'flex'}}>{I.gear}</span>
+          </button>
+        </div>
       </div>
 
       {/* SIDEBAR */}
-      {menuOpen&&<div className="overlay-bg" onClick={()=>setMenuOpen(false)}/>}
-      <div className={`sidebar${menuOpen?' open':''}`}>
+      {menuOpen&&<div className="sidebar-overlay" onClick={()=>setMenuOpen(false)}/>}
+      <div className={`sidebar${menuOpen?' sidebar-open':''}`}>
         <div className="sidebar-head">
           <div className="sb-brand">Organized<span style={{color:'var(--gold)'}}>.</span></div>
           <button className="sb-close" onClick={()=>setMenuOpen(false)}>✕</button>
@@ -1049,13 +1140,16 @@ export default function Dashboard() {
               {n.key==='reviews'&&pendingReviews>0&&(
                 <span style={{background:'#f59e0b',color:'#fff',borderRadius:100,padding:'1px 7px',fontSize:'.65rem',fontWeight:700,flexShrink:0}}>{pendingReviews}</span>
               )}
+              {n.key==='orders'&&pendingOrders>0&&(
+                <span style={{background:'#C9A84C',color:'#1A0900',borderRadius:100,padding:'1px 7px',fontSize:'.65rem',fontWeight:700,flexShrink:0}}>{pendingOrders}</span>
+              )}
             </div>
           ))}
         </nav>
         <div className="sb-footer">
           {workspace?.slug&&(
             <a
-              href={`${window.location.origin}/${workspace.slug}`}
+              href={`https://beorganized.io/book/${workspace.slug}`}
               target="_blank"
               rel="noopener noreferrer"
               style={{display:'block',marginBottom:'.65rem',padding:'.75rem .9rem',background:'var(--gold-lt)',border:'1px solid var(--gold-dim)',borderRadius:12,cursor:'pointer',textDecoration:'none'}}
@@ -1066,7 +1160,7 @@ export default function Dashboard() {
                 </div>
                 <svg viewBox="0 0 12 12" fill="none" stroke="var(--gold)" strokeWidth="1.5" width="10" height="10"><path d="M2 10L10 2M10 2H5M10 2v5"/></svg>
               </div>
-              <div style={{fontSize:'.8rem',color:'var(--ink)',fontWeight:600,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>beorganized.io/{workspace.slug}</div>
+              <div style={{fontSize:'.8rem',color:'var(--ink)',fontWeight:600,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>beorganized.io/book/{workspace.slug}</div>
               <div style={{marginTop:6,height:3,background:'rgba(0,0,0,.08)',borderRadius:10,overflow:'hidden'}}>
                 <div style={{height:'100%',width:subscription?.plan?'100%':'35%',background:'linear-gradient(90deg,#a8863d,var(--gold))',borderRadius:10,transition:'width .6s ease'}}/>
               </div>
@@ -1078,9 +1172,20 @@ export default function Dashboard() {
       </div>
 
       {/* MAIN */}
-      <main className="main-content">
-        {renderPage()}
+      <main className="main-content" style={{paddingBottom:'96px'}}>
+        {(()=>{
+          const isPro = subscription?.plan === 'pro' && (subscription?.status === 'active' || subscription?.status === 'trialing') && (subscription?.trial_end ? new Date(subscription.trial_end) > new Date() : true)
+          const tabProps={workspace,toast,lang,session,ownerData,refetchWorkspace:fetchWorkspace,refetch:fetchWorkspace,theme,setTheme,setPage:navigateTo,subscription,isPro}
+          if(page==='settings' || page==='payments') return renderPage()
+          return <>
+            {activeTab==='booking' && <BookingTab {...tabProps}/>}
+            {activeTab==='shop'    && <ShopTab    {...tabProps}/>}
+            {activeTab==='learn'   && <LearnTab   {...tabProps}/>}
+          </>
+        })()}
       </main>
+
+      {!menuOpen&&<FloatingTabBar activeTab={activeTab} onTabChange={(tab)=>{setActiveTab(tab);setPage('overview');setPageStack([])}} bookingBadge={badges.booking} shopBadge={badges.shop} learnBadge={badges.learn} />}
 
       {/* TOAST */}
       {toastMsg&&(
@@ -1100,15 +1205,21 @@ const css = `
   --ink:#1a1814; --ink-2:#3d3a35; --ink-3:#7a7774;
   --bg:#f5f3ef; --surface:#ffffff; --border:rgba(0,0,0,.07); --border-2:rgba(0,0,0,.12);
   --green:#2e7d52; --red:#c0392b; --orange:#c07d2b;
+  --bg-base:#f5f3ef; --bg-card:#ffffff; --bg-card-dark:#1a1814; --bg-card-border:rgba(0,0,0,.07);
+  --text-primary:#1a1814; --text-secondary:#7a7774; --text-on-dark:#ffffff;
+  --accent-gold:#c5a96a; --tab-bar-bg:#ffffff; --tab-bar-border:rgba(0,0,0,.07);
 }
 [data-theme="dark"]{
   --ink:#f0ece4; --ink-2:#c8c2b8; --ink-3:#7a7774;
   --bg:#141210; --surface:#1e1b17; --border:rgba(255,255,255,.07); --border-2:rgba(255,255,255,.12);
   --gold:#d4a952;
+  --bg-base:#141210; --bg-card:#1e1b17; --bg-card-dark:#252525; --bg-card-border:rgba(255,255,255,.07);
+  --text-primary:#f0ece4; --text-secondary:#7a7774; --text-on-dark:#ffffff;
+  --accent-gold:#d4a952; --tab-bar-bg:#1e1b17; --tab-bar-border:rgba(255,255,255,.07);
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{font-size:16px;-webkit-text-size-adjust:100%}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;-webkit-font-smoothing:antialiased}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg-base);color:var(--text-primary);min-height:100vh;-webkit-font-smoothing:antialiased}
 
 .app-wrap{min-height:100vh;display:flex;flex-direction:column}
 
@@ -1123,9 +1234,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .av-btn{width:34px;height:34px;border-radius:50%;background:var(--gold);color:var(--ink);font-weight:700;font-size:.82rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-family:'Playfair Display',serif}
 
 /* SIDEBAR */
-.overlay-bg{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:60;backdrop-filter:blur(2px)}
-.sidebar{position:fixed;left:0;top:0;bottom:0;width:280px;background:var(--surface);z-index:70;display:flex;flex-direction:column;transform:translateX(-100%);transition:transform .28s cubic-bezier(.4,0,.2,1);box-shadow:8px 0 32px rgba(0,0,0,.12)}
-.sidebar.open{transform:translateX(0)}
+.sidebar-overlay{position:fixed;inset:0;z-index:299;background:rgba(0,0,0,0.4)}
+.sidebar{position:fixed;top:0;left:0;width:78%;max-width:320px;height:100vh;z-index:300;background:var(--bg-card);display:flex;flex-direction:column;overflow-y:auto;box-shadow:4px 0 24px rgba(0,0,0,0.12);transform:translateX(-100%);transition:transform 0.3s ease}
+.sidebar-open{transform:translateX(0)}
 .sidebar-head{display:flex;align-items:center;justify-content:space-between;padding:1.1rem 1.25rem;border-bottom:1px solid var(--border)}
 .sb-brand{font-family:'Playfair Display',serif;font-size:1.2rem;font-weight:500;color:var(--ink)}
 .sb-close{background:none;border:none;cursor:pointer;color:var(--ink-3);font-size:1.1rem;padding:4px}
@@ -1139,7 +1250,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .sb-active{color:var(--ink);font-weight:600;background:var(--gold-lt) !important}
 .sb-active .sb-icon{color:var(--gold)}
 .sb-icon{width:16px;height:16px;display:flex;flex-shrink:0}
-.sb-footer{padding:1rem 1.25rem;border-top:1px solid var(--border)}
+.sb-footer{padding:1rem 1.25rem;border-top:1px solid var(--border);position:sticky;bottom:0;background:var(--bg-card);padding-bottom:calc(1rem + env(safe-area-inset-bottom, 80px))}
 .sb-signout{width:100%;padding:.6rem;background:none;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-family:inherit;font-size:.82rem;color:var(--ink-3);transition:all .15s}
 .sb-signout:hover{background:var(--bg);color:var(--ink)}
 
@@ -1153,14 +1264,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .head-actions{display:flex;gap:.5rem;align-items:center;flex-shrink:0}
 
 /* CARDS */
-.card{background:var(--surface);border-radius:14px;border:1px solid var(--border);margin-bottom:1.25rem;overflow:hidden}
-.card-head{display:flex;align-items:center;justify-content:space-between;padding:1rem 1.4rem;border-bottom:1px solid var(--border)}
+.card{background:var(--bg-card);border-radius:14px;border:1px solid var(--bg-card-border);margin-bottom:1.25rem;overflow:hidden}
+.card-head{display:flex;align-items:center;justify-content:space-between;padding:1rem 1.4rem;border-bottom:1px solid var(--bg-card-border)}
 .card-title{font-weight:600;font-size:.9rem;color:var(--ink)}
 .card-sub{font-size:.75rem;color:var(--ink-3);margin-top:2px}
 .card-body{padding:1.25rem 1.4rem}
 
 /* NEXT UP BANNER */
-.next-up-banner{background:#1a1814;border-radius:16px;padding:1.1rem 1.25rem;display:flex;flex-direction:column;margin-bottom:1.25rem;box-shadow:0 4px 24px rgba(0,0,0,.28)}
+.next-up-banner{background:var(--bg-card-dark);border-radius:16px;padding:1.1rem 1.25rem;display:flex;flex-direction:column;margin-bottom:1.25rem;box-shadow:0 4px 24px rgba(0,0,0,.28)}
 .next-up-left{display:flex;align-items:center;gap:.85rem;flex:1;min-width:0}
 .next-up-icon{width:38px;height:38px;border-radius:50%;background:rgba(197,169,106,.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--gold)}
 .next-up-icon svg{width:17px;height:17px}
@@ -1171,7 +1282,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .next-up-amount{font-size:.75rem;color:var(--gold);font-weight:500;margin-top:1px}
 
 /* COACH SLIDER */
-.coach-slider{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1rem 1.25rem 1.1rem;margin-bottom:1.25rem}
+.coach-slider{background:var(--bg-card);border:1px solid var(--bg-card-border);border-radius:14px;padding:1rem 1.25rem 1.1rem;margin-bottom:1.25rem}
 .coach-slider-label{font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--gold);margin-bottom:.6rem}
 .coach-slider-body{display:flex;align-items:flex-start;gap:.75rem;min-height:44px;transition:opacity .25s}
 .coach-fade-out{opacity:0}
@@ -1187,7 +1298,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 /* STAT CARDS */
 .stats-scroll{display:flex;gap:.75rem;overflow-x:auto;margin-bottom:1.25rem;padding-bottom:.25rem;scrollbar-width:none}
 .stats-scroll::-webkit-scrollbar{display:none}
-.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1rem 1.2rem;min-width:160px;flex-shrink:0;text-align:left}
+.stat-card{background:var(--bg-card);border:1px solid var(--bg-card-border);border-radius:12px;padding:1rem 1.2rem;min-width:160px;flex-shrink:0;text-align:left}
 .stat-card-btn{cursor:pointer;transition:box-shadow .15s}
 .stat-card-btn:hover{box-shadow:0 4px 16px rgba(0,0,0,.08)}
 .stat-label{font-size:.65rem;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-3);margin-bottom:.5rem}
@@ -1305,6 +1416,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .prod-body{padding:.85rem}
 .prod-name{font-weight:600;font-size:.85rem;color:var(--ink);margin-bottom:.25rem}
 .prod-price{font-family:'Playfair Display',serif;font-size:.95rem;color:var(--ink);margin-bottom:.35rem}
+.prod-sale-badge{position:absolute;top:8px;left:8px;background:#1A0900;color:#F0DEB8;font-size:.62rem;font-weight:700;letter-spacing:.12em;padding:3px 8px;border-radius:2px;text-transform:uppercase;pointer-events:none;z-index:2}
 
 /* FORMATIONS */
 .formation-row{display:flex;align-items:center;gap:1rem;padding:1rem 1.4rem;border-bottom:1px solid var(--border);transition:background .12s}
