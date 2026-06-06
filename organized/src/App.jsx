@@ -51,8 +51,6 @@ export default function App() {
         if (event === 'SIGNED_OUT') {
           setSession(null)
           setNeedsOnboarding(false)
-          // Clear any invalid tokens from localStorage
-          localStorage.removeItem('sb-bwfpioxvfqwnwzkvtebg-auth-token')
         }
       }
     )
