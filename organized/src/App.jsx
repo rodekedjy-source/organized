@@ -40,11 +40,11 @@ export default function App() {
       async (event, session) => {
         if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
           if (session) {
-            const { data: ws } = await supabase
+            const { data: ws, error: wsError } = await supabase
               .from('workspaces').select('id')
               .eq('user_id', session.user.id).maybeSingle()
-            if (!ws) setNeedsOnboarding(true)
-            else setNeedsOnboarding(false)
+            if (!wsError && !ws) setNeedsOnboarding(true)
+            else if (!wsError && ws) setNeedsOnboarding(false)
             setSession(session)
           }
         }
