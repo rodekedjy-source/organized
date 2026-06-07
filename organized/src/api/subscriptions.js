@@ -18,7 +18,7 @@ export function isPro(subscription) {
 }
 
 export async function createCheckoutSession(priceId, workspaceId, billingInterval) {
-  const { data, error } = await supabase.functions.invoke('create-checkout-payment-intent', {
+  const { data, error } = await supabase.functions.invoke('create-subscription', {
     body: { price_id: priceId, workspace_id: workspaceId, billing_interval: billingInterval },
   })
   if (error) throw error
