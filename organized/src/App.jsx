@@ -27,10 +27,10 @@ export default function App() {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       clearTimeout(timeout)
       if (session) {
-        const { data: ws } = await supabase
+        const { data: ws, error: wsError } = await supabase
           .from('workspaces').select('id')
           .eq('user_id', session.user.id).maybeSingle()
-        if (!ws) setNeedsOnboarding(true)
+        if (!wsError && !ws) setNeedsOnboarding(true)
       }
       setSession(session ?? null)
       setSessionChecked(true)
