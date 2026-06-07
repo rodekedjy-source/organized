@@ -1,5 +1,13 @@
 import { useState } from 'react'
-import { createCheckoutSession } from '../api/subscriptions'
+import { supabase } from '../lib/supabase'
+
+async function createCheckoutSession(priceId, workspaceId, billingInterval) {
+  const { data, error } = await supabase.functions.invoke('create-subscription', {
+    body: { price_id: priceId, workspace_id: workspaceId, billing_interval: billingInterval },
+  })
+  if (error) throw error
+  return data
+}
 
 const PRICES = {
   essential: {
