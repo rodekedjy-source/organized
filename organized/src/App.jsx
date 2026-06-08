@@ -25,12 +25,19 @@ export default function App() {
     const timeout = setTimeout(() => setSessionChecked(true), 3000)
 
     supabase.auth.getSession().then(async ({ data: { session } }) => {
+      console.log('=== APP INIT ===')
+      console.log('session:', session ? 'FOUND' : 'NULL')
       clearTimeout(timeout)
       if (session) {
+        console.log('user id:', session.user.id)
         const { data: ws, error: wsError } = await supabase
           .from('workspaces').select('id')
           .eq('user_id', session.user.id).maybeSingle()
-        if (!wsError && !ws) setNeedsOnboarding(true)
+        console.log('workspace:', ws ? 'FOUND' : 'NULL', 'error:', wsError?.message)
+        if (!wsError && !ws) {
+          console.log('==> SETTING needsOnboarding TRUE')
+          setNeedsOnboarding(true)
+        }
       }
       setSession(session ?? null)
       setSessionChecked(true)
