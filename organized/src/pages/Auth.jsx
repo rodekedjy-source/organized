@@ -98,12 +98,12 @@ function GoogleIcon(){
   )
 }
 
-export default function Auth({ onAuth, onOnboarding }) {
+export default function Auth({ session, needsOnboarding, sessionChecked, onAuth, onOnboarding }) {
   const [mode,       setMode]    = useState('signup')
   const [step,       setStep]    = useState(1)
   const [loading,    setLoading] = useState(false)
   const [gLoading,   setGLoading]= useState(false)
-  const [checking,   setChecking]= useState(true)   // checking OAuth session on mount
+  const checking = !sessionChecked
   const [error,      setError]   = useState('')
   const [forgotMode, setForgotMode] = useState(false)
   const [forgotSent, setForgotSent] = useState(false)
@@ -133,92 +133,23 @@ export default function Auth({ onAuth, onOnboarding }) {
     }
   }, [])
 
-  // OAuth callback handler — fires when redirected back from Google (?callback=true)
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    if (params.get('callback') === 'true') {
-      console.log('[callback] detected')
-      supabase.auth.getSession().then(async ({ data: { session } }) => {
-        console.log('[callback] session:', session?.user?.email)
-        if (session) {
-          const { data: ws } = await supabase
-            .from('workspaces')
-            .select('id')
-            .eq('user_id', session.user.id)
-            .maybeSingle()
-          console.log('[callback] workspace:', ws)
-          if (ws) {
-            onAuth(session)
-          } else {
-            setTempSession(session)
-            setOauthFlow(true)
-            setMode('signup')
-            setStep(3)
-          }
-        }
-      })
+    if (!sessionChecked) return
+    if (session && needsOnboarding) {
+      const meta = session.user.user_metadata || {}
+      setForm(f => ({
+        ...f,
+        full_name: meta.full_name || meta.name || f.full_name,
+        email:     session.user.email || f.email,
+      }))
+      setTempSession(session)
+      setOauthFlow(true)
+      setMode('signup')
+      setStep(3)
     }
-  }, [])
+  }, [sessionChecked, session, needsOnboarding])
 
   function set(k,v){ setForm(f=>({...f,[k]:v})); setError('') }
-
-  // ── Mount: check if a session already exists (OAuth callback) ──
-  // This is the RELIABLE way — getSession() works even if the SIGNED_IN
-  // event fired before this component mounted (race condition).
-  useEffect(() => {
-    const init = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession()
-
-        if (!session) {
-          // No session = normal new visitor, show signup/login
-          setChecking(false)
-          return
-        }
-
-        // Session exists on /auth — this is an OAuth return
-        // Check if they already have a workspace
-        const { data: workspace } = await supabase
-          .from('workspaces').select('id')
-          .eq('user_id', session.user.id).maybeSingle()
-
-        if (workspace) {
-          // Returning user with workspace — send to dashboard
-          onAuth(session)
-          navigate('/dashboard')
-          return
-        }
-
-        // New OAuth user — no workspace yet — show business setup
-        const meta = session.user.user_metadata || {}
-        setForm(f => ({
-          ...f,
-          full_name: meta.full_name || meta.name || '',
-          email:     session.user.email || '',
-        }))
-
-        const isOAuthCallback = window.location.search.includes('callback=true')
-          || session.user?.app_metadata?.provider !== 'email'
-
-        if (isOAuthCallback) {
-          onOnboarding(true)
-          setOauthFlow(true)
-          setMode('signup')
-          setStep(3)
-          setTempSession(session)
-        } else {
-          setChecking(false)
-        }
-
-      } catch(err) {
-        console.error('Auth init error:', err)
-      } finally {
-        setChecking(false)
-      }
-    }
-
-    init()
-  }, []) // runs once on mount only
 
   // ── OTP ──────────────────────────────────────────────────────
   function handleOtp(i,val){
