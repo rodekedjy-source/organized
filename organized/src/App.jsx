@@ -26,24 +26,34 @@ export default function App() {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
-          clearTimeout(timeout)
-          if (session) {
-            const { data: ws, error: wsError } = await supabase
-              .from('workspaces').select('id')
-              .eq('user_id', session.user.id).maybeSingle()
-            if (!wsError && !ws) setNeedsOnboarding(true)
-            else if (!wsError && ws) setNeedsOnboarding(false)
-            setSession(session)
-          } else {
-            setSession(null)
+        try {
+          if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+            clearTimeout(timeout)
+            if (session) {
+              const { data: ws, error: wsError } = await supabase
+                .from('workspaces').select('id')
+                .eq('user_id', session.user.id).maybeSingle()
+              if (!wsError && !ws) setNeedsOnboarding(true)
+              else if (!wsError && ws) setNeedsOnboarding(false)
+              setSession(session)
+            } else {
+              setSession(null)
+            }
+            setSessionChecked(true)
           }
-          setSessionChecked(true)
-        }
-        if (event === 'SIGNED_OUT') {
-          clearTimeout(timeout)
-          setSession(null)
-          setNeedsOnboarding(false)
+          if (event === 'SIGNED_OUT') {
+            clearTimeout(timeout)
+            setSession(null)
+            setNeedsOnboarding(false)
+            setSessionChecked(true)
+          }
+        } catch (err) {
+          if (err?.name === 'AbortError' || err?.message?.includes('aborted')) {
+            // Safari iOS aborts fetch on page unload — ignore silently
+            // Do NOT update session state — let the next page load handle it
+            return
+          }
+          // Real errors: still set sessionChecked to avoid infinite splash
           setSessionChecked(true)
         }
       }
