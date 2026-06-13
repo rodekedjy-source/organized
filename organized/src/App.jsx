@@ -24,21 +24,10 @@ export default function App() {
   useEffect(() => {
     const timeout = setTimeout(() => setSessionChecked(true), 3000)
 
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      clearTimeout(timeout)
-      if (session) {
-        const { data: ws, error: wsError } = await supabase
-          .from('workspaces').select('id')
-          .eq('user_id', session.user.id).maybeSingle()
-        if (!wsError && !ws) setNeedsOnboarding(true)
-      }
-      setSession(session ?? null)
-      setSessionChecked(true)
-    })
-
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
+          clearTimeout(timeout)
           if (session) {
             const { data: ws, error: wsError } = await supabase
               .from('workspaces').select('id')
@@ -46,11 +35,16 @@ export default function App() {
             if (!wsError && !ws) setNeedsOnboarding(true)
             else if (!wsError && ws) setNeedsOnboarding(false)
             setSession(session)
+          } else {
+            setSession(null)
           }
+          setSessionChecked(true)
         }
         if (event === 'SIGNED_OUT') {
+          clearTimeout(timeout)
           setSession(null)
           setNeedsOnboarding(false)
+          setSessionChecked(true)
         }
       }
     )
