@@ -1,9 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { fetchWorkspaceAndUser, fetchSubscription, getSession, onAuthStateChange } from '../api/workspace'
+import { fetchWorkspaceAndUser, fetchSubscription } from '../api/workspace'
 import { fetchPendingReviewsCount } from '../api/notifications'
 
-export function useWorkspace() {
-  const [session, setSession] = useState(null)
+export function useWorkspace(session) {
   const [workspace, setWorkspace] = useState(null)
   const [ownerData, setOwnerData] = useState(null)
   const [subscription, setSubscription] = useState(null)
@@ -47,20 +46,12 @@ export function useWorkspace() {
   }, [session])
 
   useEffect(() => {
-    getSession().then(({ data: { session: s } }) => {
-      setSession(s)
-      if (s) refresh(s)
-      else setLoading(false)
-    })
-
-    const sub = onAuthStateChange((_, s) => {
-      setSession(s)
-      if (s) refresh(s)
-      else setLoading(false)
-    })
-
-    return () => sub.unsubscribe()
-  }, [])
+    if (session) {
+      refresh(session)
+    } else {
+      setLoading(false)
+    }
+  }, [session?.user?.id])
 
   return { session, workspace, ownerData, subscription, pendingReviews, loading, error, refresh }
 }

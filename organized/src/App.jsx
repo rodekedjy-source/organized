@@ -86,7 +86,7 @@ export default function App() {
         path="/dashboard/*"
         element={session ? (
           <ToastProvider>
-            <WorkspaceProvider>
+            <WorkspaceProvider session={session}>
               <Dashboard key={session.user.id} session={session} />
             </WorkspaceProvider>
           </ToastProvider>

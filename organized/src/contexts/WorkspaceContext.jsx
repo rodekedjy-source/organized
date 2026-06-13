@@ -4,8 +4,8 @@ import { useWorkspace } from '../hooks/useWorkspace'
 
 const WorkspaceContext = createContext(null)
 
-export function WorkspaceProvider({ children }) {
-  const { session, workspace, ownerData, subscription, pendingReviews, loading, error, refresh } = useWorkspace()
+export function WorkspaceProvider({ session, children }) {
+  const { workspace, ownerData, subscription, pendingReviews, loading, error, refresh } = useWorkspace(session)
   const navigate = useNavigate()
 
   useEffect(() => {
