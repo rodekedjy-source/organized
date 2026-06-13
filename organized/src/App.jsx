@@ -22,7 +22,7 @@ export default function App() {
   const [sessionChecked,  setSessionChecked]  = useState(false)
 
   useEffect(() => {
-    const timeout = setTimeout(() => setSessionChecked(true), 3000)
+    const timeout = setTimeout(() => setSessionChecked(true), 10000)
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
